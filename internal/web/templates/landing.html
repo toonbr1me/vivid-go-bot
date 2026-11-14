@@ -1,0 +1,162 @@
+{{define "content"}}
+{{range .Site.Blocks}}
+{{if .Template}}
+{{include .Template (dict "Block" . "Page" $)}}
+{{else}}
+
+{{if eq .Type "hero"}}
+<section class="hero">
+  <div class="hero-copy">
+    {{if .Icon}}<span class="eyebrow">{{.Icon}}</span>{{end}}
+    <h1>{{.Title}}</h1>
+    <p class="lead">{{.Text}}</p>
+    <div class="hero-actions">
+      {{range .Links}}<a class="btn btn-{{if eq .Style "ghost"}}ghost{{else}}primary{{end}}" href="{{.Href}}">{{.Label}}</a>{{end}}
+      {{if $.Data.TrialAvailable}}<form method="post" action="/trial" class="inline-form">
+        <input type="hidden" name="csrf" value="{{$.CSRF}}">
+        <button class="btn btn-ghost" type="submit">Попробовать {{$.Data.TrialDays}} {{daysWord $.Data.TrialDays}}</button>
+      </form>{{else if not $.Data.LoggedIn}}<a class="btn btn-ghost" href="/login?next=%2F">Попробовать бесплатно</a>{{end}}
+    </div>
+    {{if .Note}}<p class="hero-note">{{.Note}}</p>{{end}}
+  </div>
+  <div class="hero-card">
+    <div class="hero-card-head">
+      <span class="dot"></span>
+      <span>Доступ активен</span>
+    </div>
+    <div class="hero-card-body">
+      <div class="metric"><span>Скорость</span><strong>до 1 Гбит/с</strong></div>
+      <div class="metric"><span>Протокол</span><strong>VLESS / Reality</strong></div>
+      <div class="metric"><span>Устройства</span><strong>по тарифу</strong></div>
+      <div class="metric"><span>Подключение</span><strong>1 ссылка</strong></div>
+    </div>
+    {{if $.Data.StarterPrice}}<div class="hero-card-foot">от <strong>{{money $.Data.StarterPrice}}</strong> · оплата картой, СБП и звёздами</div>{{end}}
+  </div>
+</section>
+{{end}}
+
+{{if eq .Type "features"}}
+<section class="section">
+  <div class="section-head">
+    <h2>{{.Title}}</h2>
+    {{if .Subtitle}}<p class="muted">{{.Subtitle}}</p>{{end}}
+  </div>
+  <div class="features">
+    {{range .Items}}
+    <article class="feature">
+      <span class="feature-icon">{{.Icon}}</span>
+      <h3>{{.Title}}</h3>
+      <p>{{.Text}}</p>
+    </article>
+    {{end}}
+  </div>
+</section>
+{{end}}
+
+{{if eq .Type "plans"}}
+<section class="section" id="pricing">
+  <div class="section-head">
+    <h2>{{.Title}}</h2>
+    {{if .Subtitle}}<p class="muted">{{.Subtitle}}</p>{{end}}
+  </div>
+  {{if $.Data.Plans}}
+  <div class="plans">
+    {{range $.Data.Plans}}
+    <article class="plan{{if .Best}} plan-best{{end}}">
+      {{if .Best}}<span class="badge">Выгоднее всего</span>{{end}}
+      <h3>{{.Plan.Title}}</h3>
+      <p class="muted">{{.Plan.Days}} {{daysWord .Plan.Days}} доступа</p>
+      <div class="plan-price">{{money .Plan.Price}}</div>
+      <p class="muted small">{{money .Monthly}} в месяц</p>
+      <ul class="plan-list">
+        <li>{{.Devices}} устройств одновременно</li>
+        <li>Безлимитный трафик</li>
+        <li>Все локации и протоколы</li>
+        <li>Помощь в подключении</li>
+      </ul>
+      <a class="btn btn-primary btn-block" href="/buy?plan={{.Plan.ID}}">Выбрать</a>
+    </article>
+    {{end}}
+  </div>
+  {{else}}
+  <div class="card empty">Тарифы временно недоступны. Напишите в поддержку — поможем.</div>
+  {{end}}
+
+  {{if $.Data.TrialDays}}
+  <div class="trial-banner">
+    <div>
+      <h3>Сначала попробовать</h3>
+      <p class="muted">Пробный доступ на {{$.Data.TrialDays}} {{daysWord $.Data.TrialDays}} — без карты и обязательств.</p>
+    </div>
+    {{if $.Data.LoggedIn}}
+      {{if $.Data.TrialAvailable}}
+      <form method="post" action="/trial" class="inline-form">
+        <input type="hidden" name="csrf" value="{{$.CSRF}}">
+        <button class="btn btn-ghost" type="submit">Активировать</button>
+      </form>
+      {{else}}<span class="chip">Уже использован</span>{{end}}
+    {{else}}
+      <a class="btn btn-ghost" href="/login?next=%2F">Войти и попробовать</a>
+    {{end}}
+  </div>
+  {{end}}
+</section>
+{{end}}
+
+{{if eq .Type "faq"}}
+<section class="section">
+  <div class="section-head">
+    <h2>{{.Title}}</h2>
+    {{if .Subtitle}}<p class="muted">{{.Subtitle}}</p>{{end}}
+  </div>
+  <div class="faq">
+    {{range .Items}}
+    <details class="faq-item">
+      <summary>{{.Q}}</summary>
+      <p>{{.A}}</p>
+    </details>
+    {{end}}
+  </div>
+</section>
+{{end}}
+
+{{if eq .Type "steps"}}
+<section class="section">
+  <div class="section-head">
+    <h2>{{.Title}}</h2>
+    {{if .Subtitle}}<p class="muted">{{.Subtitle}}</p>{{end}}
+  </div>
+  <ol class="steps">
+    {{range .Steps}}<li>{{.}}</li>{{end}}
+  </ol>
+</section>
+{{end}}
+
+{{if eq .Type "text"}}
+<section class="section">
+  <div class="section-head">
+    <h2>{{.Title}}</h2>
+    {{if .Subtitle}}<p class="muted">{{.Subtitle}}</p>{{end}}
+  </div>
+  <p>{{.Text}}</p>
+</section>
+{{end}}
+
+{{if eq .Type "cta"}}
+<section class="section cta-section">
+  <div class="cta-card">
+    <div>
+      <h2>{{.Title}}</h2>
+      <p class="muted">{{.Text}}</p>
+    </div>
+    <div class="cta-actions">
+      {{range .Links}}<a class="btn btn-{{if eq .Style "ghost"}}ghost{{else}}primary{{end}}" href="{{.Href}}">{{.Label}}</a>{{end}}
+      {{if $.BotURL}}<a class="btn btn-ghost" href="{{$.BotURL}}" target="_blank" rel="noopener">Открыть бота</a>{{end}}
+    </div>
+  </div>
+</section>
+{{end}}
+
+{{end}}
+{{end}}
+{{end}}

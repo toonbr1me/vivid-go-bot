@@ -1,0 +1,2 @@
+ALTER TABLE bot_ui_preferences ADD COLUMN IF NOT EXISTS card_message_id INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE bot_ui_preferences ADD COLUMN IF NOT EXISTS card_state JSONB NOT NULL DEFAULT '{}';

@@ -1,0 +1,70 @@
+{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>Партнёрство</h1>
+    {{if .Data.Partner}}
+    <p class="muted">{{.Data.Partner.Name}} · с {{ts .Data.Partner.CreatedAt}}</p>
+    {{else}}
+    <p class="muted">Вы пока не партнёр программы</p>
+    {{end}}
+  </div>
+  <a class="btn btn-ghost" href="/account">Кабинет</a>
+</div>
+
+{{if .Data.Partner}}
+<section class="grid-two">
+  <article class="card">
+    <div class="card-head"><h2>Начисления</h2></div>
+    <dl class="facts">
+      <div><dt>Баланс</dt><dd>{{money .Data.Balance}}</dd></div>
+      <div><dt>Всего начислено</dt><dd>{{money .Data.Rewarded}}</dd></div>
+    </dl>
+    {{if .Data.Rewards}}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Заказ</th><th>Сумма</th><th>Статус</th><th>Когда</th></tr></thead>
+        <tbody>
+        {{range .Data.Rewards}}
+          <tr>
+            <td><code>{{.OrderID}}</code></td>
+            <td>{{money .Amount}}</td>
+            <td>{{if eq .Status "credited"}}зачислено{{else}}в ожидании{{end}}</td>
+            <td class="muted small nowrap">{{ts .CreatedAt}}</td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table>
+    </div>
+    {{else}}<p class="muted">Начислений пока нет.</p>{{end}}
+  </article>
+
+  <article class="card">
+    <div class="card-head"><h2>Ваши коды</h2></div>
+    {{if .Data.Codes}}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Код</th><th>Скидка</th><th>Применений</th><th>Состояние</th></tr></thead>
+        <tbody>
+        {{range .Data.Codes}}
+          <tr>
+            <td><code>{{.Code}}</code></td>
+            <td>{{.DiscountPercent}}%</td>
+            <td>{{.UsedCount}}</td>
+            <td>{{if .IsActive}}<span class="chip chip-ok">активен</span>{{else}}<span class="chip">выключен</span>{{end}}</td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table>
+    </div>
+    {{else}}
+    <p class="muted">Своих кодов пока нет. Их создаёт владелец сервиса в админке.</p>
+    {{end}}
+  </article>
+</section>
+{{else}}
+<article class="card">
+  <p class="muted">Партнёрская программа: вы приводите людей по своим кодам и получаете процент с их покупок на внутренний баланс.</p>
+  <p class="muted small">Чтобы присоединиться, откройте присланную вам ссылку-приглашение и войдите тем же аккаунтом.</p>
+</article>
+{{end}}
+{{end}}

@@ -1,0 +1,66 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: vivid_test
+          POSTGRES_USER: vivid_test
+          POSTGRES_PASSWORD: test_only_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U vivid_test -d vivid_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://vivid_test:test_only_password@127.0.0.1:5432/vivid_test?sslmode=disable
+      REQUIRE_TEST_DATABASE: 'true'
+      DATABASE_URL: ''
+      CGO_ENABLED: '1'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - name: Go tests and race detector
+        run: go test -race -count=1 -coverprofile=coverage.out ./...
+      - name: Static checks
+        run: go vet ./...
+      - name: Known vulnerabilities
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+      - name: JavaScript tests
+        run: node --test internal/bot/widgets/interface.test.cjs internal/web/static/ticket-live.test.cjs
+      - name: Coverage report
+        run: go tool cover -html=coverage.out -o=coverage.html
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: coverage
+          path: |
+            coverage.out
+            coverage.html
+          if-no-files-found: ignore
+          retention-days: 14

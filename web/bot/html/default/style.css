@@ -1,0 +1,4 @@
+/* Optional project overrides, loaded after the built-in Telegram theme.
+   Keep Telegram colours with var(--tg-theme-...), or define your own palette
+   here when BOT_HTML_THEME=custom. The widget is limited to 4 KiB compressed. */
+#hero-copy { line-height: 1.5; }

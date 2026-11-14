@@ -1,0 +1,7 @@
+{{define "flash"}}{{if .Flash}}<div class="container flash-wrap"><div class="flash flash-{{if eq .Flash.Kind "error"}}bad{{else}}ok{{end}}" role="status">{{.Flash.Text}}</div></div>{{end}}{{end}}
+
+{{define "price"}}<span class="price">{{money .}}</span>{{end}}
+
+{{define "auth-note"}}
+<p class="muted small">Нужен вход: без аккаунта мы не сможем выдать подписку и показать её в кабинете.</p>
+{{end}}

@@ -1,0 +1,263 @@
+{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>Кабинет</h1>
+    <p class="muted">{{if .Subject.Email}}{{str .Subject.Email}}{{else if .Subject.Name}}{{str .Subject.Name}}{{else}}Ваш аккаунт{{end}}</p>
+  </div>
+  <a class="btn btn-primary" href="/buy">Продлить или купить</a>
+</div>
+
+{{if .Data.AccessError}}<p class="notice-line">{{.Data.AccessError}}</p>{{end}}
+
+<section class="grid-two">
+  <article class="card">
+    <div class="card-head">
+      <h2>Подписка</h2>
+      {{if .Data.Access.Found}}
+        {{if .Data.Access.Active}}<span class="chip chip-ok">Активна</span>{{else}}<span class="chip chip-warn">Истекла</span>{{end}}
+      {{else}}<span class="chip">Нет данных</span>{{end}}
+    </div>
+
+    {{if .Data.Access.Found}}
+      <dl class="facts">
+        <div><dt>Действует до</dt><dd>{{date .Data.Access.ExpireAt}}</dd></div>
+        <div><dt>Лимит устройств</dt><dd>{{.Data.DeviceLimit}}</dd></div>
+        <div><dt>Трафик</dt><dd>{{bytes .Data.Access.TrafficLimit}}</dd></div>
+      </dl>
+
+      {{if .Data.Access.TrafficLimit}}
+      <div class="traffic">
+        <div class="traffic-bar"><span style="width:{{pct .Data.Access.TrafficUsedBytes .Data.Access.TrafficLimit}}%"></span></div>
+        <p class="muted small">Использовано {{pct .Data.Access.TrafficUsedBytes .Data.Access.TrafficLimit}}% · {{bytes .Data.Access.TrafficLimit}} в месяце</p>
+      </div>
+      {{end}}
+
+      {{if .Data.Access.URL}}
+      <div class="field">
+        <label for="sub-url">Ссылка на подписку</label>
+        <div class="copy-row">
+          <input id="sub-url" value="{{.Data.Access.URL}}" readonly onclick="this.select()">
+          <a class="btn btn-primary" href="{{.Data.Access.URL}}" target="_blank" rel="noopener">Открыть</a>
+        </div>
+        <p class="muted small">Вставьте ссылку в HAPP, Streisand или v2rayNG. Инструкция — на странице <a href="/connect">«Подключение»</a>.</p>
+      </div>
+      {{else}}
+      <p class="muted">Ссылка появится, когда панель закончит выдачу. Обновите страницу через минуту.</p>
+      {{end}}
+
+      {{if .Data.Access.Devices}}
+      <div class="device-list">
+        <h3>Подключённые устройства</h3>
+        {{range .Data.Access.Devices}}
+        <div class="device-row">
+          <div>
+            <strong>{{if .Model}}{{.Model}}{{else}}{{.Platform}}{{end}}</strong>
+            <span class="muted small">{{.Platform}} · с {{.CreatedAt.Format "02.01.2006"}}</span>
+          </div>
+          <form method="post" action="/account/devices/detach" class="inline-form">
+            <input type="hidden" name="csrf" value="{{$.CSRF}}">
+            <input type="hidden" name="hwid" value="{{.HWID}}">
+            <button class="btn btn-ghost btn-sm" type="submit">Отвязать</button>
+          </form>
+        </div>
+        {{end}}
+      </div>
+      {{end}}
+    {{else}}
+      <p class="muted">Активной подписки пока нет. Выберите тариф — доступ появится сразу после оплаты.</p>
+      {{if .Data.TrialEnabled}}<p class="muted small">Можно начать с бесплатного пробного периода.</p>{{end}}
+      <a class="btn btn-primary" href="/buy">Выбрать тариф</a>
+    {{end}}
+  </article>
+
+  <article class="card">
+    <div class="card-head"><h2>Баланс и приглашения</h2></div>
+    <dl class="facts">
+      <div><dt>Баланс</dt><dd>{{money .Data.Referral.Balance}}</dd></div>
+      <div><dt>Приглашено</dt><dd>{{.Data.Referral.Invited}}</dd></div>
+      <div><dt>Наград получено</dt><dd>{{.Data.Referral.RewardCount}}</dd></div>
+      <div><dt>Дней за друзей</dt><dd>{{.Data.Referral.EarnedDays}}</dd></div>
+    </dl>
+    {{if .Data.RefLink}}
+      <div class="field">
+        <label for="ref-link">Ваша ссылка</label>
+        <input id="ref-link" value="{{.Data.RefLink}}" readonly onclick="this.select()">
+      </div>
+      <p class="muted small">Приглашённый получает доступ, вы — дни или деньги на баланс: как настроено ниже.</p>
+    {{else}}
+      <p class="muted small">Ссылка для приглашений появится, когда бот узнает ваш профиль.</p>
+    {{end}}
+
+    <div class="field">
+      <label>За что начислять за приглашённых</label>
+      <form method="post" action="/account/referral-mode" class="inline-form">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <input type="hidden" name="mode" value="days">
+        <button class="btn {{if eq .Data.ReferralMode "days"}}btn-primary{{else}}btn-ghost{{end}} btn-sm" type="submit">Днями подписки</button>
+      </form>
+      <form method="post" action="/account/referral-mode" class="inline-form" style="margin-top:8px">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <input type="hidden" name="mode" value="balance">
+        <button class="btn {{if eq .Data.ReferralMode "balance"}}btn-primary{{else}}btn-ghost{{end}} btn-sm" type="submit">Деньгами на баланс</button>
+      </form>
+      <p class="muted small">Днями: 7 дней за первого оплатившего и 3 за второго. Деньгами: процент с каждой покупки на внутренний баланс.</p>
+    </div>
+
+    <div class="field">
+      <label>Telegram</label>
+      {{if .Data.HasTelegram}}
+        <span class="chip chip-ok">Привязан</span>
+        <p class="muted small">Уведомления и поддержка доступны в боте.</p>
+      {{else if .Data.ShowLink}}
+        {{if .Data.LinkURL}}<a class="btn btn-primary btn-block" href="{{.Data.LinkURL}}" target="_blank" rel="noopener">Открыть бота и привязать</a>{{end}}
+        <p class="muted small">Код: <code>{{.Data.LinkCode}}</code>. Действует 30 минут.</p>
+      {{else}}
+        <a class="btn btn-ghost" href="/account?link=1">Привязать Telegram</a>
+      {{end}}
+    </div>
+  </article>
+</section>
+
+<section class="card">
+  <div class="card-head"><h2>Промокод</h2></div>
+  <form method="post" action="/account/promo" class="promo-form compact">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <div class="input-row">
+      <input name="code" value="{{.Data.Promo}}" placeholder="Введите код" autocomplete="off">
+      <button class="btn btn-ghost" type="submit">Применить</button>
+    </div>
+    <p class="muted small">Подарочный код добавит дни сразу. Скидочный — покажет новые цены в тарифах.</p>
+  </form>
+</section>
+
+{{if .Data.DeviceEnabled}}
+<section class="section">
+  <div class="section-head">
+    <h2>Устройства</h2>
+    <p class="muted">Дополнительные слоты докупаются на остаток подписки.</p>
+  </div>
+
+  {{if .Data.DeviceSlots}}
+  <div class="card">
+    <h3>Ваши пакеты</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Пакет</th><th>Устройств</th><th>Действует до</th><th>Стоимость продления</th><th></th></tr></thead>
+        <tbody>
+        {{range .Data.DeviceSlots}}
+          <tr>
+            <td>{{.Title}}</td>
+            <td>{{.Devices}}</td>
+            <td>{{date .ExpiresAt}}</td>
+            <td>{{money .Price}}</td>
+            <td>
+              {{if .Renewable}}
+              <form method="post" action="/account/devices/renew" class="inline-form">
+                <input type="hidden" name="csrf" value="{{$.CSRF}}">
+                <input type="hidden" name="pack" value="{{.PackID}}">
+                <input type="hidden" name="grant" value="{{.OrderID}}">
+                {{if $.Data.Options}}
+                <select name="option" aria-label="Способ оплаты">
+                  {{range $.Data.Options}}<option value="{{.Token}}">{{.ProviderLabel}} · {{.MethodLabel}}</option>{{end}}
+                </select>
+                <button class="btn btn-ghost btn-sm" type="submit">Продлить</button>
+                {{else}}<span class="muted small">оплата недоступна</span>{{end}}
+              </form>
+              {{else}}<span class="muted small">—</span>{{end}}
+            </td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {{end}}
+
+  {{if .Data.DeviceQuotes}}
+  <div class="plans plans-compact">
+    {{range .Data.DeviceQuotes}}
+    <article class="plan">
+      <h3>{{.Pack.Title}}</h3>
+      <p class="muted small">{{.Pack.Devices}} устройств на {{.BilledDays}} {{daysWord .BilledDays}}</p>
+      <div class="plan-price">{{money .Amount}}</div>
+      <form method="post" action="/account/devices/buy">
+        <input type="hidden" name="csrf" value="{{$.CSRF}}">
+        <input type="hidden" name="pack" value="{{.Pack.ID}}">
+        {{if $.Data.Options}}
+        <select name="option" aria-label="Способ оплаты">
+          {{range $.Data.Options}}<option value="{{.Token}}">{{.ProviderLabel}} · {{.MethodLabel}}</option>{{end}}
+        </select>
+        <button class="btn btn-primary btn-block" type="submit">Докупить</button>
+        {{else}}<span class="muted small">Оплата временно недоступна</span>{{end}}
+      </form>
+    </article>
+    {{end}}
+  </div>
+  {{else}}
+  <p class="muted small">Пакеты появятся, когда у подписки будет больше суток срока.</p>
+  {{end}}
+</section>
+{{end}}
+
+{{with .Data.Recurring}}
+<section class="section"><article class="card">
+  <h2>Автопродление</h2>
+  <p>{{.StatusText}}</p>
+  <dl class="facts"><div><dt>Платёж</dt><dd>{{money .Amount}} / {{.Days}} {{daysWord .Days}} · {{.ProviderName}}</dd></div>
+  {{if and .Enabled .NextChargeAt}}<div><dt>Следующее списание</dt><dd>{{datetime .NextChargeAt}}</dd></div>{{end}}
+  {{if .StoppedAt}}<div><dt>Остановлено</dt><dd>{{datetime .StoppedAt}}</dd></div>{{end}}</dl>
+  {{if .Enabled}}<form method="post" action="/account/recurring/cancel"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button type="submit" class="btn btn-ghost">Отключить автопродление</button><p class="muted small">Оплаченный срок сохранится. Уже отправленный платёж может завершиться после отмены.</p></form>{{end}}
+</article></section>
+{{end}}
+<section class="section">
+  <div class="section-head"><h2>История покупок</h2></div>
+  {{if .Data.Orders}}
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Когда</th><th>Что</th><th>Сумма</th><th>Статус</th><th></th></tr></thead>
+        <tbody>
+        {{range .Data.Orders}}
+          <tr>
+            <td class="nowrap">{{.CreatedAt.Format "02.01.2006"}}</td>
+            <td>{{kind .Kind}} · {{.PlanID}}</td>
+            <td>{{money .Amount}}</td>
+            <td>{{(progress .).Label}}<p class="muted small">{{(progress .).Detail}}</p><code>{{.OrderID}}</code></td>
+            <td>
+              <form method="post" action="/account/orders/check" class="inline-form">
+                <input type="hidden" name="csrf" value="{{$.CSRF}}">
+                <input type="hidden" name="order" value="{{.OrderID}}">
+                <button class="btn btn-ghost btn-sm" type="submit">Проверить</button>
+              </form>
+              <a class="btn btn-ghost btn-sm" href="/support?order={{.OrderID}}">Поддержка по заказу</a>
+            </td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {{else}}
+  <div class="card empty">Покупок пока не было.</div>
+  {{end}}
+</section>
+
+<section class="section">
+  <div class="section-head">
+    <h2>Обращения в поддержку</h2>
+    <a class="btn btn-ghost btn-sm" href="/support">Новое обращение</a>
+  </div>
+  {{if .Data.Tickets}}
+  <div class="card">
+    {{range .Data.Tickets}}
+    <a class="ticket-row" href="/support/tickets/{{.ID}}">
+      <span><strong>#{{.ID}}</strong> {{.Subject}}{{if .Unread}} · Новый ответ{{end}}</span>
+      <span class="chip {{if eq .Status "open"}}chip-warn{{else}}chip-ok{{end}}">{{if eq .Status "open"}}Открыто{{else}}Закрыто{{end}}</span>
+    </a>
+    {{end}}
+  </div>
+  {{else}}
+  <div class="card empty">Обращений нет. Если что-то не работает — напишите, разберёмся.</div>
+  {{end}}
+</section>
+{{end}}

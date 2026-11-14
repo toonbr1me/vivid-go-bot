@@ -1,0 +1,8 @@
+{{define "brand/intro"}}
+<section class="brand-intro" id="{{.Block.ID}}">
+  <p class="muted">{{.Page.Site.Data.audience}}</p>
+  <h1>{{.Block.Title}}</h1>
+  <p class="lead">{{.Block.Text}}</p>
+  <div class="hero-actions">{{range .Block.Links}}<a class="btn btn-primary" href="{{.Href}}">{{.Label}}</a>{{end}}</div>
+</section>
+{{end}}

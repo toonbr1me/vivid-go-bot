@@ -1,0 +1,23 @@
+{
+  "brand": "Свой сервис",
+  "locale": "ru",
+  "tagline": "Ваш продукт и ваш стиль",
+  "navigation": [
+    {"label": "Тарифы", "href": "/buy"},
+    {"label": "О проекте", "href": "/about"},
+    {"label": "Помощь", "href": "/support"}
+  ],
+  "colors": {"accent": "#16704a", "accent-soft": "#35a16f", "radius": "12px"},
+  "stylesheets": ["/static/brand.css"],
+  "texts": {"footer.caption": "Поддержка рядом", "nav.login": "Мой аккаунт"},
+  "data": {"audience": "Для тех, кто ценит простое подключение"},
+  "blocks": [
+    {"template": "brand/intro", "title": "Начните со своего продукта", "text": "Этот блок заменяется без правок Go.", "links": [{"label": "Выбрать тариф", "href": "/buy"}]},
+    {"type": "plans", "title": "Тарифы"},
+    {"type": "steps", "title": "Начать просто", "steps": ["Войдите в аккаунт", "Выберите тариф", "Подключите устройство"]}
+  ],
+  "pages": {
+    "account": {"layout": "layouts/app.html", "title": "Мой аккаунт", "data": {"help_label": "Нужна помощь?"}},
+    "about": {"path": "/about", "template": "pages/about.html", "title": "О проекте", "data": {"heading": "Расскажите о своём проекте", "body": "Тексты, компоненты, страницы и каркасы принадлежат вашей теме."}}
+  }
+}

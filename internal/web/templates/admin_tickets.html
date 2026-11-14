@@ -1,0 +1,36 @@
+{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>Обращения</h1>
+    <p class="muted">Очередь поддержки: новые сверху</p>
+  </div>
+  <nav class="nav">
+    <a href="/admin">Сводка</a>
+    <a href="/admin/promos">Промокоды</a>
+    <a href="/admin/partners">Партнёры</a>
+    <a href="/admin/tickets">Обращения</a>
+    <a href="/admin/audit">Журнал</a>
+  </nav>
+</div>
+
+<article class="card">
+  {{if .Data.Tickets}}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Тема</th><th>Клиент</th><th>Состояние</th><th>Когда</th></tr></thead>
+      <tbody>
+      {{range .Data.Tickets}}
+        <tr>
+          <td>{{.ID}}</td>
+          <td>{{.Subject}}</td>
+          <td>{{if .TelegramID}}{{.TelegramID}}{{else}}—{{end}}</td>
+          <td><span class="chip">{{.WorkState}}</span></td>
+          <td class="muted small nowrap">{{datetime .CreatedAt}}</td>
+        </tr>
+      {{end}}
+      </tbody>
+    </table>
+  </div>
+  {{else}}<p class="muted">Открытых обращений нет.</p>{{end}}
+</article>
+{{end}}

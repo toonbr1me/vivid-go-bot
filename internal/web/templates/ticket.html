@@ -1,0 +1,37 @@
+{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>Обращение #{{.Data.Ticket.ID}}</h1>
+    <p class="muted">{{.Data.Ticket.Subject}} · создано {{.Data.Ticket.CreatedAt.Format "02.01.2006 15:04"}}</p>
+  </div>
+  <a class="btn btn-ghost" href="/support">К поддержке</a>
+</div>
+
+<section class="card">
+  {{if .Data.Ticket.Context}}<p class="muted">{{.Data.Ticket.Context}}</p>{{end}}
+  <div class="chat" id="chat" data-ticket="{{.Data.Ticket.ID}}" data-csrf="{{.CSRF}}">
+    {{range .Data.Messages}}
+    <div class="message{{if .FromAdmin}} message-support{{end}}" data-id="{{.ID}}">
+      <div class="message-head">
+        <strong>{{if .Assistant}}Помощник{{else if .FromAdmin}}Поддержка{{else}}Вы{{end}}</strong>
+        <span class="muted small">{{.CreatedAt.Format "02.01.2006 15:04"}}</span>
+      </div>
+      <div class="message-text">{{markdown .Text}}</div>
+      {{if .FileID}}<a class="btn btn-ghost btn-sm" href="/support/tickets/{{$.Data.Ticket.ID}}/files/{{.ID}}">Скачать вложение</a>{{end}}
+    </div>
+    {{else}}
+    <p class="muted" id="chat-empty">Сообщений пока нет.</p>
+    {{end}}
+  </div>
+
+  {{if .Data.Open}}<form id="ticket-compose" method="post" action="/support/tickets/{{.Data.Ticket.ID}}" class="stack">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <label for="message">{{if .Data.Open}}Добавить сообщение{{else}}Ответить (обращение откроется снова){{end}}</label>
+    <textarea id="message" name="message" rows="4" maxlength="4000" required placeholder="Напишите ответ"></textarea>
+    <button class="btn btn-primary" type="submit">Отправить</button>
+  </form>
+  {{if not .Data.Staff}}<form id="ticket-resolve" method="post" action="/support/tickets/{{.Data.Ticket.ID}}/resolve"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="btn btn-ghost" type="submit">Проблема решена</button></form>{{end}}
+  {{else}}<p>Обращение закрыто. Переписка сохранена.</p><a class="btn btn-ghost" href="/support">Создать новое обращение</a>{{end}}
+</section>
+<script src="/static/ticket-live.js" defer></script>
+{{end}}

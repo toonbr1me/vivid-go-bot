@@ -1,0 +1,12 @@
+<!doctype html><html><head><style>
+body{margin:12px;color:var(--tg-theme-text-color)}h3{margin:0 0 12px}dl{margin:0}dl div{display:flex;justify-content:space-between;gap:12px;margin:8px 0}dt,.hint{color:var(--tg-theme-hint-color)}dd{margin:0;text-align:right}button{width:100%;margin-top:10px}.hint{font-size:12px}#error{color:var(--tg-theme-destructive-text-color)}
+</style></head><body>
+<h3>Моя подписка</h3>
+<dl><div><dt>Статус</dt><dd id="status">Загрузка…</dd></div><div><dt>Действует до</dt><dd id="until">—</dd></div><div><dt>Устройства</dt><dd id="devices">—</dd></div><div><dt>Трафик</dt><dd id="traffic">—</dd></div></dl>
+<p id="error" class="hint"></p><button id="refresh">Обновить</button><p class="hint" id="updated"></p>
+<script>
+var W=window.TelegramWidget,button=document.getElementById('refresh');
+function draw(data){if(!data)return;['status','until','devices','traffic'].forEach(function(key){if(data[key]!==undefined)document.getElementById(key).textContent=data[key];});document.getElementById('error').textContent=data.error||'';if(data.updated)document.getElementById('updated').textContent='Обновлено в '+data.updated;}
+function state(){try{draw(JSON.parse(W.chatData||'{}'));}catch(e){document.getElementById('error').textContent='Откройте карточку заново: /status';}}
+if(W){state();W.onEvent('chatDataChanged',state);button.addEventListener('click',function(){button.disabled=true;W.request('subscription:refresh').then(function(answer){try{draw(JSON.parse(answer.result||'{}'));}catch(e){draw({error:'Не удалось прочитать ответ'});}},function(){draw({error:'Нет ответа. Попробуйте позже.'});}).then(function(){button.disabled=false;});});W.ready();}else{button.disabled=true;}
+</script></body></html>

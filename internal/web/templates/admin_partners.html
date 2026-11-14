@@ -1,0 +1,53 @@
+{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>Партнёры</h1>
+    <p class="muted">Программа: партнёр приводит клиентов по своим кодам и получает вознаграждение</p>
+  </div>
+  <nav class="nav">
+    <a href="/admin">Сводка</a>
+    <a href="/admin/promos">Промокоды</a>
+    <a href="/admin/partners">Партнёры</a>
+    <a href="/admin/tickets">Обращения</a>
+    <a href="/admin/audit">Журнал</a>
+  </nav>
+</div>
+
+<article class="card">
+  <div class="card-head"><h2>Новый партнёр</h2></div>
+  <form method="post" action="/admin/partners" class="stack">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <div class="input-row">
+      <input name="name" placeholder="Имя или название" required>
+      <input name="contact" placeholder="Контакт">
+      <button class="btn btn-primary" type="submit">Создать</button>
+    </div>
+    <input name="payout_details" placeholder="Реквизиты для выплаты">
+    <textarea name="notes" rows="2" placeholder="Заметки"></textarea>
+  </form>
+</article>
+
+<article class="card">
+  <div class="card-head"><h2>Список</h2></div>
+  {{if .Data.Partners}}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Партнёр</th><th>Контакт</th><th>Кодов</th><th>Клиентов</th><th>Начислено</th><th>Ожидает выплаты</th><th>Статус</th></tr></thead>
+      <tbody>
+      {{range .Data.Partners}}
+        <tr>
+          <td><a href="/admin/partners/{{.ID}}">{{.Name}}</a></td>
+          <td>{{if .Contact}}{{.Contact}}{{else}}—{{end}}</td>
+          <td>{{.CodesCount}}</td>
+          <td>{{.ClientsCount}}</td>
+          <td>{{money .Rewarded}}</td>
+          <td>{{money .Accrued}}</td>
+          <td>{{if eq .Status "active"}}<span class="chip chip-ok">активен</span>{{else}}<span class="chip chip-warn">пауза</span>{{end}}</td>
+        </tr>
+      {{end}}
+      </tbody>
+    </table>
+  </div>
+  {{else}}<p class="muted">Партнёров пока нет.</p>{{end}}
+</article>
+{{end}}

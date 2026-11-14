@@ -1,0 +1,87 @@
+{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>Рабочий стол</h1>
+    <p class="muted">Оплата, выдача доступа и помощь клиентам</p>
+  </div>
+  <nav class="nav">
+    <a href="/admin">Сводка</a>
+    <a href="/admin/promos">Промокоды</a>
+    <a href="/admin/partners">Партнёры</a>
+    <a href="/admin/tickets">Обращения</a>
+    <a href="/admin/audit">Журнал</a>
+  </nav>
+</div>
+
+<section class="admin-metrics">
+ <div class="admin-metric"><span>Выручка за 30 дней</span><strong>{{money .Data.Stats.Revenue}}</strong></div>
+ <div class="admin-metric"><span>Оплаченных заказов</span><strong>{{.Data.Stats.PaidOrders}}</strong></div>
+ <div class="admin-metric"><span>Аккаунтов</span><strong>{{.Data.Stats.Users}}</strong></div>
+ <div class="admin-metric"><span>Открытых обращений</span><strong>{{.Data.Tickets}}</strong></div>
+</section>
+<section class="grid-two">
+  <article class="card">
+    <div class="card-head"><h2>Требует внимания</h2><span class="muted small">Вся очередь заказов</span></div>
+    {{if .Data.OperationsError}}<p role="alert">Не удалось получить сводку. Откройте заказы или повторите загрузку.</p>{{else}}
+    <dl class="facts">
+      {{if .Data.Owner}}<div><dt>Оплачены, ожидают выдачи</dt><dd>{{.Data.AwaitingAccess}}</dd></div><div><dt>Ждут оплаты больше 30 минут</dt><dd>{{.Data.AwaitingPayment}}</dd></div><div><dt>Ошибки автопродления</dt><dd>{{.Data.RecurringErrors}}</dd></div>{{end}}
+      <div><dt>Обращения клиентов</dt><dd>{{.Data.Tickets}}</dd></div>
+    </dl>
+    {{end}}
+    <div class="admin-toolbar">{{if .Data.Owner}}<a class="btn btn-primary" href="/admin/orders?attention=1">Разобрать проблемы</a>{{end}}<a class="btn btn-ghost" href="/admin/tickets">Открыть очередь</a></div>
+  </article>
+
+  <article class="card">
+    <div class="card-head"><h2>Воронка</h2></div>
+    {{if .Data.Funnel}}
+    <dl class="facts">
+      {{range .Data.Funnel}}<div><dt>{{.Step}}</dt><dd>{{.Hits}}</dd></div>{{end}}
+    </dl>
+    {{else}}<p class="muted">События появятся после первых переходов пользователей.</p><div class="admin-toolbar"><a class="btn btn-ghost" href="/admin/screens">Посмотреть путь клиента</a></div>{{end}}
+  </article>
+</section>
+
+{{if .Data.Orders}}
+<article class="card">
+  <div class="card-head"><h2>Последние заказы</h2></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Заказ</th><th>Клиент</th><th>Тариф</th><th>Сумма</th><th>Статус</th><th>Когда</th></tr></thead>
+      <tbody>
+      {{range .Data.Orders}}
+        <tr>
+          <td><code>{{.OrderID}}</code></td>
+          <td>{{if .Username}}{{str .Username}}{{else if .TelegramID}}{{.TelegramID}}{{else}}—{{end}}</td>
+          <td>{{.PlanID}}</td>
+          <td>{{money .Amount}}</td>
+          <td><span class="chip chip-{{tone .Status}}">{{status .Status}}</span></td>
+          <td class="muted small nowrap">{{datetime .CreatedAt}}</td>
+        </tr>
+      {{end}}
+      </tbody>
+    </table>
+  </div>
+</article>
+{{end}}
+
+{{if .Data.WebSupport}}
+<article class="card">
+  <div class="card-head"><h2>Заявки с сайта</h2></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Кто</th><th>Контакт</th><th>Сообщение</th><th>Когда</th></tr></thead>
+      <tbody>
+      {{range .Data.WebSupport}}
+        <tr>
+          <td>{{if .Name}}{{.Name}}{{else}}—{{end}}</td>
+          <td>{{.Contact}}</td>
+          <td>{{firstLines .Message 160}}</td>
+          <td class="muted small nowrap">{{datetime .CreatedAt}}</td>
+        </tr>
+      {{end}}
+      </tbody>
+    </table>
+  </div>
+</article>
+{{end}}
+{{end}}

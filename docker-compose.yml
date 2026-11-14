@@ -1,0 +1,39 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: vivid
+      POSTGRES_PASSWORD: vivid
+      POSTGRES_DB: vivid
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vivid -d vivid"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  app:
+    build: .
+    env_file:
+      - .env
+    environment:
+      # DOCKER_DATABASE_URL позволяет использовать существующую базу.
+      # Без переопределения используется Postgres этого compose-проекта.
+      DATABASE_URL: ${DOCKER_DATABASE_URL:-postgres://vivid:vivid@db:5432/vivid?sslmode=disable}
+      WEBHOOK_HOST: 0.0.0.0
+      WEBHOOK_PORT: 8080
+    ports:
+      - "${DOCKER_WEB_PORT:-8080}:8080"
+    volumes:
+      # Необязательные переопределения шаблонов, стилей и theme.json.
+      # Без этой папки работают встроенные шаблоны.
+      - ./web:/app/web:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:

@@ -1,0 +1,9 @@
+{
+  "name": "Vivid",
+  "accent": "telegram",
+  "radius": 8,
+  "spacing": 16,
+  "button_height": 44,
+  "heading": "balanced",
+  "navigation": "bottom"
+}

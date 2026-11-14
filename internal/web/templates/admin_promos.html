@@ -1,0 +1,87 @@
+﻿{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>Промокоды</h1>
+    <p class="muted">Коды, их скидки и партнёры, которым они принадлежат</p>
+  </div>
+  <nav class="nav">
+    <a href="/admin">Сводка</a>
+    <a href="/admin/promos">Промокоды</a>
+    <a href="/admin/partners">Партнёры</a>
+    <a href="/admin/tickets">Обращения</a>
+    <a href="/admin/audit">Журнал</a>
+  </nav>
+</div>
+
+<article class="card">
+  <div class="card-head"><h2>Новый промокод</h2></div>
+  <form method="post" action="/admin/promos" class="stack">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <div class="input-row">
+      <input name="code" placeholder="КОД" required>
+      <input name="discount" type="number" min="0" max="100" placeholder="Скидка, %">
+      <button class="btn btn-primary" type="submit">Создать</button>
+    </div>
+    <div class="input-row">
+      <input name="bonus_days" type="number" min="0" placeholder="Бонусные дни">
+      <input name="grant_days" type="number" min="0" placeholder="Подарочные дни">
+      <input name="max_uses" type="number" min="0" placeholder="Всего применений">
+      <input name="per_user_limit" type="number" min="0" placeholder="Одно человеку">
+    </div>
+  </form>
+</article>
+
+<article class="card">
+  <div class="card-head"><h2>Список</h2></div>
+  {{if .Data.Codes}}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Код</th><th>Скидка</th><th>Дни</th><th>Применений</th><th>Партнёр</th><th>Награда</th><th>Состояние</th><th></th></tr></thead>
+      <tbody>
+      {{range .Data.Codes}}
+        <tr>
+          <td><code>{{.Code}}</code></td>
+          <td>{{.DiscountPercent}}%{{if .DiscountFixed}} + {{money .DiscountFixed}}{{end}}</td>
+          <td>{{if .BonusDays}}бонус {{.BonusDays}}{{end}}{{if .GrantDays}} подарок {{.GrantDays}}{{end}}</td>
+          <td>{{.UsedCount}}{{if .MaxUses}} / {{.MaxUses}}{{end}}</td>
+          <td>{{if .PartnerID}}#{{.PartnerID}}{{else}}—{{end}}</td>
+          <td>{{if .RewardType}}{{reward .RewardType .RewardValue}}{{if eq .RewardScope "first"}} (только первая покупка){{end}}{{else}}—{{end}}</td>          <td>{{if .IsActive}}<span class="chip chip-ok">активен</span>{{else}}<span class="chip">выключен</span>{{end}}</td>
+          <td>
+            <form method="post" action="/admin/promos/{{.Code}}/toggle" class="inline-form">
+              <input type="hidden" name="csrf" value="{{$.CSRF}}">
+              <input type="hidden" name="state" value="{{if .IsActive}}off{{else}}on{{end}}">
+              <button class="btn btn-ghost btn-sm" type="submit">{{if .IsActive}}Выключить{{else}}Включить{{end}}</button>
+            </form>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="8">
+            <form method="post" action="/admin/promos/{{.Code}}/partner" class="input-row">
+              <input type="hidden" name="csrf" value="{{$.CSRF}}">
+              <select name="partner_id" aria-label="Партнёр">
+                <option value="">— без партнёра —</option>
+                {{range $.Data.Partners}}
+                <option value="{{.ID}}">{{.Name}}</option>
+                {{end}}
+              </select>
+              <select name="reward_type" aria-label="Тип награды">
+                <option value="">без награды</option>
+                <option value="percent">процент</option>
+                <option value="fixed">фиксированная сумма</option>
+              </select>
+              <input name="reward_value" placeholder="Размер награды, ₽">
+              <select name="reward_scope" aria-label="Область награды">
+                <option value="all">за все покупки</option>
+                <option value="first">только за первую</option>
+              </select>
+              <button class="btn btn-ghost btn-sm" type="submit">Сохранить партнёра</button>
+            </form>
+          </td>
+        </tr>
+      {{end}}
+      </tbody>
+    </table>
+  </div>
+  {{else}}<p class="muted">Промокодов пока нет.</p>{{end}}
+</article>
+{{end}}

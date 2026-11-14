@@ -1,0 +1,50 @@
+{{define "content"}}
+{{if .Data.Error}}
+<article class="card result-card result-bad">
+  <span class="result-icon">✕</span>
+  <h1>Оплата не прошла</h1>
+  <p class="lead">{{.Data.Error}}</p>
+  <div class="hero-actions">
+    <a class="btn btn-primary" href="/buy">Попробовать снова</a>
+    <a class="btn btn-ghost" href="/support">Написать в поддержку</a>
+  </div>
+</article>
+{{else}}
+<article class="card result-card">
+  {{if .Data.Order}}{{$p := progress .Data.Order}}
+  <h1>{{$p.Label}}</h1>
+  <p class="lead">{{$p.Detail}}</p>
+  {{else}}
+  <h1>Проверьте результат оплаты</h1>
+  <p class="lead">Подтверждённый статус заказа доступен в вашем кабинете.</p>
+  {{end}}
+
+  {{if .Data.Order}}
+  <dl class="facts">
+    <div><dt>Заказ</dt><dd>{{.Data.Order.OrderID}}</dd></div>
+    <div><dt>Сумма</dt><dd>{{money .Data.Order.Amount}}</dd></div>
+    <div><dt>Статус</dt><dd>{{(progress .Data.Order).Label}}</dd></div>
+  </dl>
+  {{end}}
+
+  {{if and .Data.Access .Data.Access.URL}}
+  <div class="field">
+    <label for="sub-url">Ссылка на подписку</label>
+    <div class="copy-row">
+      <input id="sub-url" value="{{.Data.Access.URL}}" readonly onclick="this.select()">
+      <a class="btn btn-primary" href="{{.Data.Access.URL}}" target="_blank" rel="noopener">Открыть</a>
+    </div>
+  </div>
+  {{end}}
+
+  <div class="hero-actions">
+    {{if .Subject}}<a class="btn btn-primary" href="/account">В кабинет</a>
+    {{else}}<a class="btn btn-primary" href="/login?next=%2Faccount">Войти в кабинет</a>{{end}}
+    {{if .Data.Order}}<a class="btn btn-ghost" href="/support?order={{.Data.Order.OrderID}}">Поддержка по заказу</a>
+    {{if (progress .Data.Order).Ready}}<a class="btn btn-ghost" href="/connect">Подключиться</a>{{end}}
+    {{else}}<a class="btn btn-ghost" href="/connect">Как подключиться</a>{{end}}
+  </div>
+  <p class="muted small">Для обновления статуса откройте кабинет и нажмите «Проверить» у заказа.</p>
+</article>
+{{end}}
+{{end}}

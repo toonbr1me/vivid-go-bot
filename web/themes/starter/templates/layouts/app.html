@@ -1,0 +1,26 @@
+{{define "layout"}}<!doctype html>
+<html lang="{{.Site.Locale}}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.Meta.Title}}</title>
+  <meta name="description" content="{{.Meta.Description}}">
+  <link rel="stylesheet" href="/static/style.css">
+  {{if .Site.FontCSS}}<link rel="stylesheet" href="{{.Site.FontCSS}}">{{end}}
+  {{range .Site.Stylesheets}}<link rel="stylesheet" href="{{.}}">{{end}}
+  {{range .Page.Stylesheets}}<link rel="stylesheet" href="{{.}}">{{end}}
+  <style>:root{ {{.Site.CSS}} }</style>
+  {{block "head" .}}{{end}}
+</head>
+<body class="app-layout" data-page="{{.View}}">
+  <header class="container header-inner">
+    <a class="brand" href="/">{{.Site.Brand}}</a>
+    <nav class="nav" aria-label="Кабинет"><a href="/account">Подписка</a><a href="/connect">Подключение</a><a href="/support">Поддержка</a></nav>
+  </header>
+  {{template "flash" .}}
+  <main class="container page">{{template "content" .}}</main>
+  <footer class="container site-footer"><a href="/support">{{.Page.Data.help_label}}</a></footer>
+  {{range .Site.Scripts}}<script src="{{.}}" defer></script>{{end}}
+  {{range .Page.Scripts}}<script src="{{.}}" defer></script>{{end}}
+  {{block "scripts" .}}{{end}}
+</body></html>{{end}}

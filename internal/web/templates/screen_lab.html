@@ -1,0 +1,11 @@
+{{define "screen-lab"}}
+<div id="vivid-screenlab" class="screen-lab" aria-label="Каталог экранов бота">
+ <div class="lab-toolbar"><label>Экран<select data-lab-picker aria-label="Экран бота"></select></label><div class="lab-mode" aria-label="Вид интерфейса"><button type="button" data-lab-mode="widget" aria-pressed="true">Новый · HTML</button><button type="button" data-lab-mode="rich" aria-pressed="false">Обычный · rich</button></div></div>
+ <div class="lab-stage">
+  <div class="lab-context"><span class="lab-eyebrow" data-lab-group></span><h2 data-lab-title></h2><p data-lab-description></p><div class="lab-scenarios"><span>Пройти сценарий</span><button type="button" data-lab-open="plans">Покупка → подключение</button><button type="button" data-lab-open="connect">Настройка устройства</button><button type="button" data-lab-open="devices">Управление устройствами</button><button type="button" data-lab-open="support">Обращение в поддержку</button></div><p class="lab-footnote">Демонстрационные данные. Заказы, платежи, обращения и изменения устройств не создаются.</p></div>
+  <div class="lab-phone"><div class="lab-chat-head"><span class="lab-avatar">V</span><div>Vivid<small>Предпросмотр бота</small></div><button type="button" data-lab-palette aria-label="Переключить светлую и тёмную тему">Светлая</button></div><div class="lab-chat"><div class="lab-bubble" data-lab-mount></div><div class="lab-feedback" role="status" aria-live="polite" data-lab-feedback></div></div></div>
+ </div>
+ <details class="lab-index"><summary>Все экраны <span data-lab-count></span></summary><div data-lab-index></div></details>
+ <script type="application/json" data-lab-data>{{.Data.Catalog}}</script>
+</div>
+{{end}}

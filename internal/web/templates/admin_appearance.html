@@ -1,0 +1,21 @@
+{{define "content"}}
+<div class="page-head"><div><h1>Оформление</h1><p class="muted">Проверьте тему на любом экране перед сохранением. Подписки, цены и права доступа от оформления не зависят.</p></div></div>
+<div class="admin-split">
+ <section class="card"><h2>Тема HTML-карточек</h2>
+ <form id="appearance-form" method="post" action="/admin/appearance">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <label class="admin-field">Название темы<input name="name" maxlength="48" value="{{.Data.Theme.Name}}"></label>
+  <label class="admin-field">Акцент<input name="accent" value="{{.Data.Theme.Accent}}" placeholder="telegram или #RRGGBB"><small>telegram сохраняет цвета темы клиента</small></label>
+  <label class="admin-field">Скругление<input name="radius" type="range" min="4" max="20" step="2" value="{{.Data.Theme.Radius}}"><output data-token-value="radius">{{.Data.Theme.Radius}} px</output></label>
+  <label class="admin-field">Отступы<input name="spacing" type="range" min="8" max="20" step="4" value="{{.Data.Theme.Spacing}}"><output data-token-value="spacing">{{.Data.Theme.Spacing}} px</output></label>
+  <label class="admin-field">Высота кнопок<select name="button_height"><option value="40" {{if eq .Data.Theme.ButtonHeight 40}}selected{{end}}>Компактно · 40 px</option><option value="44" {{if eq .Data.Theme.ButtonHeight 44}}selected{{end}}>Обычно · 44 px</option><option value="48" {{if eq .Data.Theme.ButtonHeight 48}}selected{{end}}>Крупно · 48 px</option></select></label>
+  <label class="admin-field">Заголовки<select name="heading"><option value="balanced" {{if eq .Data.Theme.Heading "balanced"}}selected{{end}}>Выразительные</option><option value="compact" {{if eq .Data.Theme.Heading "compact"}}selected{{end}}>Компактные</option></select></label>
+  <label class="admin-field">Навигация<select name="navigation"><option value="bottom" {{if eq .Data.Theme.Navigation "bottom"}}selected{{end}}>Внизу · ближе к большому пальцу</option><option value="top" {{if eq .Data.Theme.Navigation "top"}}selected{{end}}>Сверху · привычные вкладки</option></select></label>
+  {{if .Staff.Owner}}<div class="admin-toolbar"><button type="submit" class="btn btn-primary">Сохранить тему</button><button type="submit" name="operation" value="reset" class="btn btn-ghost">Из файлов проекта</button></div>{{else}}<p class="muted small">Сохранение доступно владельцу. Предпросмотр можно менять свободно.</p>{{end}}
+ </form>
+ </section>
+ <section class="appearance-lab">{{template "screen-lab" .}}<p class="muted small">В обычном режиме оформление rich-сообщений задаёт Telegram. HTML-карточки используют параметры темы выше.</p></section>
+</div>
+{{end}}
+{{define "head"}}<link rel="stylesheet" href="/static/screen-lab.css">{{end}}
+{{define "scripts"}}<script src="/static/bot-widget-runtime.js" defer></script><script src="/static/screen-lab.js" defer></script>{{end}}

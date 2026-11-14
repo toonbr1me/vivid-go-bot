@@ -1,0 +1,22 @@
+# sqlc — заготовка на будущее. Сейчас запросы написаны руками на pgx:
+# их немного, и они читаются как обычный SQL. Конфиг описывает, как
+# сгенерировать типизированный слой, если ручных запросов станет много.
+#
+#   go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
+#   sqlc generate
+#
+# Сгенерированный пакет в сборку пока не подключён: это отдельный шаг,
+# а не незаметная замена работающего слоя.
+version: "2"
+sql:
+  - engine: "postgresql"
+    schema: "internal/storage/migrations"
+    queries: "internal/storage/queries"
+    gen:
+      go:
+        package: "sqlcgen"
+        out: "internal/storage/sqlcgen"
+        sql_package: "pgx/v5"
+        emit_json_tags: false
+        emit_empty_slices: true
+        emit_interface: false

@@ -1,0 +1,16 @@
+.git
+.env
+.env.*
+.codex-attachments
+*.log
+*.pem
+*.key
+*.p12
+*.pfx
+coverage.html
+coverage.out
+bin
+dist
+web/theme.json
+*.exe
+*.test

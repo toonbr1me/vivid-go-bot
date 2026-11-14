@@ -1,0 +1,44 @@
+{{define "content"}}
+<div class="auth-layout">
+  <section class="card auth-card">
+    <h1>Вход в кабинет</h1>
+    <p class="muted">Подписка, устройства и история покупок — в одном месте.</p>
+
+    <form method="post" action="/auth/code" class="stack">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <input type="hidden" name="next" value="{{.Data.Next}}">
+      <label for="code">Код из бота</label>
+      <input id="code" name="code" value="{{.Data.Code}}" placeholder="Вставьте код" autocomplete="one-time-code" spellcheck="false" autofocus>
+      <button class="btn btn-primary btn-block" type="submit">Войти по коду</button>
+    </form>
+
+    {{if .Data.GoogleEnabled}}
+    <div class="divider"><span>или</span></div>
+    <a class="btn btn-ghost btn-block" href="/auth/google?next={{.Data.Next}}">Войти через Google</a>
+    {{if .Data.GoogleError}}<p class="form-error">{{.Data.GoogleError}}</p>{{end}}
+    {{end}}
+
+    <div class="auth-hint">
+      <h2>Где взять код</h2>
+      <ol>
+        <li>{{if .BotURL}}Откройте <a href="{{.BotURL}}" target="_blank" rel="noopener">бота в Telegram</a>{{else}}Откройте бота в Telegram{{end}}.</li>
+        <li>Отправьте команду <code>/weblogin</code>.</li>
+        <li>Перейдите по ссылке из ответа или введите код сюда.</li>
+      </ol>
+      <p class="muted small">Код одноразовый и действует 30 минут.</p>
+    </div>
+  </section>
+
+  <aside class="auth-aside card">
+    <h2>Что внутри</h2>
+    <ul class="check-list">
+      <li>Ссылка на подписку и инструкция по подключению</li>
+      <li>Срок действия и остаток трафика</li>
+      <li>Привязанные устройства — можно отвязать лишнее</li>
+      <li>Докупка устройств и продление пакетов</li>
+      <li>История заказов и обращения в поддержку</li>
+    </ul>
+    <p class="muted small">Вход через Google и вход по коду из бота ведут в один и тот же кабинет.</p>
+  </aside>
+</div>
+{{end}}

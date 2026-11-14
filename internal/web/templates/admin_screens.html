@@ -1,0 +1,6 @@
+{{define "content"}}
+<div class="page-head"><div><h1>Экраны и сценарии</h1><p class="muted">Один набор компонентов, два способа отображения. Кнопки ведут по демонстрационным сценариям.</p></div></div>
+{{template "screen-lab" .}}
+{{end}}
+{{define "head"}}<link rel="stylesheet" href="/static/screen-lab.css">{{end}}
+{{define "scripts"}}<script src="/static/bot-widget-runtime.js" defer></script><script src="/static/screen-lab.js" defer></script>{{end}}

@@ -1,0 +1,103 @@
+﻿{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>{{.Data.Partner.Name}}</h1>
+    <p class="muted">Партнёр #{{.Data.Partner.ID}} · создан {{ts .Data.Partner.CreatedAt}}</p>
+  </div>
+  <nav class="nav">
+    <a href="/admin">Сводка</a>
+    <a href="/admin/promos">Промокоды</a>
+    <a href="/admin/partners">Партнёры</a>
+    <a href="/admin/tickets">Обращения</a>
+    <a href="/admin/audit">Журнал</a>
+  </nav>
+</div>
+
+<section class="grid-two">
+  <article class="card">
+    <div class="card-head"><h2>Карточка</h2></div>
+    <form method="post" action="/admin/partners/{{.Data.Partner.ID}}" class="stack">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <div class="field">
+        <label for="p-name">Название</label>
+        <input id="p-name" name="name" value="{{.Data.Partner.Name}}">
+      </div>
+      <div class="field">
+        <label for="p-contact">Контакт</label>
+        <input id="p-contact" name="contact" value="{{.Data.Partner.Contact}}">
+      </div>
+      <div class="field">
+        <label for="p-payout">Реквизиты</label>
+        <input id="p-payout" name="payout_details" value="{{.Data.Partner.PayoutDetails}}">
+      </div>
+      <div class="field">
+        <label for="p-notes">Заметки</label>
+        <textarea id="p-notes" name="notes" rows="2">{{.Data.Partner.Notes}}</textarea>
+      </div>
+      <div class="field">
+        <label for="p-status">Статус</label>
+        <select id="p-status" name="status">
+          <option value="active" {{if eq .Data.Partner.Status "active"}}selected{{end}}>активен</option>
+          <option value="paused" {{if eq .Data.Partner.Status "paused"}}selected{{end}}>на паузе</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" type="submit">Сохранить</button>
+    </form>
+    <form method="post" action="/admin/partners/{{.Data.Partner.ID}}/invite" class="inline-form" style="margin-top:12px">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <button class="btn btn-ghost btn-sm" type="submit">Создать ссылку-приглашение</button>
+    </form>
+    {{if .Data.Partner.SubjectID}}
+    <p class="muted small">Аккаунт привязан: субъект #{{.Data.Partner.SubjectID}} — начисления уходят на его баланс.</p>
+    {{else}}
+    <p class="muted small">Аккаунт не привязан: начисления копятся, пока партнёр не придёт по приглашению.</p>
+    {{end}}
+  </article>
+
+  <article class="card">
+    <div class="card-head"><h2>Начисления</h2></div>
+    {{if .Data.Rewards}}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Заказ</th><th>Сумма</th><th>Статус</th><th>Когда</th></tr></thead>
+        <tbody>
+        {{range .Data.Rewards}}
+          <tr>
+            <td><code>{{.OrderID}}</code></td>
+            <td>{{money .Amount}}</td>
+            <td>{{if eq .Status "credited"}}зачислено{{else}}в ожидании{{end}}</td>
+            <td class="muted small nowrap">{{datetime .CreatedAt}}</td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table>
+    </div>
+    {{else}}<p class="muted">Начислений пока нет.</p>{{end}}
+  </article>
+</section>
+
+<article class="card">
+  <div class="card-head"><h2>Промокоды партнёра</h2></div>
+  {{if .Data.Codes}}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Код</th><th>Скидка</th><th>Награда</th><th>Применений</th><th>Состояние</th></tr></thead>
+      <tbody>
+      {{range .Data.Codes}}
+        <tr>
+          <td><code>{{.Code}}</code></td>
+          <td>{{.DiscountPercent}}%</td>
+          <td>{{if .RewardType}}{{reward .RewardType .RewardValue}}{{else}}—{{end}}</td>
+          <td>{{.UsedCount}}</td>
+          <td>{{if .IsActive}}<span class="chip chip-ok">активен</span>{{else}}<span class="chip">выключен</span>{{end}}</td>
+        </tr>
+      {{end}}
+      </tbody>
+    </table>
+  </div>
+  {{else}}
+  <p class="muted">У партнёра нет своих кодов. Создайте промокод на странице
+    <a href="/admin/promos">«Промокоды»</a> и укажите партнёра.</p>
+  {{end}}
+</article>
+{{end}}

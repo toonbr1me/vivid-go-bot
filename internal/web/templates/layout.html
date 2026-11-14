@@ -1,0 +1,93 @@
+{{define "layout"}}<!doctype html>
+<html lang="{{.Site.Locale}}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.Meta.Title}}</title>
+  <meta name="description" content="{{.Meta.Description}}">
+  <meta name="color-scheme" content="dark light">
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/style.css">
+	{{range .Site.Stylesheets}}<link rel="stylesheet" href="{{.}}">{{end}}
+	{{range .Page.Stylesheets}}<link rel="stylesheet" href="{{.}}">{{end}}
+  {{if .Site.FontCSS}}<link rel="stylesheet" href="{{.Site.FontCSS}}">{{end}}
+  <style>:root{ {{.Site.CSS}} }</style>
+  {{block "head" .}}{{end}}
+</head>
+<body data-page="{{.View}}">
+  {{block "header" .}}
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/">
+        {{if .Site.LogoURL}}<img class="brand-logo" width="32" height="32" src="{{.Site.LogoURL}}" alt="{{.Site.Brand}}">{{else}}<span class="brand-mark">{{initials .Site.Brand}}</span>{{end}}
+        <span>{{.Site.Brand}}</span>
+      </a>
+      <nav class="nav" aria-label="Основная навигация">
+        {{range .Site.Navigation}}<a href="{{.Href}}">{{.Label}}</a>{{end}}
+      </nav>
+      <div class="header-actions">
+        {{if .Subject}}
+          <a class="btn btn-ghost btn-sm" href="/account">{{text "nav.account" "Кабинет"}}</a>
+          <form method="post" action="/logout" class="inline-form">
+            <input type="hidden" name="csrf" value="{{.CSRF}}">
+            <button class="btn btn-ghost btn-sm" type="submit">{{text "nav.logout" "Выйти"}}</button>
+          </form>
+        {{else}}
+          <a class="btn btn-primary btn-sm" href="/login">{{text "nav.login" "Войти"}}</a>
+        {{end}}
+      </div>
+    </div>
+  </header>
+  {{end}}
+
+  {{template "flash" .}}
+
+  <main class="container page">
+    {{template "content" .}}
+  </main>
+
+  {{block "footer" .}}<footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-about">
+        <div class="brand brand-static">
+          <span class="brand-mark">{{initials .Site.Brand}}</span>
+          <span>{{.Site.Brand}}</span>
+        </div>
+        <p class="muted">{{.Site.Tagline}}</p>
+        <p class="footer-note">{{.Site.FooterNote}}</p>
+        {{if .Site.LegalEntity}}<p class="muted small">{{.Site.LegalEntity}}</p>{{end}}
+      </div>
+      <div class="footer-links">
+        <div class="footer-col">
+          <span class="footer-title">Сервис</span>
+          <a href="/buy">Тарифы</a>
+          <a href="/connect">Подключение</a>
+          <a href="/account">Кабинет</a>
+          <a href="/support">Поддержка</a>
+        </div>
+        <div class="footer-col">
+          <span class="footer-title">Документы</span>
+          <a href="/terms">Соглашение</a>
+          <a href="/privacy">Конфиденциальность</a>
+          {{if .BotURL}}<a href="{{.BotURL}}" target="_blank" rel="noopener">Бот в Telegram</a>{{end}}
+        </div>
+        <div class="footer-col">
+          <span class="footer-title">Связаться</span>
+          {{if .Site.SupportEmail}}<a href="mailto:{{.Site.SupportEmail}}">{{.Site.SupportEmail}}</a>{{end}}
+          {{if .Site.SupportUsername}}<a href="https://t.me/{{.Site.SupportUsername}}" target="_blank" rel="noopener">@{{.Site.SupportUsername}}</a>{{end}}
+          <a href="/support">Форма поддержки</a>
+        </div>
+      </div>
+    </div>
+    <div class="container footer-bottom">
+      <span>© {{.Year}} {{.Site.Brand}}</span>
+      <span class="muted small">{{text "footer.caption" "Сделано для людей, а не для отчётов"}}</span>
+    </div>
+  </footer>
+  {{end}}
+  {{range .Site.Scripts}}<script src="{{.}}" defer></script>{{end}}
+  {{range .Page.Scripts}}<script src="{{.}}" defer></script>{{end}}
+  {{block "scripts" .}}{{end}}
+</body>
+</html>
+{{end}}

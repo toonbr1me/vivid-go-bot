@@ -1,0 +1,56 @@
+{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>Подключение</h1>
+    <p class="muted">Три шага: получить ссылку, поставить приложение, импортировать подписку.</p>
+  </div>
+  {{if .Site.ConnectGuideURL}}<a class="btn btn-ghost" href="{{.Site.ConnectGuideURL}}" target="_blank" rel="noopener">Подробная инструкция</a>{{end}}
+</div>
+
+{{if .Data.AccessError}}<p class="notice-line">{{.Data.AccessError}}</p>{{end}}
+
+<section class="card">
+  <h2>Ваша ссылка</h2>
+  {{if not .Data.LoggedIn}}
+    <p class="muted">Войдите в кабинет — ссылка на подписку появится здесь и будет всегда под рукой.</p>
+    <a class="btn btn-primary" href="/login?next=%2Fconnect">Войти</a>
+  {{else if .Data.Access.URL}}
+    <div class="copy-row">
+      <input value="{{.Data.Access.URL}}" readonly onclick="this.select()" aria-label="Ссылка на подписку">
+      <a class="btn btn-primary" href="{{.Data.Access.URL}}" target="_blank" rel="noopener">Открыть</a>
+    </div>
+    <p class="muted small">Ссылка персональная. Не пересылайте её другим: она даёт доступ к вашей подписке.</p>
+  {{else}}
+    <p class="muted">Ссылки пока нет: подписка не оформлена или панель ещё выдаёт доступ. Проверьте <a href="/account">кабинет</a>.</p>
+    <a class="btn btn-primary" href="/buy">Выбрать тариф</a>
+  {{end}}
+</section>
+
+<section class="steps">
+  <article class="step">
+    <span class="step-num">1</span>
+    <h3>Установите приложение</h3>
+    <p class="muted">Подойдёт HAPP, Streisand, v2rayNG или любой клиент с поддержкой VLESS. Скачайте из официального магазина приложений.</p>
+  </article>
+  <article class="step">
+    <span class="step-num">2</span>
+    <h3>Добавьте подписку</h3>
+    <p class="muted">В приложении выберите «Добавить из ссылки» или «Импорт подписки» и вставьте ссылку из кабинета. Название можно любое.</p>
+  </article>
+  <article class="step">
+    <span class="step-num">3</span>
+    <h3>Включите соединение</h3>
+    <p class="muted">Выберите локацию и нажмите «Подключиться». Если не работает — обновите подписку в приложении и проверьте время на устройстве.</p>
+  </article>
+</section>
+
+<section class="card">
+  <h2>Если что-то не получается</h2>
+  <ul class="check-list">
+    <li>Ссылка не открывается — скопируйте её целиком, без пробелов в начале и конце.</li>
+    <li>Приложение пишет «нет конфигураций» — обновите подписку, срок мог истечь.</li>
+    <li>Соединение есть, сайты не грузятся — проверьте дату и время на устройстве.</li>
+    <li>Ничего не помогло — <a href="/support">напишите в поддержку</a>, приложите скриншот ошибки.</li>
+  </ul>
+</section>
+{{end}}

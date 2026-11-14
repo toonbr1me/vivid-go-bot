@@ -1,0 +1,7 @@
+{{define "content"}}
+<article class="card document">
+  <h1>{{.Data.Title}}</h1>
+  {{range .Data.Paragraphs}}<p>{{.}}</p>{{end}}
+  <p class="muted small">Если нужна версия документа для печати или с подписью — напишите в <a href="/support">поддержку</a>.</p>
+</article>
+{{end}}
