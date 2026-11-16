@@ -124,7 +124,7 @@ func (db *DB) LivePendingOrders(ctx context.Context, telegramID, accountID *int6
 		SELECT `+orderColumns+` FROM orders
 		WHERE status = 'pending' AND kind = $3
 		  AND (payment_url IS NOT NULL)
-		  AND (payment_expires_at IS NULL OR payment_expires_at > now())
+		  AND payment_expires_at > now()
 		  AND (($1::bigint IS NOT NULL AND telegram_id = $1)
 		       OR ($2::bigint IS NOT NULL AND account_id = $2))
 		ORDER BY created_at DESC`, telegramID, accountID, kind)
@@ -303,7 +303,7 @@ func (db *DB) HasPaidProvisioning(ctx context.Context, subjectID int64) (bool, e
 			WHERE (o.account_id = a.id
 			       OR (a.telegram_id IS NOT NULL AND o.telegram_id = a.telegram_id))
 			  AND o.status IN ('paid', 'provisioned')
-			  AND o.kind = 'subscription' AND o.provider <> 'promo_gift'
+			  AND o.kind = 'subscription' AND o.amount > 0
 		)`, subjectID).Scan(&exists)
 	return exists, err
 }

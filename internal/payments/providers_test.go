@@ -97,7 +97,7 @@ func TestPlategaChecksCredentials(t *testing.T) {
 	headers := http.Header{}
 	headers.Set("X-MerchantId", "merchant")
 	headers.Set("X-Secret", "wrong")
-	body := []byte(`{"status":"CONFIRMED","payload":"order-1","amount":100,"currency":"RUB"}`)
+	body := []byte(`{"status":"CONFIRMED","payload":"order-1","id":"tx-1","amount":100,"currency":"RUB"}`)
 	if _, err := provider.Verify(context.Background(), body, headers); err == nil {
 		t.Fatal("чужие учётные данные не должны приниматься")
 	}

@@ -74,3 +74,19 @@ func TestPlategaSubscriptionActivationAloneDoesNotGrantPaidAccess(t *testing.T) 
 		t.Fatal("forged recurring callback accepted")
 	}
 }
+
+func TestPlategaPaidCallbackRequiresCompletePaymentFacts(t *testing.T) {
+	p := NewPlategaProvider("https://unused.example", "merchant", "secret", []string{"card"}, time.Second)
+	headers := http.Header{"X-Merchantid": {"merchant"}, "X-Secret": {"secret"}}
+	for _, body := range []string{
+		`{"status":"CONFIRMED","payload":"order","id":"tx"}`,
+		`{"status":"CONFIRMED","payload":"order","id":"tx","amount":100}`,
+		`{"status":"CONFIRMED","payload":"order","id":"tx","amount":"nan","currency":"RUB"}`,
+		`{"status":"CONFIRMED","payload":"order","amount":100,"currency":"RUB"}`,
+		`{"status":"CONFIRMED","payload":"order","id":"tx","amount":0,"currency":"RUB"}`,
+	} {
+		if _, err := p.Verify(context.Background(), []byte(body), headers); !errors.Is(err, ErrVerification) {
+			t.Fatalf("incomplete payment accepted: %s %v", body, err)
+		}
+	}
+}
