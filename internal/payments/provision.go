@@ -413,8 +413,20 @@ func (s *Service) reserveTarget(
 		return time.Time{}, err
 	}
 	var target time.Time
-	if err := json.Unmarshal(raw, &target); err != nil {
-		return time.Time{}, err
+	// Python journals store {target, prior}; Go stores the timestamp itself.
+	// Reuse either representation so recovery never allocates another period.
+	if len(raw) > 0 && raw[0] == '{' {
+		var legacy struct {
+			Target time.Time `json:"target"`
+		}
+		if err := json.Unmarshal(raw, &legacy); err != nil {
+			return time.Time{}, err
+		}
+		target = legacy.Target
+	} else {
+		if err := json.Unmarshal(raw, &target); err != nil {
+			return time.Time{}, err
+		}
 	}
 	if target.IsZero() {
 		return time.Time{}, errors.New("не удалось посчитать срок подписки")
