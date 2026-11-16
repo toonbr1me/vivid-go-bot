@@ -56,9 +56,40 @@ func (s *Service) Access(ctx context.Context, subject domain.Subject, username s
 }
 
 // fillAccess переносит ответ панели в доменную модель.
+// SupportAccess reads profile identifiers without repairing links or mutating
+// a profile when a staff member merely opens a support ticket.
+func (s *Service) SupportAccess(ctx context.Context, subject domain.Subject) (domain.Access, error) {
+	access := domain.Access{Username: fallbackUsername(subject)}
+	if s.panelReady() {
+		users, err := s.findPanelUsers(ctx, subject.TelegramID, access.Username)
+		if err != nil {
+			return access, err
+		}
+		if user := remnawave.PickUser(users); user != nil {
+			access.Found = true
+			access.Username = user.Username
+			access.PanelUserID = user.ID
+			access.PanelUserUUID = user.UUID
+			access.Active = user.IsActive()
+			access.DeviceLimit = panelDeviceLimit(*user)
+			if !user.ExpireAt.IsZero() {
+				expiry := user.ExpireAt.Time
+				access.ExpireAt = &expiry
+			}
+			return access, nil
+		}
+	}
+	if order, err := s.db.SubscriptionForOwner(ctx, subject.TelegramID, &subject.ID); err == nil && order != nil && order.ExpireAt != nil {
+		access.ExpireAt = order.ExpireAt
+		access.Active = order.ExpireAt.After(time.Now())
+	}
+	return access, nil
+}
+
 func (s *Service) fillAccess(ctx context.Context, access *domain.Access, subject domain.Subject, user remnawave.User) error {
 	access.Found = true
 	access.PanelUserID = user.ID
+	access.PanelUserUUID = user.UUID
 	access.Username = user.Username
 	access.Active = user.IsActive()
 	access.URL = remnawave.SubscriptionURL(s.cfg.APIBaseURL, user)

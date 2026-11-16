@@ -39,7 +39,7 @@ func (b *Bot) ticketPageScreen(ctx context.Context, id, ticketID int64, page int
 	if len(pages) > 1 {
 		text += fmt.Sprintf("\n<i>История переписки · страница %d из %d</i>", page+1, len(pages))
 	}
-	rows := [][]telego.InlineKeyboardButton{}
+	rows := [][]telego.InlineKeyboardButton{{button("← К обращению", fmt.Sprintf("ticket:%d", ticketID))}}
 	for _, attachment := range current.attachments {
 		rows = append(rows, []telego.InlineKeyboardButton{attachment})
 	}

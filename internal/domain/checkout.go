@@ -55,6 +55,7 @@ type Access struct {
 	URL              string
 	Username         string
 	PanelUserID      int64
+	PanelUserUUID    string
 	ExpireAt         *time.Time
 	TrafficUsedBytes int64
 	TrafficLimit     *int64

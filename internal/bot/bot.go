@@ -55,6 +55,7 @@ type Bot struct {
 
 	mu                 sync.Mutex
 	inputs             map[int64]inputState
+	ticketLists        map[int64]ticketListPosition
 	promos             map[int64]string
 	widgetRefresh      map[int64]time.Time
 	widgetsUnsupported bool

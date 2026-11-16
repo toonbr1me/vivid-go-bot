@@ -51,9 +51,12 @@ func (b *Bot) loadTicketConversation(ctx context.Context, id, ticketID int64) (t
 			}
 		}
 	}
-	back := "support:list"
-	if staff && !owner {
-		back = "admin:tickets"
+	back := b.ticketListBack(id, false)
+	b.mu.Lock()
+	lastList := b.ticketLists[id]
+	b.mu.Unlock()
+	if staff && (!owner || lastList.staff) {
+		back = b.ticketListBack(id, true)
 	}
 	actions = append(actions, button("Все обращения", back))
 	return ticketConversation{ticket: ticket, messages: messages, owner: owner, actions: actions}, nil
@@ -121,13 +124,6 @@ func ticketStatusLabel(status string) string {
 }
 
 func (b *Bot) showSavedTicket(ctx context.Context, id, ticketID int64) {
-	if b.viewMode(ctx, id) == "cards" {
-		if state, err := b.ticketCard(ctx, id, ticketID); err == nil {
-			if err = b.deliverUI(ctx, id, b.currentCardID(ctx, id), state); err == nil {
-				return
-			}
-		}
-	}
 	text, kb := b.ticketScreen(ctx, id, ticketID)
 	b.upsertTicket(ctx, telego.ChatID{ID: id}, 0, text, kb)
 }

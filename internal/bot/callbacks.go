@@ -209,8 +209,12 @@ func (b *Bot) handleCallback(ctx *telegohandler.Context, q telego.CallbackQuery)
 				keyboard([]telego.InlineKeyboardButton{button("Happ", "support:app:happ"), button("Incy", "support:app:incy")}, []telego.InlineKeyboardButton{button("Clash Mi", "support:app:clashmi"), button("FlClashX", "support:app:flclashx")}, []telego.InlineKeyboardButton{button("← Отмена", "nav:support")}))
 			b.answer(ctx, q.ID, "", false)
 		case "list":
+			if chatID.ID != tgID {
+				b.answer(ctx, q.ID, "Откройте обращения в личном чате", true)
+				return nil
+			}
 			b.clearInput(tgID)
-			text, kb := b.ticketsScreen(ctx, tgID, false)
+			text, kb := b.ticketsScreen(ctx, tgID, false, ticketListPage(rest))
 			b.upsert(ctx, chatID, messageID, text, kb)
 			b.answer(ctx, q.ID, "", false)
 		default:
@@ -221,7 +225,7 @@ func (b *Bot) handleCallback(ctx *telegohandler.Context, q telego.CallbackQuery)
 		b.ticketCallback(ctx, q.ID, chatID, messageID, tgID, action, rest)
 
 	case "admin":
-		b.adminCallback(ctx, q.ID, chatID, messageID, tgID, action)
+		b.adminCallback(ctx, q.ID, chatID, messageID, tgID, action, rest)
 
 	case "poll":
 		b.handlePollCallback(ctx, q.ID, chatID, messageID, tgID, action, rest)
@@ -448,13 +452,22 @@ func (b *Bot) toggleSettings(ctx context.Context, queryID string, chatID telego.
 	b.showScreen(ctx, chatID, messageID, "settings", tgID)
 }
 
-func (b *Bot) ticketsScreen(ctx context.Context, tgID int64, staff bool) (string, *telego.InlineKeyboardMarkup) {
-	subject, _ := b.subject(ctx, tgID)
-	tickets, err := b.db.TicketsForSubject(ctx, subject.ID, 10)
+func (b *Bot) ticketsScreen(ctx context.Context, tgID int64, staff bool, requested ...int) (string, *telego.InlineKeyboardMarkup) {
+	subject, err := b.subject(ctx, tgID)
 	if err != nil {
 		return "⚠️ Не удалось загрузить обращения.", keyboard(b.backRow())
 	}
-	lines := []string{"📋 <b>Мои обращения</b>", ""}
+	page := 0
+	if len(requested) > 0 {
+		page = requested[0]
+	}
+	result, err := b.db.TicketsForSubjectPage(ctx, subject.ID, page, 10)
+	if err != nil {
+		return "⚠️ Не удалось загрузить обращения.", keyboard(b.backRow())
+	}
+	tickets := result.Tickets
+	b.rememberTicketList(tgID, result.Page, false)
+	lines := []string{"📋 <b>Мои обращения</b>", fmt.Sprintf("Страница %d из %d · всего %d", result.Page+1, result.Pages, result.Total), ""}
 	if len(tickets) == 0 {
 		lines = append(lines, "Обращений пока нет.")
 	}
@@ -468,10 +481,13 @@ func (b *Bot) ticketsScreen(ctx context.Context, tgID int64, staff bool) (string
 			status += " · новый ответ"
 		}
 		lines = append(lines, fmt.Sprintf("#%d · %s · %s · %s",
-			ticket.ID, dateText(ticket.CreatedAt), status, escapeHTML(ticket.Subject)))
+			ticket.ID, dateText(ticket.CreatedAt), status, escapeHTML(firstRunes(ticket.Subject, 80))))
 		rows = append(rows, []telego.InlineKeyboardButton{
 			button(fmt.Sprintf("Открыть #%d", ticket.ID), "ticket:"+strconv.FormatInt(ticket.ID, 10)),
 		})
+	}
+	if pager := ticketListPager(result, "support:list"); len(pager) > 0 {
+		rows = append(rows, pager)
 	}
 	rows = append(rows, []telego.InlineKeyboardButton{
 		button("✉️ Новое обращение", "support:new"),
@@ -552,7 +568,7 @@ func (b *Bot) ticketCallback(ctx context.Context, queryID string, chatID telego.
 			return
 		}
 		b.clearInput(tgID)
-		text, kb, err := b.ticketPageScreen(ctx, tgID, id, -1)
+		text, kb, err := b.ticketSummaryScreen(ctx, tgID, id)
 		if err != nil {
 			b.answer(ctx, queryID, "Обращение недоступно", true)
 			return
@@ -561,15 +577,6 @@ func (b *Bot) ticketCallback(ctx context.Context, queryID string, chatID telego.
 		markRead := func() {
 			if subject, e := b.subject(ctx, tgID); e == nil {
 				_ = b.db.MarkTicketRead(ctx, id, subject.ID, ticket.LastStaffMessageID)
-			}
-		}
-		if b.viewMode(ctx, tgID) == "cards" {
-			if state, err := b.ticketCard(ctx, tgID, id); err == nil {
-				if b.deliverUI(ctx, tgID, messageID, state) == nil {
-					markRead()
-				}
-				b.answer(ctx, queryID, "", false)
-				return
 			}
 		}
 		if b.deliverTicket(ctx, chatID, messageID, text, kb) == nil {
@@ -582,7 +589,7 @@ func (b *Bot) ticketCallback(ctx context.Context, queryID string, chatID telego.
 // ticketScreen показывает переписку. Пользователь видит свои обращения, а
 // сотрудник — любое: отвечать можно из того же экрана.
 func (b *Bot) ticketScreen(ctx context.Context, tgID, ticketID int64) (string, *telego.InlineKeyboardMarkup) {
-	text, kb, _ := b.ticketPageScreen(ctx, tgID, ticketID, -1)
+	text, kb, _ := b.ticketSummaryScreen(ctx, tgID, ticketID)
 	return text, kb
 }
 

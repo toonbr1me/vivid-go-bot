@@ -181,7 +181,7 @@ func TestTicketExpandableTranscriptKeepsAnOrdinaryConversationTogether(t *testin
 	}
 }
 
-func TestTicketChatDeliveryKeepsNativeExpandableQuoteWhileReplying(t *testing.T) {
+func TestTicketReplyPromptIsCompactAndFullHistoryRemainsExplicit(t *testing.T) {
 	db := testdb.Open(t)
 	ctx := context.Background()
 	caller := &scriptedCaller{}
@@ -208,7 +208,7 @@ func TestTicketChatDeliveryKeepsNativeExpandableQuoteWhileReplying(t *testing.T)
 	if err := json.Unmarshal([]byte(caller.bodies[0]), &request); err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"<b>Обращение #", "<blockquote expandable>", "Question &lt;literal&gt;", "Support answer", "Вы отвечаете в это обращение"} {
+	for _, want := range []string{"<b>Обращение #", "Support answer", "Режим ответа"} {
 		if !strings.Contains(request.Text, want) {
 			t.Errorf("native transcript lacks %q: %s", want, request.Text)
 		}
@@ -216,7 +216,11 @@ func TestTicketChatDeliveryKeepsNativeExpandableQuoteWhileReplying(t *testing.T)
 	if request.ParseMode != "HTML" || strings.Join(caller.methods, ",") != "sendMessage" {
 		t.Fatal("expandable transcript was not sent as native HTML", caller.methods)
 	}
-	if strings.Count(request.Text, "<blockquote expandable>") != 1 || strings.Contains(request.Text, "страница") {
-		t.Fatal("short conversation was fragmented", request.Text)
+	if strings.Contains(request.Text, "<blockquote expandable>") || strings.Contains(request.Text, "Question &lt;literal&gt;") {
+		t.Fatal("reply prompt repeated old conversation", request.Text)
+	}
+	history, _, err := b.ticketPageScreen(ctx, 7, ticket.ID, -1)
+	if err != nil || !strings.Contains(history, "Question &lt;literal&gt;") || !strings.Contains(history, "<blockquote expandable>") {
+		t.Fatal("explicit history lost", err)
 	}
 }
