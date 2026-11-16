@@ -1,0 +1,37 @@
+{{define "content"}}
+<section class="split">
+ <div class="hero-copy">
+  <p class="eyebrow">Берлога</p>
+  <h1 class="display">Интернет с медвежьей силой</h1>
+  <p class="lead">Уютное убежище, где всегда стабильный коннект с интернетом. Берёте подписку — доступ открывается сразу минута в минуту. Автосписаний нет: продлеваете сами, когда решите. Залезай к нам в берлогу и сиди в интернете всегда и сколько захочешь!</p>
+  <p class="actions actions-pair"><a class="btn" href="/buy"><span>Занять берлогу</span></a>{{if .BotURL}}<a class="btn btn-ghost" href="{{.BotURL}}"><span>Открыть в Telegram</span></a>{{end}}</p>
+  {{if eq .Site.Data.environment "development"}}<p class="muted small">Сейчас это тестовый стенд. Пробный доступ работает, реальные списания отключены.</p>{{end}}
+ </div>
+ <div class="split-aside rise">
+ {{range $i,$card := .Data.Plans}}{{if eq $i 0}}
+ <div class="pass-rig"><div class="pass pass-live">
+  <div class="pass-head"><div><p class="eyebrow">Пропуск</p><p class="pass-title">{{.Plan.Title}}</p></div><span class="chip">Образец</span></div>
+  <div class="pass-figure"><span class="num">{{.Plan.Days}}</span><small>дней в укрытии</small></div><div class="pass-perf"></div>
+  <dl class="pass-rows"><div class="row"><dt>Цена входа</dt><dd>{{money .Plan.Price}}</dd></div><div class="row"><dt>Старт</dt><dd>после подтверждения оплаты</dd></div><div class="row"><dt>Продление</dt><dd>вручную</dd></div></dl>
+ </div></div>
+ {{end}}{{end}}
+ </div>
+</section>
+
+<h2>Как попасть внутрь</h2>
+<ol class="steps-cards"><li class="card-flat"><b>Срок</b><p>Выбираете, на сколько уходите в укрытие.</p></li><li class="card-flat"><b>Точка входа</b><p>После выдачи доступа получаете персональную ссылку.</p></li><li class="card-flat"><b>Подключение</b><p>Добавляете ссылку в приложение на телефоне или компьютере — и вы на связи.</p></li></ol>
+
+<h2 id="pricing">Сроки</h2>
+<ul class="tiers">{{range .Data.Plans}}<li class="tier{{if .Best}} tier-best{{end}}"><a class="tier-link" href="/buy?plan={{.Plan.ID}}" aria-label="Выбрать тариф {{.Plan.Title}}"><span class="tier-body"><span class="tier-name">{{.Plan.Title}}{{if .Best}} <span class="tag">Лучшая цена</span>{{end}}</span><span class="tier-note">Доступ на {{.Plan.Days}} {{daysWord .Plan.Days}} · устройств: {{.Devices}}</span></span><span class="tier-price"><b>{{money .Plan.Price}}</b>{{if gt .Plan.Days 31}}<span>≈{{money .Monthly}} / мес.</span>{{end}}</span></a></li>{{end}}</ul>
+{{if .Data.TrialDays}}<p class="muted" style="margin-top:18px">Новым — пробное укрытие на {{.Data.TrialDays}} {{daysWord .Data.TrialDays}} без оплаты.</p>{{if .Data.TrialAvailable}}<form method="post" action="/trial"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="btn btn-ghost" type="submit">Попробовать бесплатно</button></form>{{else if not .Data.LoggedIn}}<p class="actions"><a class="btn btn-ghost" href="/login?next=%2F">Войти и попробовать</a></p>{{end}}{{end}}
+<p class="muted">Есть промокод? Введите его в личном кабинете. Подарочный код добавит дни, скидочный покажет пересчитанные тарифы.</p><p class="actions"><a class="btn btn-ghost" href="/account#promo">Ввести промокод</a></p>
+
+<div class="sec-head"><h2>Один пропуск на ваши устройства</h2><p>Одна и та же ссылка используется на ваших устройствах. Освободить слот можно в кабинете.</p></div>
+<div class="devices"><div class="card-flat device"><b>iPhone и iPad</b><span>Happ · Incy</span></div><div class="card-flat device"><b>Android</b><span>Happ · Incy</span></div><div class="card-flat device"><b>macOS</b><span>Happ</span></div><div class="card-flat device"><b>Windows</b><span>Happ</span></div></div>
+<p class="actions"><a class="btn btn-ghost" href="/connect">Инструкция по подключению</a></p>
+
+<div class="vi-panel"><div class="vi-head"><h2>Поддержка отвечает</h2><p>Вопросы по подключению, подписке и оплате — в одном месте.</p></div><div class="vi-card card"><p class="vi-sign"><b>Поддержка</b><span>на сайте и в Telegram</span></p><div class="qa"><div class="card-flat"><b>Как подключиться?</b><p>Откройте инструкцию: установка приложения, импорт ссылки и подключение.</p></div><div class="card-flat"><b>Не работает доступ?</b><p>Создайте обращение из кабинета или бота. Переписка сохранится.</p></div><div class="card-flat"><b>Деньги спишутся сами?</b><p>{{if eq .Site.Data.environment "development"}}На тестовом стенде реальные платежи отключены.{{else}}Разовая оплата не включает автосписания. Автопродление подключается только с отдельного согласия; управлять им можно в кабинете.{{end}}</p></div></div></div></div>
+
+<h2>Документы и связь</h2><div class="grid grid-3"><a class="card-flat" href="/terms"><b>Пользовательское соглашение</b><p class="muted">Условия оплаты, возврата и доступа.</p></a><a class="card-flat" href="/privacy"><b>Конфиденциальность</b><p class="muted">Какие данные обрабатываются.</p></a><a class="card-flat" href="/support"><b>Поддержка</b><p class="muted">Вопросы по подписке и подключению.</p></a></div>
+<h2>Ну что, в берлогу?</h2><div class="close-card card"><p>Начните с пробного доступа и проверьте подключение.</p><p class="actions actions-pair"><a class="btn" href="/buy">Выбрать срок</a>{{if .BotURL}}<a class="btn btn-ghost" href="{{.BotURL}}">Открыть в Telegram</a>{{end}}</p></div>
+{{end}}

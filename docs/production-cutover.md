@@ -68,3 +68,18 @@ Python app остановлен, restart policy установлен в `no`; е
 Резервные копии на серверах находятся в приватном каталоге `/opt/vivid-go-production-20261116`: исходный `python-final.dump`, после переключения — `production-after-cutover.dump` на `yotta-ger`. Конфигурации ingress сохранены в `proxy.before.conf` и `proxy.after.conf`; метаданные релиза — `release.json`. Дампы и ключи не включены в Git.
 
 Сводные доказательства без персональных данных и ключей: [production-cutover-results.json](production-cutover-results.json). Полный реальный банковский платёж после переключения не выполнялся; успешная проверка чтения API не заменяет его.
+
+## Оформление Берлоги
+
+По последующему запросу подключена production-тема `web/themes/berloga`:
+read-only mount `./themes/berloga:/app/web:ro`, `WEB_DIR=/app/web`,
+`RICH_MESSAGES_ENABLED=true`, `BOT_STYLE=legacy`. Тема сайта и `bot.json`
+применены без замены бинарника и базы. Пометки development удалены.
+Ранее приведённое описание встроенного оформления относится к моменту
+первоначального переключения.
+
+Проверены тематические тесты Telegram и шаблонов, страницы существующего
+клиента и администратора, статические ресурсы и оба публичных ingress.
+Сайт визуально проверен в браузере. App и DB healthy, в журнале ошибок нет.
+Для отката только оформления сохранены `before-berloga/compose.yml` и
+`before-berloga/app.env` в каталоге production на сервере.

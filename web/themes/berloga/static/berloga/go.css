@@ -1,0 +1,145 @@
+/* Go markup adapters. The original Python stylesheet is kept in python.css. */
+body.berloga{--hero-img:url('/static/berloga/hero-bg.webp');min-height:100vh}
+.berloga .brand{color:var(--ink)}
+.berloga .brand:hover,.berloga .brand-name{color:var(--ink)}
+.development-strip{border-bottom:1px solid var(--line-soft);color:var(--muted);font-size:12px;padding:7px 0;background:rgba(8,5,4,.76)}
+.development-strip span{color:var(--glow);font-family:var(--mono);margin-right:8px}
+.berloga .split{padding-top:24px}
+.berloga .hero-copy .lead{max-width:48ch}
+.berloga .hero-copy .actions{margin-top:24px}
+.berloga .hero-copy .eyebrow::before,.berloga .page-eyebrow::before{content:'//  '}
+.berloga .section{margin-top:44px}
+.berloga .page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:24px}
+.berloga .page-head h1{margin-bottom:12px}
+.berloga .page-head .muted{max-width:58ch}
+.berloga .section-head{display:flex;justify-content:space-between;align-items:baseline;gap:20px;margin-bottom:16px}
+.berloga .section-head h2,.berloga .section-title{margin:0 0 16px}
+.berloga .card h2,.berloga .card h3{margin-top:0}
+.berloga .card{margin-bottom:20px}
+.berloga .card-head{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:18px}
+.berloga .card-head h2,.berloga .card-head h3{margin:0}
+.berloga .stack{display:grid;gap:14px}
+.berloga .stack > *{margin-top:0;margin-bottom:0}
+.berloga .grid-two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px}
+.berloga .grid-two > *{min-width:0}
+.berloga .small{font-size:.8125rem}
+.berloga .nowrap{white-space:nowrap}
+.berloga .inline-form{display:inline-flex;align-items:center;gap:10px;flex-wrap:wrap}
+.berloga form label{display:block;margin-bottom:7px}
+.berloga input,.berloga textarea,.berloga select{max-width:100%}
+.berloga textarea{resize:vertical}
+.berloga input[readonly]{font-family:var(--mono);font-size:13px}
+.berloga button:disabled,.berloga input:disabled{opacity:.5;cursor:not-allowed}
+.berloga .btn-block,.berloga .btn-wide{width:100%}
+.berloga .btn-lg{min-height:54px}
+.berloga .btn-sm{min-height:40px;padding-inline:17px}
+.berloga .input-row,.berloga .copy-row{display:flex;gap:10px;align-items:stretch}
+.berloga .input-row > input,.berloga .copy-row > input{flex:1;min-width:0}
+.berloga .copy-row .btn{flex:none}
+.berloga .field{margin-top:22px}
+.berloga .facts{margin:0}
+.berloga .facts > div{display:flex;justify-content:space-between;gap:22px;padding:11px 0;border-bottom:1px solid var(--line-soft)}
+.berloga .facts > div:last-child{border-bottom:0}
+.berloga .facts dt{color:var(--muted)}
+.berloga .facts dd{margin:0;text-align:right;font-family:var(--mono)}
+.berloga .table-wrap{max-width:100%;overflow-x:auto}
+.berloga table{width:100%}
+.berloga table th{white-space:nowrap}
+.berloga table td{vertical-align:top}
+.berloga table .btn{white-space:nowrap}
+.berloga .empty{color:var(--muted);padding:24px 0}
+.berloga .notice-line,.berloga .flash{padding:14px 18px;border-left:3px solid var(--warn);background:var(--warn-soft);margin:0 0 20px}
+.berloga .flash-bad,.berloga .form-error{color:var(--danger)}
+.berloga .flash-bad{border-color:var(--danger);background:var(--danger-soft)}
+.berloga .flash-ok{border-color:var(--live);background:var(--live-soft)}
+.berloga .flash-wrap{max-width:100%;padding:0}
+.berloga .chip-ok{color:var(--live);background:var(--live-soft)}
+.berloga .chip-bad{color:var(--danger);background:var(--danger-soft)}
+.berloga .chip-wait{color:var(--warn);background:var(--warn-soft)}
+.berloga .plain-list,.berloga .check-list{padding-left:20px}
+.berloga .plain-list li,.berloga .check-list li{margin:10px 0}
+.berloga .ticket-row{display:flex;gap:18px;justify-content:space-between;align-items:center;padding:16px 0;border-bottom:1px solid var(--line-soft);color:var(--ink);text-decoration:none}
+.berloga .ticket-row:hover{color:var(--glow)}
+.berloga .ticket-row:last-child{border-bottom:0}
+.berloga .ticket-row .chip{flex:none}
+.berloga .account-pass{max-width:100%}
+.berloga .account-pass .pass-date{font-size:clamp(2.3rem,7vw,3.8rem);font-family:var(--mono);line-height:1.1;margin:20px 0 24px}
+.berloga .account-pass .pass-date small{display:block;font:400 13px var(--sans);color:var(--muted);margin-top:8px}
+.berloga .account-pass .pass-rows{margin-bottom:20px}
+.berloga .account-pass .pass-rows .row{padding:9px 0}
+.berloga .account-pass .copy-row{margin-top:9px}
+.berloga .account-pass .copy-row .btn{font-size:13px}
+.berloga .account-extra > section{margin-top:30px}
+.berloga .account-extra .card{background:transparent;border:0;box-shadow:none;padding:0}
+.berloga .account-extra h2{margin-top:30px}
+.berloga .account-extra .grid-two{grid-template-columns:1fr}
+.berloga .device-list{margin-top:28px}
+.berloga .device-row{display:flex;justify-content:space-between;align-items:center;gap:18px;padding:12px 0;border-top:1px solid var(--line-soft)}
+.berloga .device-row .muted{display:block}
+.berloga .traffic{margin-top:14px}
+.berloga .traffic-bar{height:5px;background:var(--line);overflow:hidden}
+.berloga .traffic-bar > span{display:block;height:100%;background:var(--live)}
+.berloga .trial-banner{padding:22px;border:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:20px;background:var(--glass)}
+.berloga .trial-banner h3{margin:0 0 6px}
+.berloga .trial-banner p{margin:0}
+.berloga .auth-hint{margin-top:30px;padding-top:22px;border-top:1px solid var(--line)}
+.berloga .auth-hint h2{margin-top:0}
+.berloga .divider{margin:18px 0;color:var(--faint);text-align:center}
+.berloga .choice.disabled{opacity:.55}
+.berloga .choice-name,.berloga .choice-box > *{min-width:0}
+.berloga .choice-price b{white-space:nowrap}
+.berloga .choice input:disabled + .choice-box{cursor:not-allowed}
+.berloga .choices{margin:18px 0 24px}
+.berloga .promo-form{margin:24px 0}
+.berloga .buy-form .section{margin-top:32px}
+.berloga .option-list{display:grid;gap:10px;margin-bottom:22px}
+.berloga label.option{display:flex;align-items:flex-start;gap:12px;padding:14px;border:1px solid var(--line);margin:0}
+.berloga .option input{width:auto;flex:none;margin-top:5px}
+.berloga .option > span{display:grid;gap:4px}
+.berloga .chat{display:grid;gap:14px;margin:22px 0}
+.berloga .message{padding:16px;border:1px solid var(--line-soft);background:var(--sunk);max-width:100%;overflow-wrap:anywhere}
+.berloga .message-support{border-left:3px solid var(--accent)}
+.berloga .message-head{display:flex;justify-content:space-between;gap:16px;margin-bottom:9px}
+.berloga .message-text > :last-child{margin-bottom:0}
+.berloga .message-text pre{white-space:pre-wrap}
+.berloga .staff-nav,.berloga .admin-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 26px}
+.berloga .staff-nav a{display:block;padding:9px 13px;border:1px solid var(--line);background:var(--sunk);color:var(--muted);text-decoration:none;font-size:14px}
+.berloga .staff-nav a:hover{color:var(--ink);border-color:var(--accent)}
+.berloga .staff-nav a[aria-current=page]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.berloga-staff .page-head > .nav{display:none}
+.berloga-staff .admin-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:26px}
+.berloga-staff .admin-metric{padding:19px;border:1px solid var(--line);background:var(--glass)}
+.berloga-staff .admin-metric span{display:block;color:var(--muted);font-size:13px}
+.berloga-staff .admin-metric strong{display:block;font:500 1.6rem var(--mono);margin-top:8px}
+.berloga-staff .admin-toolbar input{flex:1;min-width:180px}
+.berloga-staff .admin-toolbar select{width:auto;min-width:180px}
+.berloga .plans-compact{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.berloga .plan{border:1px solid var(--line);padding:18px;background:var(--glass)}
+.berloga .plan-price{font:500 1.6rem var(--mono);margin-bottom:18px}
+.berloga .document{max-width:760px;margin-inline:auto}
+.berloga .support-layout{display:grid;grid-template-columns:minmax(0,620px) minmax(0,1fr);gap:38px}
+.berloga .support-layout aside h2{margin-top:0}
+.berloga .support-layout .card{padding:22px}
+@media(max-width:719px){
+ .berloga main{padding-top:26px}
+ .berloga .topbar-in{gap:10px}
+ .berloga .development-strip{font-size:11px}
+ .berloga .page-head{display:block}
+ .berloga .grid-two,.berloga .support-layout{grid-template-columns:1fr;gap:20px}
+ .berloga .page-head > .btn{margin-top:10px}
+ .berloga .input-row,.berloga .copy-row{flex-wrap:wrap}
+ .berloga .input-row > input,.berloga .copy-row > input{flex-basis:100%}
+ .berloga .copy-row .btn{width:100%}
+ .berloga .message-head{flex-wrap:wrap;gap:3px}
+ .berloga .plans-compact{grid-template-columns:1fr}
+ .berloga-staff .admin-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .berloga .trial-banner{display:block}
+ .berloga .trial-banner .btn{margin-top:16px}
+ .berloga .staff-nav{gap:6px}
+ .berloga .staff-nav a{font-size:13px;padding:8px 10px}
+ .berloga .ticket-row{align-items:flex-start;gap:10px}
+}
+
+.berloga .connection-steps{display:grid;gap:24px;margin:32px 0}
+.berloga .step-num{font:500 13px var(--mono);color:var(--glow)}
+.berloga .step h3{margin:8px 0}

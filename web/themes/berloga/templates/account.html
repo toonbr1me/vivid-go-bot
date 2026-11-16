@@ -1,0 +1,207 @@
+{{define "content"}}<div class="col">
+<p class="eyebrow page-eyebrow">Личный кабинет</p><h1>{{if .Subject.Name}}{{str .Subject.Name}}{{else if .Subject.Email}}{{str .Subject.Email}}{{else}}Ваш доступ{{end}}</h1>
+{{if .Data.AccessError}}<p class="notice-line">{{.Data.AccessError}}</p>{{end}}
+{{if .Data.Guidance}}<div class="note"><strong>{{.Data.Guidance.Title}}</strong><p>{{.Data.Guidance.Detail}}</p><a href="{{.Data.GuidanceURL}}">{{.Data.Guidance.Label}} →</a></div>{{end}}
+<div class="pass-rig" style="margin-top:24px"><article class="pass account-pass{{if .Data.Access.Active}} pass-live{{end}}">
+<div class="pass-head"><div><p class="eyebrow">Ваш пропуск</p><p class="pass-title">Подписка</p></div>{{if .Data.Access.Found}}{{if .Data.Access.Active}}<span class="chip chip-live">Активна</span>{{else if and .Data.Access.ExpireAt (.Data.Access.ExpireAt.After .Now)}}<span class="chip chip-warn">Требуется проверка</span>{{else}}<span class="chip chip-off">Истекла</span>{{end}}{{else if .Data.Access.ExpireAt}}<span class="chip chip-warn">Последние данные</span>{{else}}<span class="chip">Пока нет</span>{{end}}</div>
+{{if or .Data.Access.Found .Data.Access.ExpireAt}}
+<div class="pass-date">{{date .Data.Access.ExpireAt}}<small>Действует до</small></div><div class="pass-perf"></div>
+<dl class="pass-rows">{{if .Data.Access.Found}}<div class="row"><dt>Устройства</dt><dd>{{.Data.DeviceLimit}}</dd></div>{{if .Data.Access.TrafficLimit}}<div class="row"><dt>Использовано трафика</dt><dd>{{pct .Data.Access.TrafficUsedBytes .Data.Access.TrafficLimit}}%</dd></div>{{end}}<div class="row"><dt>Лимит трафика</dt><dd>{{bytes .Data.Access.TrafficLimit}}</dd></div>{{end}}</dl>
+{{if .Data.Access.URL}}<a class="btn btn-wide" href="/happ?u={{.Data.Access.URL}}">Подключить в Happ</a><p class="muted small" style="margin-top:10px">Откроется приложение и добавит подписку.</p><label for="sub-url">Ссылка для подключения</label><div class="copy-row"><input id="sub-url" value="{{.Data.Access.URL}}" readonly><button class="btn btn-ghost" type="button" data-copy-target="sub-url">Скопировать ссылку</button></div><p class="muted small" style="margin-top:12px">Другое устройство или приложение ещё не установлено? <a href="/connect">Инструкция по подключению</a>.</p>{{else}}<p class="muted">Ссылка появится после завершения выдачи. Обновите кабинет через минуту.</p>{{end}}
+{{else}}<p class="lead" style="margin-top:24px">Ваше место в берлоге пока свободно.</p><p class="muted">Выберите срок или начните с пробного доступа.</p><a class="btn" href="/buy">Выбрать срок</a>{{end}}
+</article></div><p class="actions" style="margin-top:16px"><a class="btn btn-ghost" href="/buy">Продлить подписку</a></p>
+<details class="account-extra" id="devices"><summary>Устройства · {{.Data.DeviceLimit}} слотов</summary>
+{{if .Data.Access.Devices}}<div class="device-list">{{range .Data.Access.Devices}}<div class="device-row"><div><strong>{{if .Model}}{{.Model}}{{else}}{{.Platform}}{{end}}</strong><span class="muted small">{{.Platform}} · с {{.CreatedAt.Format "02.01.2006"}}</span></div><form method="post" action="/account/devices/detach"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="hwid" value="{{.HWID}}"><button class="btn btn-ghost btn-sm" type="submit">Отвязать</button></form></div>{{end}}</div>{{else}}<p class="muted">Пока ни одно устройство не подключено.</p>{{end}}
+{{if .Data.DeviceEnabled}}
+<section class="section">
+  <div class="section-head">
+    <h2>Устройства</h2>
+    <p class="muted">Дополнительные слоты докупаются на остаток подписки.</p>
+  </div>
+
+  {{if .Data.DeviceSlots}}
+  <div class="card">
+    <h3>Ваши пакеты</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Пакет</th><th>Устройств</th><th>Действует до</th><th>Стоимость продления</th><th></th></tr></thead>
+        <tbody>
+        {{range .Data.DeviceSlots}}
+          <tr>
+            <td>{{.Title}}</td>
+            <td>{{.Devices}}</td>
+            <td>{{date .ExpiresAt}}</td>
+            <td>{{money .Price}}</td>
+            <td>
+              {{if .Renewable}}
+              <form method="post" action="/account/devices/renew" class="inline-form">
+                <input type="hidden" name="csrf" value="{{$.CSRF}}">
+                <input type="hidden" name="pack" value="{{.PackID}}">
+                <input type="hidden" name="grant" value="{{.OrderID}}">
+                {{if $.Data.Options}}
+                <select name="option" aria-label="Способ оплаты">
+                  {{range $.Data.Options}}<option value="{{.Token}}">{{.ProviderLabel}} · {{.MethodLabel}}</option>{{end}}
+                </select>
+                <button class="btn btn-ghost btn-sm" type="submit">Продлить</button>
+                {{else}}<span class="muted small">оплата недоступна</span>{{end}}
+              </form>
+              {{else}}<span class="muted small">—</span>{{end}}
+            </td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {{end}}
+
+  {{if .Data.DeviceQuotes}}
+  <div class="plans plans-compact">
+    {{range .Data.DeviceQuotes}}
+    <article class="plan">
+      <h3>{{.Pack.Title}}</h3>
+      <p class="muted small">{{.Pack.Devices}} устройств на {{.BilledDays}} {{daysWord .BilledDays}}</p>
+      <div class="plan-price">{{money .Amount}}</div>
+      <form method="post" action="/account/devices/buy">
+        <input type="hidden" name="csrf" value="{{$.CSRF}}">
+        <input type="hidden" name="pack" value="{{.Pack.ID}}">
+        {{if $.Data.Options}}
+        <select name="option" aria-label="Способ оплаты">
+          {{range $.Data.Options}}<option value="{{.Token}}">{{.ProviderLabel}} · {{.MethodLabel}}</option>{{end}}
+        </select>
+        <button class="btn btn-primary btn-block" type="submit">Докупить</button>
+        {{else}}<span class="muted small">Оплата временно недоступна</span>{{end}}
+      </form>
+    </article>
+    {{end}}
+  </div>
+  {{else}}
+  <p class="muted small">Пакеты появятся, когда у подписки будет больше суток срока.</p>
+  {{end}}
+</section>
+{{end}}
+
+</details>
+{{with .Data.Recurring}}
+<section class="section" id="recurring"><article class="card">
+  <h2>Автопродление</h2>
+  <p>{{.StatusText}}</p>
+  <dl class="facts"><div><dt>Платёж</dt><dd>{{money .Amount}} / {{.Days}} {{daysWord .Days}} · {{.ProviderName}}</dd></div>
+  {{if and .Enabled .NextChargeAt}}<div><dt>Следующее списание</dt><dd>{{datetime .NextChargeAt}}</dd></div>{{end}}
+  {{if .StoppedAt}}<div><dt>Остановлено</dt><dd>{{datetime .StoppedAt}}</dd></div>{{end}}</dl>
+  {{if .Enabled}}<form method="post" action="/account/recurring/cancel"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button type="submit" class="btn btn-ghost">Отключить автопродление</button><p class="muted small">Оплаченный срок сохранится. Уже отправленный платёж может завершиться после отмены.</p></form>{{end}}
+</article></section>
+{{end}}
+<section class="section">
+  <div class="section-head">
+    <h2>Обращения в поддержку</h2>
+    <a class="btn btn-ghost btn-sm" href="/support">Новое обращение</a>
+  </div>
+  {{if .Data.Tickets}}
+  <div class="card">
+    {{range .Data.Tickets}}
+    <a class="ticket-row" href="/support/tickets/{{.ID}}">
+      <span><strong>#{{.ID}}</strong> {{.Subject}}{{if .Unread}} · Новый ответ{{end}}</span>
+      <span class="chip {{if eq .Status "open"}}chip-warn{{else}}chip-ok{{end}}">{{if eq .Status "open"}}Открыто{{else}}Закрыто{{end}}</span>
+    </a>
+    {{end}}
+  </div>
+  {{else}}
+  <div class="card empty">Обращений нет. Если что-то не работает — напишите, разберёмся.</div>
+  {{end}}
+</section>
+<details class="account-extra"><summary>Промокод, друзья и настройки аккаунта</summary>
+<section class="card" id="promo">
+  <div class="card-head"><h2>Промокод</h2></div>
+  <form method="post" action="/account/promo" class="promo-form compact">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <div class="input-row">
+      <input name="code" value="{{.Data.Promo}}" placeholder="Введите код" autocomplete="off">
+      <button class="btn btn-ghost" type="submit">Применить</button>
+    </div>
+    <p class="muted small">Подарочный код добавит дни сразу. Скидочный — покажет новые цены в тарифах.</p>
+  </form>
+</section>
+
+  <article class="card">
+    <div class="card-head"><h2>Баланс и приглашения</h2></div>
+    <dl class="facts">
+      <div><dt>Баланс</dt><dd>{{money .Data.Referral.Balance}}</dd></div>
+      <div><dt>Приглашено</dt><dd>{{.Data.Referral.Invited}}</dd></div>
+      <div><dt>Наград получено</dt><dd>{{.Data.Referral.RewardCount}}</dd></div>
+      <div><dt>Дней за друзей</dt><dd>{{.Data.Referral.EarnedDays}}</dd></div>
+    </dl>
+    {{if .Data.RefLink}}
+      <div class="field">
+        <label for="ref-link">Ваша ссылка</label>
+        <input id="ref-link" value="{{.Data.RefLink}}" readonly onclick="this.select()">
+      </div>
+      <p class="muted small">Приглашённый получает доступ, вы — дни или деньги на баланс: как настроено ниже.</p>
+    {{else}}
+      <p class="muted small">Ссылка для приглашений появится, когда бот узнает ваш профиль.</p>
+    {{end}}
+
+    <div class="field">
+      <label>За что начислять за приглашённых</label>
+      <form method="post" action="/account/referral-mode" class="inline-form">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <input type="hidden" name="mode" value="days">
+        <button class="btn {{if eq .Data.ReferralMode "days"}}btn-primary{{else}}btn-ghost{{end}} btn-sm" type="submit">Днями подписки</button>
+      </form>
+      <form method="post" action="/account/referral-mode" class="inline-form" style="margin-top:8px">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <input type="hidden" name="mode" value="balance">
+        <button class="btn {{if eq .Data.ReferralMode "balance"}}btn-primary{{else}}btn-ghost{{end}} btn-sm" type="submit">Деньгами на баланс</button>
+      </form>
+      <p class="muted small">Днями: 7 дней за первого оплатившего и 3 за второго. Деньгами: процент с каждой покупки на внутренний баланс.</p>
+    </div>
+
+    <div class="field">
+      <label>Telegram</label>
+      {{if .Data.HasTelegram}}
+        <span class="chip chip-ok">Привязан</span>
+        <p class="muted small">Уведомления и поддержка доступны в боте.</p>
+      {{else if .Data.ShowLink}}
+        {{if .Data.LinkURL}}<a class="btn btn-primary btn-block" href="{{.Data.LinkURL}}" target="_blank" rel="noopener">Открыть бота и привязать</a>{{end}}
+        <p class="muted small">Код: <code>{{.Data.LinkCode}}</code>. Действует 30 минут.</p>
+      {{else}}
+        <a class="btn btn-ghost" href="/account?link=1">Привязать Telegram</a>
+      {{end}}
+    </div>
+  </article>
+<form method="post" action="/logout" class="actions"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="btn btn-ghost btn-sm" type="submit">Выйти</button></form></details>
+<section class="section">
+  <div class="section-head"><h2>История покупок</h2></div>
+  {{if .Data.Orders}}
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Когда</th><th>Что</th><th>Сумма</th><th>Статус</th><th></th></tr></thead>
+        <tbody>
+        {{range .Data.Orders}}
+          <tr>
+            <td class="nowrap">{{.CreatedAt.Format "02.01.2006"}}</td>
+            <td>{{kind .Kind}} · {{.PlanID}}</td>
+            <td>{{money .Amount}}</td>
+            <td>{{(progress .).Label}}<p class="muted small">{{(progress .).Detail}}</p><code>{{.OrderID}}</code></td>
+            <td>
+              <form method="post" action="/account/orders/check" class="inline-form">
+                <input type="hidden" name="csrf" value="{{$.CSRF}}">
+                <input type="hidden" name="order" value="{{.OrderID}}">
+                <button class="btn btn-ghost btn-sm" type="submit">Проверить</button>
+              </form>
+              <a class="btn btn-ghost btn-sm" href="/support?order={{.OrderID}}">Поддержка по заказу</a>
+            </td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {{else}}
+  <div class="card empty">Покупок пока не было.</div>
+  {{end}}
+</section>
+
+</div>{{end}}
+

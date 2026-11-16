@@ -1,0 +1,51 @@
+{
+  "brand": "Берлога",
+  "locale": "ru",
+  "logo_url": "/static/berloga/logo.png",
+  "description": "Берлога — подписка на защищённый доступ и помощь с подключением.",
+  "tagline": "Интернет с медвежьей силой",
+  "navigation": [
+    {
+      "label": "Главная",
+      "href": "/"
+    },
+    {
+      "label": "Тарифы",
+      "href": "/buy"
+    },
+    {
+      "label": "Устройства",
+      "href": "/account#devices"
+    },
+    {
+      "label": "Поддержка",
+      "href": "/support"
+    }
+  ],
+  "stylesheets": [
+    "/static/berloga/fonts.css",
+    "/static/berloga/python.css",
+    "/static/berloga/go.css"
+  ],
+  "scripts": [
+    "/static/berloga/site.js"
+  ],
+  "data": {
+    "environment": "production",
+    "source": "Python Берлога, alex-nether, 2026-11-16"
+  },
+  "pages": {
+    "landing": {
+      "title": "Главная"
+    },
+    "buy": {
+      "title": "Оформление"
+    },
+    "account": {
+      "title": "Личный кабинет"
+    },
+    "admin": {
+      "title": "Управление"
+    }
+  }
+}
