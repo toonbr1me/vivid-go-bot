@@ -304,6 +304,7 @@ func Default() Texts {
 			NoData:       "—",
 			None:         "Не оформлена",
 			PaymentOnce:  "Разовая",
+			PaymentLabel: "Оплата",
 			AutoRenewNo:  "Разовая оплата · автопродления нет",
 			Connect:      "Подключение",
 			ConnectHint:  "Используйте кнопку Happ или скопируйте ссылку в другое приложение.",

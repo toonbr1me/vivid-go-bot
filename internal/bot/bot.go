@@ -33,6 +33,7 @@ const (
 	inputTicketReply  = "ticket_reply"
 	inputPollQuestion = "poll_question"
 	inputPollOptions  = "poll_options"
+	inputBroadcast    = "broadcast"
 	inputTimeout      = 20 * time.Minute
 )
 
@@ -236,6 +237,7 @@ func (b *Bot) register(h *telegohandler.BotHandler) {
 	h.HandleMessage(b.cleanCommand(b.handleCloseTicketCommand), telegohandler.CommandEqual("close"))
 	h.HandleMessage(b.cleanCommand(b.handleStats), telegohandler.CommandEqual("stats"))
 	h.HandleMessage(b.cleanCommand(b.handlePollsCommand), telegohandler.CommandEqual("polls"))
+	h.HandleMessage(b.cleanCommand(b.handleAnnounce), telegohandler.CommandEqual("announce"))
 	h.HandleMessage(b.cleanCommand(b.handlePartnersCommand), telegohandler.CommandEqual("partners"))
 
 	h.HandleMessage(b.handleText, telegohandler.AnyMessageWithText())

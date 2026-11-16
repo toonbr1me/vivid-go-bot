@@ -87,7 +87,7 @@ func TestOrdinaryMainUsesDesignedRichDocumentAndNoWidget(t *testing.T) {
 	b.rich = stub.rich
 	_ = db.SetBotView(ctx, 7, "classic")
 	b.showCommandScreen(ctx, telego.ChatID{ID: 7}, "main", 7)
-	for _, fragment := range []string{"<h3>Vivid</h3>", "<table compact>", "Оплачено до", "Устройства", "nav:connect", "nav:profile", "nav:support", "style=\"primary\""} {
+	for _, fragment := range []string{"<h3>Vivid</h3>", "<table bordered striped compact>", "Действует до", "Устройства", "nav:subscription", "nav:profile", "nav:support"} {
 		if !strings.Contains(request.RichMessage.HTML, fragment) {
 			t.Errorf("rich main lacks %s", fragment)
 		}

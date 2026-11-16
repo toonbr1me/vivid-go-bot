@@ -84,14 +84,15 @@ func (b *Bot) nativeTarget(ctx context.Context, id int64, message int) int {
 	return message
 }
 func (b *Bot) rememberNative(ctx context.Context, id int64, message int) error {
-	markDelivered(ctx)
 	if !b.cleanNativeEnabled(ctx, id) || message <= 0 {
+		markDelivered(ctx)
 		return nil
 	}
 	old := b.db.NativeMessageID(ctx, id)
 	if err := b.db.SaveNativeMessage(ctx, id, message); err != nil {
 		return err
 	}
+	markDelivered(ctx)
 	if old > 0 && old != message {
 		_ = b.api.DeleteMessage(ctx, &telego.DeleteMessageParams{ChatID: telego.ChatID{ID: id}, MessageID: old})
 	}

@@ -15,10 +15,11 @@ import (
 
 // fakePanel — поддельная панель: считает, сколько раз продлили подписку.
 type fakePanel struct {
-	mu        sync.Mutex
-	users     map[int64]remnawave.User
-	created   int
-	expireSet []time.Time
+	mu         sync.Mutex
+	users      map[int64]remnawave.User
+	created    int
+	expireSet  []time.Time
+	resetCalls int
 }
 
 func newFakePanel() *fakePanel {
@@ -58,6 +59,8 @@ func (p *fakePanel) CreateUser(_ context.Context, params remnawave.CreateUserPar
 	}
 	if params.TelegramID != nil {
 		p.users[*params.TelegramID] = user
+	} else {
+		p.users[-user.ID] = user
 	}
 	p.expireSet = append(p.expireSet, params.ExpireAt)
 	return user, nil
@@ -74,10 +77,32 @@ func (p *fakePanel) UpdateUser(_ context.Context, params remnawave.UpdateUserPar
 			user.ExpireAt = remnawave.Timestamp{Time: *params.ExpireAt}
 			p.expireSet = append(p.expireSet, *params.ExpireAt)
 		}
+		if params.TrafficLimitBytes != nil {
+			user.TrafficLimitBytes = *params.TrafficLimitBytes
+		}
+		if params.TelegramID != nil {
+			user.TelegramID = params.TelegramID
+		}
+		if params.InternalSquads != nil {
+			user.ActiveInternalSquads = *params.InternalSquads
+		}
 		p.users[telegramID] = user
 		return user, nil
 	}
 	return remnawave.User{}, nil
+}
+
+func (p *fakePanel) ResetTraffic(_ context.Context, userID int64) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.resetCalls++
+	for key, user := range p.users {
+		if user.ID == userID {
+			user.TrafficUsedBytes = 0
+			p.users[key] = user
+		}
+	}
+	return nil
 }
 
 func (p *fakePanel) UpdateExpireAt(_ context.Context, userID int64, expireAt time.Time, _ []string) (remnawave.User, error) {

@@ -195,12 +195,22 @@ func TestPartnerClaimBindsAccount(t *testing.T) {
 		t.Fatalf("субъект: %v", err)
 	}
 	request := httptest.NewRequest(http.MethodGet, "/partner/claim?token="+code, nil)
-	request.AddCookie(sessionCookieFor(t, db, subject.ID))
+	sessionCookie := sessionCookieFor(t, db, subject.ID)
+	request.AddCookie(sessionCookie)
 	rec := httptest.NewRecorder()
 	server.Handler().ServeHTTP(rec, request)
 
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "Подтвердить привязку") {
+		t.Fatalf("confirmation status = %d: %s", rec.Code, rec.Body.String())
+	}
+	if linked, err := db.GetPartnerBySubject(ctx, subject.ID); err != nil || linked != nil {
+		t.Fatal("GET linked partner", linked, err)
+	}
+	token, cookies := csrfFrom(t, server.Handler())
+	cookies = append(cookies, sessionCookie)
+	rec = postForm(t, server.Handler(), "/partner/claim", url.Values{"csrf": {token}, "token": {code}}, cookies)
 	if rec.Code != http.StatusSeeOther {
-		t.Fatalf("код = %d, ждали 303", rec.Code)
+		t.Fatalf("POST status=%d: %s", rec.Code, rec.Body.String())
 	}
 	linked, err := db.GetPartnerBySubject(ctx, subject.ID)
 	if err != nil {

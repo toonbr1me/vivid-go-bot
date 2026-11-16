@@ -35,7 +35,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Go tests failed.' }
     & go vet ./...
     if ($LASTEXITCODE -ne 0) { throw 'go vet failed.' }
-    & node --test internal/bot/widgets/interface.test.cjs internal/web/static/ticket-live.test.cjs
+    & node --test internal/bot/widgets/interface.test.cjs internal/web/static/ticket-live.test.cjs internal/web/static/checkout.test.cjs
     if ($LASTEXITCODE -ne 0) { throw 'Widget JavaScript tests failed.' }
     if ($Coverage) {
         & go tool cover "-html=$coveragePath" "-o=$(Join-Path $artifactDirectory 'coverage.html')"

@@ -52,7 +52,7 @@ jobs:
       - name: Known vulnerabilities
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
       - name: JavaScript tests
-        run: node --test internal/bot/widgets/interface.test.cjs internal/web/static/ticket-live.test.cjs
+        run: node --test internal/bot/widgets/interface.test.cjs internal/web/static/ticket-live.test.cjs internal/web/static/checkout.test.cjs
       - name: Coverage report
         run: go tool cover -html=coverage.out -o=coverage.html
       - uses: actions/upload-artifact@v6

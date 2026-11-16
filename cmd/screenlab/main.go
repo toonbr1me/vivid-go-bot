@@ -13,6 +13,7 @@ func main() {
 	path := flag.String("export", "", "путь к HTML-каталогу")
 	serve := flag.Bool("serve", false, "локальный пульт на изолированной демонстрационной базе")
 	port := flag.Int("port", 8099, "порт демонстрационного пульта")
+	themeDir := flag.String("theme", "web", "каталог темы для локального пульта")
 	flag.Parse()
 	if *path == "" && !*serve {
 		fmt.Fprintln(os.Stderr, "укажите -export <путь.html>")
@@ -25,7 +26,7 @@ func main() {
 		}
 	}
 	if *serve {
-		if err := serveLab(*port); err != nil {
+		if err := serveLab(*port, *themeDir); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}

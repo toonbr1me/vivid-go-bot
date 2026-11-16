@@ -33,20 +33,27 @@ func (b *Bot) adminScreen(ctx context.Context, actor ...int64) (string, *telego.
 		"",
 		fmt.Sprintf("Открытых обращений: <b>%d</b>", open),
 		"",
-		"🔹 /stats — статистика",
 		"🔹 /tickets — очередь обращений",
-		"🔹 /grant <id> <дни> — выдать подписку",
 		"🔹 /reply <обращение> <текст> — ответить",
 		"🔹 /close <обращение> — закрыть",
 	}
 	kb := keyboard(
 		[]telego.InlineKeyboardButton{
-			button("📊 Статистика", "admin:stats"),
 			button("📋 Обращения", "admin:tickets"),
 		},
 		b.backRow())
+	if len(actor) > 0 && b.db.Permission(ctx, actor[0], "stats.view", b.cfg.AdminIDs) {
+		lines = append(lines, "🔹 /stats — статистика")
+		kb.InlineKeyboard = append(kb.InlineKeyboard, []telego.InlineKeyboardButton{button("📊 Статистика", "admin:stats")})
+	}
+	if len(actor) > 0 && b.db.Permission(ctx, actor[0], "subscription.grant", b.cfg.AdminIDs) {
+		lines = append(lines, "🔹 /grant <id> <дни> — выдать подписку")
+	}
 	if len(actor) > 0 && b.db.Permission(ctx, actor[0], "orders.view", b.cfg.AdminIDs) {
 		kb.InlineKeyboard = append([][]telego.InlineKeyboardButton{{button("Оплачены, ждут доступа", "ops:list")}}, kb.InlineKeyboard...)
+	}
+	if len(actor) > 0 && b.db.Permission(ctx, actor[0], "broadcast.send", b.cfg.AdminIDs) {
+		kb.InlineKeyboard = append(kb.InlineKeyboard, []telego.InlineKeyboardButton{button("Рассылка", "ann:home")})
 	}
 	if site := b.siteURL(); site != "" {
 		row := []telego.InlineKeyboardButton{}
@@ -73,6 +80,10 @@ func (b *Bot) adminCallback(ctx context.Context, queryID string, chatID telego.C
 	var kb *telego.InlineKeyboardMarkup
 	switch action {
 	case "stats":
+		if !b.db.Permission(ctx, tgID, "stats.view", b.cfg.AdminIDs) {
+			b.answer(ctx, queryID, "Недостаточно прав", true)
+			return
+		}
 		text, kb = b.statsScreen(ctx)
 	case "tickets":
 		text, kb = b.adminTicketsScreen(ctx, tgID)
@@ -136,7 +147,7 @@ func (b *Bot) adminTicketsScreen(ctx context.Context, tgID int64) (string, *tele
 
 // handleStats печатает сводку.
 func (b *Bot) handleStats(ctx *telegohandler.Context, message telego.Message) error {
-	if !b.isStaff(ctx, message.From.ID) {
+	if message.Chat.ID != message.From.ID || !b.db.Permission(ctx, message.From.ID, "stats.view", b.cfg.AdminIDs) {
 		b.send(ctx, telego.ChatID{ID: message.Chat.ID}, "🔐 Команда доступна только сотрудникам.", nil)
 		return nil
 	}

@@ -11,6 +11,7 @@ func clearEnv(t *testing.T) {
 	t.Helper()
 	for _, name := range []string{
 		"BOT_TOKEN", "DATABASE_URL", "API_BASE_URL", "API_TOKEN", "ADMIN_IDS",
+		"REMNAWAVE_WEBHOOK_SECRET", "REMNAWAVE_NAMESPACE", "SUBSCRIPTION_BASE_URL",
 		"BRAND_NAME", "CURRENCY", "SITE_ENABLED", "WEBAPP_ENABLED", "PREVIEW_ENABLED",
 		"RICH_MESSAGES_ENABLED", "DEFAULT_EXPIRE_DAYS", "TRAFFIC_LIMIT_BYTES",
 		"TRIAL_BOT_DAYS", "DEVICE_LIMIT_ENABLED", "PAYMENT_PROVIDERS", "PAYMENT_METHODS",
@@ -28,6 +29,31 @@ func baseEnv(t *testing.T) {
 	clearEnv(t)
 	t.Setenv("BOT_TOKEN", "123:test")
 	t.Setenv("DATABASE_URL", "postgres://localhost/test")
+}
+
+func TestPanelWebhookSecretIsEnvironmentOnly(t *testing.T) {
+	baseEnv(t)
+	t.Setenv("REMNAWAVE_WEBHOOK_SECRET", "environment-secret")
+	cfg, err := Load(map[string]string{"REMNAWAVE_WEBHOOK_SECRET": "database-value"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.RemnawaveWebhookSecret != "environment-secret" {
+		t.Fatal("database overrides webhook authentication")
+	}
+}
+
+func TestDevelopmentPanelScopeIsEnvironmentOnly(t *testing.T) {
+	baseEnv(t)
+	t.Setenv("REMNAWAVE_NAMESPACE", "devgo")
+	t.Setenv("SUBSCRIPTION_BASE_URL", "https://test2.example.com")
+	cfg, err := Load(map[string]string{"REMNAWAVE_NAMESPACE": "prod", "SUBSCRIPTION_BASE_URL": "https://prod.example.com"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.RemnawaveNamespace != "devgo" || cfg.SubscriptionBaseURL != "https://test2.example.com" {
+		t.Fatal("database overrides development isolation")
+	}
 }
 
 // Обязательные настройки: без них сервис не должен стартовать.

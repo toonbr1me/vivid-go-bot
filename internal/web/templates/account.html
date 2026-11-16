@@ -8,21 +8,28 @@
 </div>
 
 {{if .Data.AccessError}}<p class="notice-line">{{.Data.AccessError}}</p>{{end}}
+{{if .Data.Guidance}}
+<section class="card">
+  <h2>{{.Data.Guidance.Title}}</h2>
+  <p>{{.Data.Guidance.Detail}}</p>
+  <a class="btn btn-primary" href="{{.Data.GuidanceURL}}">{{.Data.Guidance.Label}}</a>
+</section>
+{{end}}
 
 <section class="grid-two">
   <article class="card">
     <div class="card-head">
       <h2>Подписка</h2>
       {{if .Data.Access.Found}}
-        {{if .Data.Access.Active}}<span class="chip chip-ok">Активна</span>{{else}}<span class="chip chip-warn">Истекла</span>{{end}}
-      {{else}}<span class="chip">Нет данных</span>{{end}}
+        {{if .Data.Access.Active}}<span class="chip chip-ok">Активна</span>{{else if and .Data.Access.ExpireAt (.Data.Access.ExpireAt.After .Now)}}<span class="chip chip-warn">Требуется проверка</span>{{else}}<span class="chip chip-warn">Истекла</span>{{end}}
+      {{else if .Data.Access.ExpireAt}}<span class="chip chip-warn">Последние известные данные</span>{{else}}<span class="chip">Нет данных</span>{{end}}
     </div>
 
-    {{if .Data.Access.Found}}
+    {{if or .Data.Access.Found .Data.Access.ExpireAt}}
       <dl class="facts">
         <div><dt>Действует до</dt><dd>{{date .Data.Access.ExpireAt}}</dd></div>
-        <div><dt>Лимит устройств</dt><dd>{{.Data.DeviceLimit}}</dd></div>
-        <div><dt>Трафик</dt><dd>{{bytes .Data.Access.TrafficLimit}}</dd></div>
+        {{if .Data.Access.Found}}<div><dt>Лимит устройств</dt><dd>{{.Data.DeviceLimit}}</dd></div>
+        <div><dt>Трафик</dt><dd>{{bytes .Data.Access.TrafficLimit}}</dd></div>{{end}}
       </dl>
 
       {{if .Data.Access.TrafficLimit}}
@@ -200,7 +207,7 @@
 {{end}}
 
 {{with .Data.Recurring}}
-<section class="section"><article class="card">
+<section class="section" id="recurring"><article class="card">
   <h2>Автопродление</h2>
   <p>{{.StatusText}}</p>
   <dl class="facts"><div><dt>Платёж</dt><dd>{{money .Amount}} / {{.Days}} {{daysWord .Days}} · {{.ProviderName}}</dd></div>

@@ -21,7 +21,7 @@ func menuState(status string) string {
 	switch status {
 	case "ACTIVE":
 		return texts.MenuStateActive
-	case "NONE", "INACTIVE":
+	case "NONE", "INACTIVE", "EXPIRED":
 		return texts.MenuStateInactive
 	default:
 		return texts.MenuStateUnknown

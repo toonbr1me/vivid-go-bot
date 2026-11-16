@@ -45,6 +45,27 @@ func (j *Journal) Completed(ctx context.Context, step string) (bool, error) {
 	return done, err
 }
 
+// ClaimTrialTrafficReset is called while holding LockSubject. The intent is
+// shared by every order of this subject, including not-yet-finalized orders.
+// A lost response must not trigger another non-idempotent reset after restart.
+func (j *Journal) ClaimTrialTrafficReset(ctx context.Context, subject domain.Subject) (bool, error) {
+	tag, err := j.db.Pool.Exec(ctx, `INSERT INTO order_fulfillment_steps(order_id,step,result)
+		SELECT $1,'trial_traffic_reset_attempt','true'::jsonb WHERE NOT EXISTS (
+		SELECT 1 FROM order_fulfillment_steps s JOIN orders o ON o.order_id=s.order_id
+		WHERE s.step='trial_traffic_reset_attempt' AND (o.account_id=$2 OR ($3::bigint IS NOT NULL AND o.telegram_id=$3)))
+		ON CONFLICT DO NOTHING`, j.orderID, subject.ID, subject.TelegramID)
+	return tag.RowsAffected() == 1, err
+}
+
+func (t Tx) TrialUpgradeNeeded(ctx context.Context, subject domain.Subject, orderID string) (bool, error) {
+	var needed bool
+	err := t.tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM trials WHERE subject_id=$1)
+		AND NOT EXISTS(SELECT 1 FROM orders WHERE order_id<>$3 AND provisioned_at IS NOT NULL
+		AND kind='subscription' AND provider<>'trial' AND plan_id<>'gift'
+		AND (account_id=$1 OR ($2::bigint IS NOT NULL AND telegram_id=$2)))`, subject.ID, subject.TelegramID, orderID).Scan(&needed)
+	return needed, err
+}
+
 // Once выполняет шаг один раз и возвращает его результат. Повторный вызов
 // отдаёт сохранённый результат, не выполняя действие заново.
 func (j *Journal) Once(ctx context.Context, step string, action StepAction) (json.RawMessage, error) {

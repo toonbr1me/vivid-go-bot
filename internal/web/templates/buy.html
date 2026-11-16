@@ -27,7 +27,7 @@
     <div class="plan-choices">
       {{range .Data.Quotes}}
       <label class="plan-choice{{if .Quote.Rejection}} disabled{{end}}">
-        <input type="radio" name="plan" value="{{.Quote.Plan.ID}}" {{if eq .Quote.Plan.ID $.Data.Selected}}checked{{end}} {{if .Quote.Rejection}}disabled{{end}}>
+        <input type="radio" name="plan" value="{{.Quote.Plan.ID}}" data-recurring-options="{{.RecurringOptions}}" data-recurring-amount="{{money .Quote.Amount}}" data-recurring-days="{{.Quote.Plan.Days}}" {{if eq .Quote.Plan.ID $.Data.Selected}}checked{{end}} {{if .Quote.Rejection}}disabled{{end}}>
         <span class="plan-choice-body">
           <span class="plan-choice-head">
             <strong>{{.Quote.Plan.Title}}</strong>
@@ -38,6 +38,7 @@
             {{if lt .Quote.Amount .Quote.Price}}<s>{{money .Quote.Price}}</s>{{end}}
           </span>
           <span class="muted small">{{perMonth .Quote.Amount .Quote.Plan.Days}} в месяц</span>
+          {{if .RecurringOptions}}<span class="muted small">При автопродлении: {{money .Quote.Amount}} каждые {{.Quote.Plan.Days}} {{daysWord .Quote.Plan.Days}}.</span>{{end}}
           {{if .Quote.Rejection}}<span class="form-error">{{.Quote.Rejection}}</span>{{end}}
         </span>
       </label>
@@ -50,6 +51,15 @@
 
   <section class="section">
     <h2 class="section-title">Оплата</h2>
+    {{if .Data.RecurringAvailable}}
+    <label class="option">
+      <input id="checkout-recurring" type="checkbox" name="recurring" value="1">
+      <span>Согласен на автопродление по цене и сроку выбранного тарифа.
+        <span class="muted small">Способ оплаты будет сохранён. Отключить будущие списания можно в кабинете в любой момент.</span>
+      </span>
+    </label>
+    <p id="recurring-terms" class="muted" aria-live="polite"></p>
+    {{end}}
     {{if .Data.Options}}
     <div class="option-list">
       {{range $i, $option := .Data.Options}}
@@ -90,3 +100,4 @@
 </section>
 {{end}}
 {{end}}
+{{define "scripts"}}<script src="/static/checkout.js" defer></script>{{end}}

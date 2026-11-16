@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"html"
 	"net/http"
@@ -123,10 +124,11 @@ func (s *Server) supportSubmit(w http.ResponseWriter, r *http.Request) {
 }
 
 type ticketData struct {
-	Ticket   storage.Ticket
-	Messages []storage.Message
-	Open     bool
-	Staff    bool
+	Ticket        storage.Ticket
+	Messages      []storage.Message
+	Open          bool
+	Staff         bool
+	CanCompensate bool
 }
 
 func (s *Server) ticketPage(w http.ResponseWriter, r *http.Request) {
@@ -152,19 +154,20 @@ func (s *Server) ticketPage(w http.ResponseWriter, r *http.Request) {
 		s.notFound(w, r)
 		return
 	}
-	messages, err := s.db.TicketMessages(ctx, ticketID, 200)
+	messages, err := s.db.TicketHistory(ctx, ticketID)
 	if err != nil {
 		s.log.Error("поддержка: переписка", "err", err)
-	}
-	// Запрос отдаёт новые первыми — на странице читаем сверху вниз по времени.
-	for left, right := 0, len(messages)-1; left < right; left, right = left+1, right-1 {
-		messages[left], messages[right] = messages[right], messages[left]
 	}
 	if ticketOwned(ticket, subject) {
 		_ = s.db.MarkTicketRead(ctx, ticket.ID, subject.ID, ticket.LastStaffMessageID)
 	}
+	canCompensate := false
+	if subject.TelegramID != nil && s.db.Permission(ctx, *subject.TelegramID, "support.compensate", s.cfg.AdminIDs) {
+		_, e := s.db.TicketCompensation(ctx, ticketID)
+		canCompensate = errors.Is(e, storage.ErrNotFound)
+	}
 	s.renderPage(w, r, "ticket.html", http.StatusOK, pageMeta{Title: "Обращение #" + strconv.FormatInt(ticket.ID, 10)},
-		ticketData{Ticket: ticket, Messages: messages, Open: ticket.Status == "open", Staff: staff})
+		ticketData{Ticket: ticket, Messages: messages, Open: ticket.Status == "open", Staff: staff, CanCompensate: canCompensate})
 }
 
 func (s *Server) ticketReply(w http.ResponseWriter, r *http.Request) {

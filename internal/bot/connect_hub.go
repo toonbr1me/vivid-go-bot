@@ -16,10 +16,13 @@ func (b *Bot) connectHubCard(ctx context.Context, id int64) cardState {
 		return b.connectPickerCard()
 	}
 	access, err := b.accessFor(ctx, subject)
-	if err != nil || !access.Active || access.URL == "" {
+	if !access.Found || !access.Active || access.URL == "" {
 		return cardWithButtons(cardPage{Title: "Подключение", Tab: "subscription", Value: "Нужен действующий доступ", Note: "Выберите подписку или проверьте её состояние"}, []telego.InlineKeyboardButton{button("Моя подписка", "nav:subscription"), button("Помощь", "nav:support")})
 	}
 	p := cardPage{Title: "Подключение", Tab: "subscription", Value: "Выберите приложение", Note: "Приложение откроется и предложит добавить подписку. Затем включите подключение.", Used: len(access.Devices), Limit: access.DeviceLimit, Layout: "apps"}
+	if err != nil {
+		p.Note = "Подписка и ссылка доступны. Список устройств временно не удалось обновить."
+	}
 	actions := []telego.InlineKeyboardButton{}
 	if site := b.siteURL(); strings.HasPrefix(site, "https://") {
 		for _, app := range []struct{ key, name string }{{"happ", "Happ"}, {"incy", "Incy"}, {"clashmi", "Clash Mi"}, {"flclashx", "FlClashX"}} {

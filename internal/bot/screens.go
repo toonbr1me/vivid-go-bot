@@ -15,14 +15,17 @@ import (
 // mainScreen — точка входа. Статус подписки берём из панели, но сбой не
 // мешает показать меню: человек не должен оставаться без кнопок.
 func (b *Bot) mainScreen(ctx context.Context, tgID int64) (string, *telego.InlineKeyboardMarkup) {
-	subject, _ := b.subject(ctx, tgID)
+	subject, subjectErr := b.subject(ctx, tgID)
+	if subjectErr != nil {
+		return b.texts.Common.ProfileError, keyboard(b.backRow())
+	}
 	access, err := b.accessFor(ctx, subject)
 
 	status := "UNKNOWN"
 	statusLine := b.texts.Main.StatusUnknown
 	if err == nil || access.Found {
 		switch {
-		case access.Found && access.Active:
+		case access.Active:
 			status = "ACTIVE"
 			expire, ok := daysLeft(access.ExpireAt, time.Now())
 			if ok && expire >= 0 {
@@ -32,9 +35,11 @@ func (b *Bot) mainScreen(ctx context.Context, tgID int64) (string, *telego.Inlin
 			} else {
 				statusLine = b.texts.Main.StatusShort
 			}
-		case access.ExpireAt != nil:
+		case access.ExpireAt != nil && !access.ExpireAt.After(time.Now()):
 			status = "EXPIRED"
 			statusLine = b.text(b.texts.Main.StatusExpired, map[string]any{"Date": dateText(*access.ExpireAt)})
+		case access.Found && access.ExpireAt != nil:
+			statusLine = "Оплаченный срок ещё действует. Состояние доступа требует проверки."
 		default:
 			status = "NONE"
 			statusLine = b.texts.Main.StatusNone
@@ -51,7 +56,21 @@ func (b *Bot) mainScreen(ctx context.Context, tgID int64) (string, *telego.Inlin
 			"Days": b.cfg.TrialBotDays, "DaysWord": daysWord(b.cfg.TrialBotDays),
 		})
 	}
-	return text, b.mainKeyboard(status, trialAvailable)
+	kb := b.mainKeyboard(status, trialAvailable)
+	if guidance, e := b.pay.CustomerGuidance(ctx, subject, access, "bot"); e == nil && (err == nil || access.Found || guidance.Action == "order") {
+		text += "\n\n<b>" + escapeHTML(guidance.Title) + "</b>\n" + escapeHTML(guidance.Detail)
+		action := "nav:" + guidance.Action
+		if guidance.Action == "order" {
+			action = "check:" + guidance.OrderID
+		}
+		if guidance.Action == "recurring" {
+			action = "nav:profile"
+		}
+		if guidance.Action != "buy" || b.pay.Registry().Enabled() {
+			kb.InlineKeyboard = append([][]telego.InlineKeyboardButton{{button(guidance.Label, action)}}, kb.InlineKeyboard...)
+		}
+	}
+	return text, kb
 }
 
 // subscriptionScreen показывает срок, трафик и ссылку подключения.
