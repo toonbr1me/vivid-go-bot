@@ -1,0 +1,157 @@
+{
+  "date": "2026-11-16",
+  "code_revision": "dfcac0d",
+  "support_revision": "1c45bf7",
+  "production": true,
+  "deployment": {
+    "revision": "1c45bf7",
+    "production_ready": true,
+    "backup": "/opt/vivid-go-production-20261116/before-support-1c45bf7",
+    "before": {
+      "accounts": 1941,
+      "orders": 2477,
+      "tickets": 99,
+      "messages": 569
+    },
+    "after": {
+      "accounts": 1941,
+      "orders": 2477,
+      "tickets": 99,
+      "messages": 569
+    },
+    "documents": [
+      {
+        "path": "/terms",
+        "http": 200
+      },
+      {
+        "path": "/privacy",
+        "http": 200
+      },
+      {
+        "path": "/cookies",
+        "http": 200
+      }
+    ],
+    "database_replaced": false
+  },
+  "journal_fix": {
+    "revision": "dfcac0d",
+    "health": 200,
+    "legacy_targets_readable": true,
+    "retry_existing_compensation": true
+  },
+  "journal_recovery": {
+    "waiting_access": 0,
+    "support_comp_waiting": 0,
+    "support_comp_completed": 5
+  },
+  "legal_pages": {
+    "checks": [
+      {
+        "ingress": "45.134.38.139",
+        "path": "/terms",
+        "published": true
+      },
+      {
+        "ingress": "45.134.38.139",
+        "path": "/privacy",
+        "published": true
+      },
+      {
+        "ingress": "45.134.38.139",
+        "path": "/cookies",
+        "published": true
+      },
+      {
+        "ingress": "45.150.110.167",
+        "path": "/terms",
+        "published": true
+      },
+      {
+        "ingress": "45.150.110.167",
+        "path": "/privacy",
+        "published": true
+      },
+      {
+        "ingress": "45.150.110.167",
+        "path": "/cookies",
+        "published": true
+      }
+    ]
+  },
+  "authenticated_pages": {
+    "read_only_business_operations": true,
+    "temporary_sessions_removed": true,
+    "checks": [
+      {
+        "role": "customer",
+        "path": "/account",
+        "http": 200,
+        "nonempty": true
+      },
+      {
+        "role": "customer",
+        "path": "/buy?plan=30d",
+        "http": 200,
+        "nonempty": true
+      },
+      {
+        "role": "customer",
+        "path": "/connect",
+        "http": 200,
+        "nonempty": true
+      },
+      {
+        "role": "customer",
+        "path": "/support",
+        "http": 200,
+        "nonempty": true
+      },
+      {
+        "role": "admin",
+        "path": "/admin",
+        "http": 200,
+        "nonempty": true
+      },
+      {
+        "role": "admin",
+        "path": "/admin/orders",
+        "http": 200,
+        "nonempty": true
+      },
+      {
+        "role": "admin",
+        "path": "/admin/tickets",
+        "http": 200,
+        "nonempty": true
+      },
+      {
+        "existing_subscription_url_http": 200,
+        "nonempty": true
+      }
+    ]
+  },
+  "runtime": {
+    "healthy": "healthy",
+    "revision": "dfcac0d",
+    "stats": {
+      "accounts": 1941,
+      "orders": 2477,
+      "balances": 28,
+      "tickets": 99,
+      "waiting_access": 0,
+      "legacy_preserved": 2463,
+      "synthetic_test_accounts": 0,
+      "invalid_status": 0
+    },
+    "error_lines": []
+  },
+  "validation": {
+    "telegram": "scripted transport integration tests; no test messages sent to real customers",
+    "integration_suite": "passed",
+    "go_vet": "passed",
+    "javascript_tests_passed": 21,
+    "journal_compatibility_payments_storage_tests": "passed"
+  }
+}

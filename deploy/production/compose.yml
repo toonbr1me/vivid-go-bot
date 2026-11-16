@@ -15,7 +15,7 @@ services:
     logging:
       options: {max-size: 10m, max-file: '3'}
   app:
-    image: vivid-go-bot:production-20261116-compat
+    image: vivid-go-bot:production-20261116-support-fix
     restart: unless-stopped
     env_file:
       - path: app.env
