@@ -33,20 +33,27 @@ func (b *Bot) adminScreen(ctx context.Context, actor ...int64) (string, *telego.
 		"",
 		fmt.Sprintf("Открытых обращений: <b>%d</b>", open),
 		"",
-		"🔹 /stats — статистика",
 		"🔹 /tickets — очередь обращений",
-		"🔹 /grant <id> <дни> — выдать подписку",
 		"🔹 /reply <обращение> <текст> — ответить",
 		"🔹 /close <обращение> — закрыть",
 	}
 	kb := keyboard(
 		[]telego.InlineKeyboardButton{
-			button("📊 Статистика", "admin:stats"),
 			button("📋 Обращения", "admin:tickets"),
 		},
 		b.backRow())
+	if len(actor) > 0 && b.db.Permission(ctx, actor[0], "stats.view", b.cfg.AdminIDs) {
+		lines = append(lines, "🔹 /stats — статистика")
+		kb.InlineKeyboard = append(kb.InlineKeyboard, []telego.InlineKeyboardButton{button("📊 Статистика", "admin:stats")})
+	}
+	if len(actor) > 0 && b.db.Permission(ctx, actor[0], "subscription.grant", b.cfg.AdminIDs) {
+		lines = append(lines, "🔹 /grant <id> <дни> — выдать подписку")
+	}
 	if len(actor) > 0 && b.db.Permission(ctx, actor[0], "orders.view", b.cfg.AdminIDs) {
 		kb.InlineKeyboard = append([][]telego.InlineKeyboardButton{{button("Оплачены, ждут доступа", "ops:list")}}, kb.InlineKeyboard...)
+	}
+	if len(actor) > 0 && b.db.Permission(ctx, actor[0], "broadcast.send", b.cfg.AdminIDs) {
+		kb.InlineKeyboard = append(kb.InlineKeyboard, []telego.InlineKeyboardButton{button("Рассылка", "ann:home")})
 	}
 	if site := b.siteURL(); site != "" {
 		row := []telego.InlineKeyboardButton{}
@@ -60,7 +67,7 @@ func (b *Bot) adminScreen(ctx context.Context, actor ...int64) (string, *telego.
 	return strings.Join(lines, "\n"), kb
 }
 
-func (b *Bot) adminCallback(ctx context.Context, queryID string, chatID telego.ChatID, messageID int, tgID int64, action string) {
+func (b *Bot) adminCallback(ctx context.Context, queryID string, chatID telego.ChatID, messageID int, tgID int64, action string, arguments ...string) {
 	if chatID.ID != tgID {
 		b.answer(ctx, queryID, "Откройте /admin в личном чате", true)
 		return
@@ -73,9 +80,17 @@ func (b *Bot) adminCallback(ctx context.Context, queryID string, chatID telego.C
 	var kb *telego.InlineKeyboardMarkup
 	switch action {
 	case "stats":
+		if !b.db.Permission(ctx, tgID, "stats.view", b.cfg.AdminIDs) {
+			b.answer(ctx, queryID, "Недостаточно прав", true)
+			return
+		}
 		text, kb = b.statsScreen(ctx)
 	case "tickets":
-		text, kb = b.adminTicketsScreen(ctx, tgID)
+		page := 0
+		if len(arguments) > 0 {
+			page = ticketListPage(arguments[0])
+		}
+		text, kb = b.adminTicketsScreen(ctx, tgID, page)
 	default:
 		text, kb = b.adminScreen(ctx, tgID)
 	}
@@ -106,12 +121,18 @@ func (b *Bot) statsScreen(ctx context.Context) (string, *telego.InlineKeyboardMa
 		})
 }
 
-func (b *Bot) adminTicketsScreen(ctx context.Context, tgID int64) (string, *telego.InlineKeyboardMarkup) {
-	tickets, err := b.db.QueueTickets(ctx, tgID, 10)
+func (b *Bot) adminTicketsScreen(ctx context.Context, tgID int64, requested ...int) (string, *telego.InlineKeyboardMarkup) {
+	page := 0
+	if len(requested) > 0 {
+		page = requested[0]
+	}
+	result, err := b.db.QueueTicketsPage(ctx, tgID, page, 10)
 	if err != nil {
 		return "⚠️ Не удалось загрузить очередь.", keyboard(b.backRow())
 	}
-	lines := []string{"📋 <b>Очередь обращений</b>", ""}
+	tickets := result.Tickets
+	b.rememberTicketList(tgID, result.Page, true)
+	lines := []string{"📋 <b>Очередь обращений</b>", fmt.Sprintf("Страница %d из %d · всего %d", result.Page+1, result.Pages, result.Total), ""}
 	if len(tickets) == 0 {
 		lines = append(lines, "Открытых обращений нет.")
 	}
@@ -122,13 +143,16 @@ func (b *Bot) adminTicketsScreen(ctx context.Context, tgID int64) (string, *tele
 			assignee = strconv.FormatInt(*ticket.AssignedTo, 10)
 		}
 		lines = append(lines, fmt.Sprintf("#%d · %s · %s · %s",
-			ticket.ID, dateText(ticket.CreatedAt), assignee, escapeHTML(ticket.Subject)))
+			ticket.ID, dateText(ticket.CreatedAt), assignee, escapeHTML(firstRunes(ticket.Subject, 80))))
 		rows = append(rows, []telego.InlineKeyboardButton{
 			button(fmt.Sprintf("Открыть #%d", ticket.ID), "ticket:"+strconv.FormatInt(ticket.ID, 10)),
 		})
 	}
+	if pager := ticketListPager(result, "admin:tickets"); len(pager) > 0 {
+		rows = append(rows, pager)
+	}
 	rows = append(rows, []telego.InlineKeyboardButton{
-		button("🔄 Обновить", "admin:tickets"),
+		button("🔄 Обновить", fmt.Sprintf("admin:tickets:%d", result.Page)),
 		button("← Панель", "admin:home"),
 	})
 	return strings.Join(lines, "\n"), keyboard(rows...)
@@ -136,7 +160,7 @@ func (b *Bot) adminTicketsScreen(ctx context.Context, tgID int64) (string, *tele
 
 // handleStats печатает сводку.
 func (b *Bot) handleStats(ctx *telegohandler.Context, message telego.Message) error {
-	if !b.isStaff(ctx, message.From.ID) {
+	if message.Chat.ID != message.From.ID || !b.db.Permission(ctx, message.From.ID, "stats.view", b.cfg.AdminIDs) {
 		b.send(ctx, telego.ChatID{ID: message.Chat.ID}, "🔐 Команда доступна только сотрудникам.", nil)
 		return nil
 	}
@@ -241,12 +265,7 @@ func (b *Bot) handleReply(ctx *telegohandler.Context, message telego.Message) er
 		return nil
 	}
 	if ticket.TelegramID != nil {
-		header := "🛠 Ответ поддержки по обращению #" + fields[1] + ":"
-		_ = b.deliverMarkdown(ctx, telego.ChatID{ID: *ticket.TelegramID}, 0,
-			header+"\n\n"+fields[2],
-			keyboard([]telego.InlineKeyboardButton{
-				button("📨 Открыть обращение", "ticket:"+fields[1]),
-			}))
+		_ = b.SendTicketUpdate(ctx, *ticket.TelegramID, ticketID, fields[2], "support")
 	}
 	_ = b.db.LogAction(ctx, tgID, "support.answer", "ticket:"+fields[1], 0, "")
 	b.send(ctx, chatID, "✅ Ответ отправлен.", nil)

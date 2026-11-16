@@ -138,18 +138,20 @@ func TestRemindUnpaidSendsOnce(t *testing.T) {
 	}
 	paymentURL := "https://pay.example/link"
 	created := time.Now().UTC().Add(-48 * time.Hour)
+	expires := time.Now().Add(time.Hour)
 	order := domain.Order{
-		OrderID:        "unpaid-1",
-		Provider:       "yookassa",
-		TelegramID:     &telegramID,
-		AccountID:      &subject.ID,
-		PlanID:         "30d",
-		Kind:           domain.KindSubscription,
-		Amount:         domain.FromRubles(300),
-		OriginalAmount: domain.FromRubles(300),
-		Currency:       "RUB",
-		Status:         domain.OrderPending,
-		PaymentURL:     &paymentURL,
+		OrderID:          "unpaid-1",
+		Provider:         "yookassa",
+		TelegramID:       &telegramID,
+		AccountID:        &subject.ID,
+		PlanID:           "30d",
+		Kind:             domain.KindSubscription,
+		Amount:           domain.FromRubles(300),
+		OriginalAmount:   domain.FromRubles(300),
+		Currency:         "RUB",
+		Status:           domain.OrderPending,
+		PaymentURL:       &paymentURL,
+		PaymentExpiresAt: &expires,
 	}
 	if _, err := db.CreateOrder(ctx, order); err != nil {
 		t.Fatalf("заказ: %v", err)

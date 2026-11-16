@@ -432,6 +432,7 @@ input[readonly] { color: var(--muted); cursor: copy; }
   background: var(--surface);
 }
 .option input { width: auto; accent-color: var(--accent); }
+.option[hidden] { display: none; }
 .option:has(input:checked) { border-color: var(--accent); }
 .option strong { font-weight: 650; margin-right: 8px; }
 

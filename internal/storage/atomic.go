@@ -53,7 +53,9 @@ func (t Tx) ReservedExpiry(ctx context.Context, subject domain.Subject) (time.Ti
 
 func reservedExpiry(ctx context.Context, q Querier, subject domain.Subject) (time.Time, error) {
 	var target *time.Time
-	err := q.QueryRow(ctx, `SELECT max((s.result #>> '{}')::timestamptz)
+	err := q.QueryRow(ctx, `SELECT max((CASE jsonb_typeof(s.result)
+		WHEN 'string' THEN s.result #>> '{}'
+		WHEN 'object' THEN s.result ->> 'target' END)::timestamptz)
 		FROM order_fulfillment_steps s JOIN orders o ON o.order_id = s.order_id
 		WHERE s.step = 'subscription_target' AND o.status IN ('paid', 'provisioned')
 		AND (o.account_id = $1 OR ($2::bigint IS NOT NULL AND o.telegram_id = $2))`,

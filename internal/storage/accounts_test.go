@@ -314,6 +314,9 @@ func TestLivePendingOrders(t *testing.T) {
 	url := "https://pay.example/link"
 
 	for _, order := range []domain.Order{
+		{OrderID: "legacy-no-expiry", Provider: "yookassa", TelegramID: &telegramID, AccountID: &subject.ID,
+			PlanID: "30d", Kind: domain.KindSubscription, Amount: domain.FromRubles(300),
+			Currency: "RUB", Status: domain.OrderPending, PaymentURL: &url},
 		{OrderID: "live-1", Provider: "yookassa", TelegramID: &telegramID, AccountID: &subject.ID,
 			PlanID: "30d", Kind: domain.KindSubscription, Amount: domain.FromRubles(300),
 			Currency: "RUB", Status: domain.OrderPending, PaymentURL: &url, PaymentExpiresAt: &expires},

@@ -175,6 +175,30 @@ func (db *DB) TicketMessages(ctx context.Context, ticketID int64, limit int) ([]
 	return out, rows.Err()
 }
 
+// TicketHistory returns the complete public conversation, oldest first.
+// Screen pagination must not make older saved messages inaccessible.
+func (db *DB) TicketHistory(ctx context.Context, ticketID int64) ([]Message, error) {
+	rows, err := db.Pool.Query(ctx, `
+		SELECT id, ticket_id, subject_id, telegram_id, message, is_from_admin,
+		       is_internal, is_assistant, file_id, file_type, created_at
+		FROM support_messages WHERE ticket_id=$1 AND NOT is_internal
+		ORDER BY created_at,id`, ticketID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Message
+	for rows.Next() {
+		var m Message
+		if err := rows.Scan(&m.ID, &m.TicketID, &m.SubjectID, &m.TelegramID, &m.Text,
+			&m.FromAdmin, &m.Internal, &m.Assistant, &m.FileID, &m.FileType, &m.CreatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, m)
+	}
+	return out, rows.Err()
+}
+
 // TicketsForSubject — все обращения пользователя.
 func (db *DB) TicketsForSubject(ctx context.Context, subjectID int64, limit int) ([]Ticket, error) {
 	rows, err := db.Pool.Query(ctx, `

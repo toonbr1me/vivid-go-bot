@@ -78,21 +78,23 @@ func (s *Server) landing(w http.ResponseWriter, r *http.Request) {
 // ---------------------------------------------------------------------------
 
 type buyQuote struct {
-	Quote domain.PlanQuote
-	Stars int
+	Quote            domain.PlanQuote
+	Stars            int
+	RecurringOptions string
 }
 
 type buyData struct {
-	Quotes         []buyQuote
-	Options        []domain.PaymentOption
-	Selected       string
-	Promo          string
-	PromoRejected  string
-	TrialPlan      domain.Plan
-	TrialAvailable bool
-	TrialDays      int
-	LoggedIn       bool
-	WebPayments    bool
+	Quotes             []buyQuote
+	Options            []domain.PaymentOption
+	Selected           string
+	Promo              string
+	PromoRejected      string
+	TrialPlan          domain.Plan
+	TrialAvailable     bool
+	TrialDays          int
+	LoggedIn           bool
+	WebPayments        bool
+	RecurringAvailable bool
 }
 
 func (s *Server) buyPage(w http.ResponseWriter, r *http.Request) {
@@ -128,6 +130,16 @@ func (s *Server) buyPage(w http.ResponseWriter, r *http.Request) {
 	registry := s.pay.Registry()
 	for _, quote := range quotes {
 		view := buyQuote{Quote: quote}
+		if quote.Amount > 0 && quote.Rejection == "" {
+			var tokens []string
+			for _, option := range data.Options {
+				if s.pay.RecurringSupported(option, quote.Plan.Days) {
+					tokens = append(tokens, option.Token())
+				}
+			}
+			view.RecurringOptions = strings.Join(tokens, ",")
+			data.RecurringAvailable = data.RecurringAvailable || len(tokens) > 0
+		}
 		if registry != nil {
 			view.Stars = registry.StarsAmount(quote.Amount)
 		}
@@ -189,6 +201,7 @@ func (s *Server) buySubmit(w http.ResponseWriter, r *http.Request) {
 		Option:     option,
 		PromoCode:  promo,
 		Web:        true,
+		Recurring:  r.PostFormValue("recurring") == "1",
 	})
 	if err != nil {
 		s.log.Warn("покупка не удалась", "plan", planID, "err", err)

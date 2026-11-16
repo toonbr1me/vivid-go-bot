@@ -32,7 +32,7 @@ func TestConfiguredStyleOverridesPreviousUserPreference(t *testing.T) {
 	}
 }
 
-func TestCleanSupportPreservesContentInHistoryBeforeDeleting(t *testing.T) {
+func TestSupportKeepsIncomingMessageAndConfirmsWithoutEchoingHistory(t *testing.T) {
 	db := testdb.Open(t)
 	caller := &scriptedCaller{}
 	api, _ := telego.NewBot("123456789:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", telego.WithAPICaller(caller))
@@ -54,14 +54,11 @@ func TestCleanSupportPreservesContentInHistoryBeforeDeleting(t *testing.T) {
 	if err != nil || len(messages) != 1 || messages[0].Text != "Не удаётся подключиться" {
 		t.Fatal("support text not persisted")
 	}
-	if !strings.Contains(strings.Join(caller.methods, ","), "deleteMessage") {
-		t.Fatal("incoming support message left in chat")
+	if strings.Contains(strings.Join(caller.methods, ","), "deleteMessage") {
+		t.Fatal("support chat deleted customer's own message")
 	}
-	_, raw, err := db.BotCard(ctx, 7)
-	var state cardState
-	_ = json.Unmarshal(raw, &state)
-	if err != nil || len(state.Pages) == 0 || !strings.Contains(state.Pages[0].Title, "Обращение #") {
-		t.Fatal("ticket history not shown as a card")
+	if !strings.Contains(strings.Join(caller.bodies, "\n"), "Обращение создано") {
+		t.Fatal("creation not acknowledged")
 	}
 }
 

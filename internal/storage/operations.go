@@ -16,14 +16,14 @@ const recurringAttentionWhere = `(enabled AND last_error<>'') OR
 
 func (db *DB) Operations(ctx context.Context) (s Operations, err error) {
 	err = db.Pool.QueryRow(ctx, `SELECT
- (SELECT count(*) FROM orders WHERE status='paid'),
+ (SELECT count(*) FROM orders WHERE status='paid' AND provisioned_at IS NULL),
  (SELECT count(*) FROM orders WHERE status='pending' AND created_at < now()-interval '30 minutes'),
  (SELECT count(*) FROM recurring_agreements WHERE `+recurringAttentionWhere+`)`).Scan(&s.AwaitingAccess, &s.StuckPayments, &s.RecurringErrors)
 	return
 }
 
 func (db *DB) AttentionOrders(ctx context.Context, limit int) ([]domain.Order, error) {
-	rows, err := db.Pool.Query(ctx, `SELECT `+orderColumns+` FROM orders WHERE status='paid' OR (status='pending' AND created_at < now()-interval '30 minutes') ORDER BY (status='paid') DESC,created_at,id LIMIT $1`, limit)
+	rows, err := db.Pool.Query(ctx, `SELECT `+orderColumns+` FROM orders WHERE (status='paid' AND provisioned_at IS NULL) OR (status='pending' AND created_at < now()-interval '30 minutes') ORDER BY (status='paid') DESC,created_at,id LIMIT $1`, limit)
 	if err != nil {
 		return nil, err
 	}

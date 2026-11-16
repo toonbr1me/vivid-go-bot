@@ -20,11 +20,13 @@ import (
 // Settings — полный набор настроек процесса.
 type Settings struct {
 	// Подключения и секреты (только окружение).
-	TelegramToken string
-	DatabaseURL   string
-	APIBaseURL    string
-	APIToken      string
-	AdminIDs      map[int64]bool
+	TelegramToken       string
+	DatabaseURL         string
+	APIBaseURL          string
+	APIToken            string
+	RemnawaveNamespace  string
+	SubscriptionBaseURL string
+	AdminIDs            map[int64]bool
 
 	// Подписка.
 	DefaultExpireDays  int
@@ -330,11 +332,13 @@ func Load(overlay map[string]string) (*Settings, error) {
 	}
 
 	settings := &Settings{
-		TelegramToken: telegramToken,
-		DatabaseURL:   databaseURL,
-		APIBaseURL:    strings.TrimRight(apiBaseURL, "/"),
-		APIToken:      apiToken,
-		AdminIDs:      env.int64Set("ADMIN_IDS"),
+		TelegramToken:       telegramToken,
+		DatabaseURL:         databaseURL,
+		APIBaseURL:          strings.TrimRight(apiBaseURL, "/"),
+		APIToken:            apiToken,
+		RemnawaveNamespace:  strings.TrimSpace(os.Getenv("REMNAWAVE_NAMESPACE")),
+		SubscriptionBaseURL: strings.TrimSpace(os.Getenv("SUBSCRIPTION_BASE_URL")),
+		AdminIDs:            env.int64Set("ADMIN_IDS"),
 
 		Currency:          fallback(env.optional("CURRENCY"), "RUB"),
 		BrandName:         fallback(env.optional("BRAND_NAME"), "Vivid"),
@@ -383,7 +387,7 @@ func Load(overlay map[string]string) (*Settings, error) {
 		TrialWebSquads: env.list("TRIAL_WEB_INTERNAL_SQUAD_UUIDS"),
 		TrialBotSquads: env.list("TRIAL_BOT_INTERNAL_SQUAD_UUIDS"),
 
-		RemnawaveWebhookSecret: env.optional("REMNAWAVE_WEBHOOK_SECRET"),
+		RemnawaveWebhookSecret: strings.TrimSpace(os.Getenv("REMNAWAVE_WEBHOOK_SECRET")),
 		LLMProvider:            fallback(env.optional("SUPPORT_LLM_PROVIDER"), "ollama"),
 		LLMURL:                 fallback(env.optional("SUPPORT_LLM_URL"), "http://127.0.0.1:11434"),
 		LLMModel:               env.optional("SUPPORT_LLM_MODEL"),

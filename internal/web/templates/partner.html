@@ -11,13 +11,27 @@
   <a class="btn btn-ghost" href="/account">Кабинет</a>
 </div>
 
-{{if .Data.Partner}}
+{{if .Data.Invite}}
+<article class="card">
+  <h2>Подтвердить партнёрство с «{{.Data.Invite.Name}}»</h2>
+  <p>Партнёрство и накопленные начисления будут привязаны к текущему аккаунту: {{if .Subject.Email}}{{str .Subject.Email}}{{else if .Subject.TelegramID}}Telegram {{.Subject.TelegramID}}{{else}}аккаунт №{{.Subject.ID}}{{end}}.</p>
+  <form method="post" action="/partner/claim">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <input type="hidden" name="token" value="{{.Data.InviteToken}}">
+    <button class="btn btn-primary" type="submit">Подтвердить привязку</button>
+    <a class="btn btn-ghost" href="/partner">Отмена</a>
+  </form>
+</article>
+{{else if .Data.Partner}}
 <section class="grid-two">
   <article class="card">
     <div class="card-head"><h2>Начисления</h2></div>
     <dl class="facts">
       <div><dt>Баланс</dt><dd>{{money .Data.Balance}}</dd></div>
       <div><dt>Всего начислено</dt><dd>{{money .Data.Rewarded}}</dd></div>
+      <div><dt>Ожидает зачисления</dt><dd>{{money .Data.Accrued}}</dd></div>
+      <div><dt>Зачислено</dt><dd>{{money .Data.Credited}}</dd></div>
+      <div><dt>Отменено</dt><dd>{{money .Data.Cancelled}}</dd></div>
     </dl>
     {{if .Data.Rewards}}
     <div class="table-wrap">
@@ -28,7 +42,7 @@
           <tr>
             <td><code>{{.OrderID}}</code></td>
             <td>{{money .Amount}}</td>
-            <td>{{if eq .Status "credited"}}зачислено{{else}}в ожидании{{end}}</td>
+            <td>{{if eq .Status "credited"}}зачислено{{else if eq .Status "cancelled"}}отменено{{else}}в ожидании{{end}}</td>
             <td class="muted small nowrap">{{ts .CreatedAt}}</td>
           </tr>
         {{end}}

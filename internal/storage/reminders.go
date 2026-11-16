@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"strings"
 	"time"
 
 	"github.com/toonbr1me/vivid-go-bot/internal/domain"
@@ -83,16 +84,19 @@ func (db *DB) SubscriptionForOwner(ctx context.Context, telegramID, accountID *i
 // спамом, а не заботой.
 func (db *DB) PendingOrdersForReminder(ctx context.Context, olderThan time.Time, limit int) ([]domain.Order, error) {
 	return db.queryOrders(ctx, `
-		SELECT DISTINCT ON (telegram_id) `+orderColumns+` FROM orders
-		WHERE telegram_id IS NOT NULL AND status = 'pending'
+		SELECT DISTINCT ON (recipient_telegram_id) `+strings.Replace(orderColumns, "telegram_id", "recipient_telegram_id", 1)+` FROM (
+		 SELECT o.*, a.telegram_id AS recipient_telegram_id FROM orders o
+		 JOIN accounts a ON (o.account_id=a.id OR (o.account_id IS NULL AND o.telegram_id=a.telegram_id))
+		 WHERE a.telegram_id IS NOT NULL
+		) orders WHERE status = 'pending'
 		  AND payment_url IS NOT NULL AND created_at <= $1
-		  AND (payment_expires_at IS NULL OR payment_expires_at > now())
-		  AND NOT EXISTS (SELECT 1 FROM reminder_log r WHERE r.telegram_id = orders.telegram_id
+		  AND payment_expires_at > now()
+		  AND NOT EXISTS (SELECT 1 FROM reminder_log r WHERE r.telegram_id = orders.recipient_telegram_id
 		    AND r.kind = 'unpaid' AND r.target_at = orders.created_at
 		    AND (r.status = 'sent' OR r.lease_until > now()))
-		  AND NOT EXISTS (SELECT 1 FROM orders newer WHERE newer.telegram_id = orders.telegram_id
+		  AND NOT EXISTS (SELECT 1 FROM orders newer WHERE (newer.telegram_id = orders.recipient_telegram_id OR newer.account_id = orders.account_id)
 		    AND newer.kind = orders.kind AND newer.status IN ('paid','provisioned')
 		    AND newer.created_at >= orders.created_at)
-		ORDER BY telegram_id, created_at DESC
+		ORDER BY recipient_telegram_id, created_at DESC
 		LIMIT $2`, olderThan, limit)
 }

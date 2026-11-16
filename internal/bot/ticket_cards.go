@@ -2,31 +2,39 @@ package bot
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 
 	"github.com/mymmrac/telego"
 	"github.com/toonbr1me/vivid-go-bot/internal/mdhtml"
+	"github.com/toonbr1me/vivid-go-bot/internal/storage"
 )
 
-// Every saved message is a page, so the entire conversation is recoverable
-// without filling the Telegram chat with copies of it.
-func (b *Bot) ticketCard(ctx context.Context, id, ticketID int64) (cardState, error) {
+type ticketConversation struct {
+	ticket   storage.Ticket
+	messages []storage.Message
+	owner    bool
+	actions  []telego.InlineKeyboardButton
+}
+
+func (b *Bot) loadTicketConversation(ctx context.Context, id, ticketID int64) (ticketConversation, error) {
 	ticket, err := b.db.TicketByID(ctx, ticketID)
 	if err != nil {
-		return cardState{}, err
+		return ticketConversation{}, err
 	}
 	subject, err := b.subject(ctx, id)
 	if err != nil {
-		return cardState{}, err
+		return ticketConversation{}, err
 	}
 	owner := supportTicketOwned(ticket, subject)
-	if !owner && !b.isStaff(ctx, id) {
-		return cardState{}, fmt.Errorf("обращение вам не принадлежит")
+	staff := b.isStaff(ctx, id)
+	if !owner && !staff {
+		return ticketConversation{}, fmt.Errorf("обращение вам не принадлежит")
 	}
-	messages, err := b.db.TicketMessages(ctx, ticketID, 500)
+	messages, err := b.db.TicketHistory(ctx, ticketID)
 	if err != nil {
-		return cardState{}, err
+		return ticketConversation{}, err
 	}
 	actions := []telego.InlineKeyboardButton{}
 	if ticket.Status == "open" {
@@ -34,17 +42,48 @@ func (b *Bot) ticketCard(ctx context.Context, id, ticketID int64) (cardState, er
 		if owner {
 			actions = append(actions, button("Проблема решена", "ticket:resolve:"+strconv.FormatInt(ticketID, 10)))
 		}
+		if staff {
+			actions = append(actions, button("Закрыть обращение", "ticket:close:"+strconv.FormatInt(ticketID, 10)))
+			if b.db.Permission(ctx, id, "support.compensate", b.cfg.AdminIDs) {
+				if _, e := b.db.TicketCompensation(ctx, ticketID); errors.Is(e, storage.ErrNotFound) {
+					actions = append(actions, button("Компенсация · 3 дня", "ticket:compensate:"+strconv.FormatInt(ticketID, 10)))
+				}
+			}
+		}
 	}
-	actions = append(actions, button("Все обращения", "support:list"))
+	back := b.ticketListBack(id, false)
+	b.mu.Lock()
+	lastList := b.ticketLists[id]
+	b.mu.Unlock()
+	if staff && (!owner || lastList.staff) {
+		back = b.ticketListBack(id, true)
+	}
+	actions = append(actions, button("Все обращения", back))
+	return ticketConversation{ticket: ticket, messages: messages, owner: owner, actions: actions}, nil
+}
+
+// The compact widget retains message pages; the ordinary Telegram interface
+// renders the same saved conversation as a chronological chat transcript.
+func (b *Bot) ticketCard(ctx context.Context, id, ticketID int64) (cardState, error) {
+	conversation, err := b.loadTicketConversation(ctx, id, ticketID)
+	if err != nil {
+		return cardState{}, err
+	}
+	ticket, messages, owner, actions := conversation.ticket, conversation.messages, conversation.owner, conversation.actions
 	result := cardState{Actions: actions}
 	if ticket.Context != "" {
 		result.Pages = append(result.Pages, cardPage{Title: fmt.Sprintf("Обращение #%d", ticketID), Tab: "support", Body: ticket.Context, Status: ticketStatusLabel(ticket.Status)})
 	}
-	for i := len(messages) - 1; i >= 0; i-- {
-		m := messages[i]
+	for _, m := range messages {
 		author := "Вы"
+		if !owner {
+			author = "Клиент"
+		}
 		if m.FromAdmin {
 			author = "Поддержка"
+		}
+		if m.Assistant {
+			author = "Помощник"
 		}
 		text := mdhtml.Plain(m.Text)
 		messageActions := append([]telego.InlineKeyboardButton{}, actions...)
@@ -85,13 +124,6 @@ func ticketStatusLabel(status string) string {
 }
 
 func (b *Bot) showSavedTicket(ctx context.Context, id, ticketID int64) {
-	if b.viewMode(ctx, id) == "cards" {
-		if state, err := b.ticketCard(ctx, id, ticketID); err == nil {
-			if err = b.deliverUI(ctx, id, b.currentCardID(ctx, id), state); err == nil {
-				return
-			}
-		}
-	}
 	text, kb := b.ticketScreen(ctx, id, ticketID)
-	b.send(ctx, telego.ChatID{ID: id}, text, kb)
+	b.upsertTicket(ctx, telego.ChatID{ID: id}, 0, text, kb)
 }

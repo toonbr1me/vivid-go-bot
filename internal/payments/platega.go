@@ -122,6 +122,9 @@ func (p *PlategaProvider) Verify(_ context.Context, body []byte, headers http.He
 		amount := domain.Money(*cents)
 		event.Amount = &amount
 	}
+	if status == StatusPaid && (event.TransactionID == "" || event.Amount == nil || *event.Amount <= 0 || event.Currency == "") {
+		return Event{}, fmt.Errorf("%w: нет подтверждённой суммы, валюты или транзакции", ErrVerification)
+	}
 	if event.OrderID == "" && event.SubscriptionID == "" {
 		return Event{}, ErrNoEvent
 	}

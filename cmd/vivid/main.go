@@ -93,8 +93,17 @@ func run() error {
 	// интерфейса, и проверка «панели нет» проходила бы, а вызов падал бы.
 	var panel payments.Panel
 	if cfg.APIBaseURL != "" && cfg.APIToken != "" {
-		panel = remnawave.New(cfg.APIBaseURL, cfg.APIToken,
+		client := remnawave.New(cfg.APIBaseURL, cfg.APIToken,
 			time.Duration(cfg.RequestTimeoutSecs*float64(time.Second)))
+		panel = client
+		if cfg.RemnawaveNamespace != "" {
+			scoped, err := remnawave.NewScoped(client, cfg.RemnawaveNamespace, cfg.SubscriptionBaseURL)
+			if err != nil {
+				return err
+			}
+			panel = scoped
+			logger.Info("отдельные профили панели", "namespace", cfg.RemnawaveNamespace)
+		}
 	} else {
 		logger.Warn("панель не настроена: покупки не смогут выдать доступ")
 	}

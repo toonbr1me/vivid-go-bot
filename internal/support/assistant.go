@@ -195,6 +195,18 @@ func (a *Assistant) notifyUser(ctx context.Context, ticket *storage.AITicket, an
 	if a.notify == nil || ticket.TelegramID == nil {
 		return
 	}
+	if notifier, ok := a.notify.(interface {
+		SendTicketUpdate(context.Context, int64, int64, string, string) error
+	}); ok {
+		kind := "assistant"
+		if answer == HandoffText {
+			kind = "handoff"
+		}
+		if err := notifier.SendTicketUpdate(ctx, *ticket.TelegramID, ticket.ID, answer, kind); err != nil {
+			a.log.Warn("помощник: сообщение не доставлено", "ticket", ticket.ID, "err", err)
+		}
+		return
+	}
 	header := "### 💬 Ответ помощника по обращению #" + fmt.Sprint(ticket.ID)
 	if rich, ok := a.notify.(richNotifier); ok {
 		if err := rich.SendRichMarkdown(ctx, *ticket.TelegramID, header+"\n\n"+answer); err != nil {
@@ -234,13 +246,17 @@ func (a *Assistant) handoff(ctx context.Context, ticket *storage.AITicket, curso
 	return 1, nil
 }
 
-// CloseIdle закрывает обращения, в которых помощник не отвечал двое суток.
-//
-// Незакрытое обращение в режиме помощника выглядит так, будто его читают, а
-// его не читают: через двое суток его закрывают.
+// CloseIdle hands stale assistant conversations to staff without closing them.
 func (a *Assistant) CloseIdle(ctx context.Context) (int, error) {
-	return a.db.CloseIdleAITickets(ctx, 48,
-		"Закрываю обращение: долго не отвечал. Если вопрос ещё актуален — напишите снова.")
+	const text = "Обращение остаётся открытым. Передаю его сотруднику, чтобы помочь с решением."
+	tickets, err := a.db.HandoffIdleAITickets(ctx, 48, text)
+	if err != nil {
+		return 0, err
+	}
+	for _, ticket := range tickets {
+		a.notifyUser(ctx, &ticket, text)
+	}
+	return len(tickets), nil
 }
 
 // shareAllows — доля обращений, на которые помощник отвечает сам.

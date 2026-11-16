@@ -21,30 +21,57 @@ var supportApps = map[string]string{"happ": "Happ", "incy": "Incy", "clashmi": "
 var supportDevices = map[string]string{"android": "Android", "ios": "iOS", "windows": "Windows", "macos": "macOS"}
 
 func (b *Bot) ticketPageScreen(ctx context.Context, id, ticketID int64, page int) (string, *telego.InlineKeyboardMarkup, error) {
-	state, err := b.ticketCard(ctx, id, ticketID)
+	conversation, err := b.loadTicketConversation(ctx, id, ticketID)
 	if err != nil {
 		return "Обращение недоступно.", keyboard(b.backRow()), err
 	}
-	if page < 0 {
-		page = len(state.Pages) - 1
+	pages := b.ticketThreadPages(conversation)
+	if page < 0 || page >= len(pages) {
+		page = len(pages) - 1
 	}
-	if page >= len(state.Pages) {
-		page = len(state.Pages) - 1
+	current := pages[page]
+	header := fmt.Sprintf("<b>Обращение #%d</b>\n\n<b>%s</b> · %s\n\n", ticketID,
+		ticketStatusLabel(conversation.ticket.Status), escapeHTML(firstRunes(conversation.ticket.Subject, 60)))
+	if conversation.ticket.Context != "" {
+		header += escapeHTML(firstRunes(conversation.ticket.Context, 180)) + "\n\n"
 	}
-	state.Current = page
-	text, kb := richCardDocument(state)
+	text := header + current.html
+	if len(pages) > 1 {
+		text += fmt.Sprintf("\n<i>История переписки · страница %d из %d</i>", page+1, len(pages))
+	}
+	rows := [][]telego.InlineKeyboardButton{{button("← К обращению", fmt.Sprintf("ticket:%d", ticketID))}}
+	for _, attachment := range current.attachments {
+		rows = append(rows, []telego.InlineKeyboardButton{attachment})
+	}
 	pager := []telego.InlineKeyboardButton{}
 	if page > 0 {
 		pager = append(pager, button("← Раньше", fmt.Sprintf("ticket:page:%d,%d", ticketID, page-1)))
 	}
-	if page+1 < len(state.Pages) {
+	if page+1 < len(pages) {
 		pager = append(pager, button("Позже →", fmt.Sprintf("ticket:page:%d,%d", ticketID, page+1)))
 	}
-	if len(state.Pages) > 1 {
-		text += fmt.Sprintf("<footer>Сообщение %d из %d</footer>", page+1, len(state.Pages))
-		kb.InlineKeyboard = append(kb.InlineKeyboard, pager)
+	if len(pages) > 1 && b.siteURL() != "" {
+		rows = append(rows, []telego.InlineKeyboardButton{urlButton("Вся переписка на сайте", fmt.Sprintf("%s/support/tickets/%d", b.siteURL(), ticketID))})
 	}
-	return text, kb, nil
+	if len(pager) > 0 {
+		rows = append(rows, pager)
+	}
+	if page+1 < len(pages) {
+		rows = append(rows, []telego.InlineKeyboardButton{button("К последним сообщениям", fmt.Sprintf("ticket:page:%d,-1", ticketID))})
+	}
+	rows = append(rows, []telego.InlineKeyboardButton{button("Обновить переписку", fmt.Sprintf("ticket:page:%d,-1", ticketID))})
+	for _, action := range conversation.actions {
+		rows = append(rows, []telego.InlineKeyboardButton{action})
+	}
+	if conversation.ticket.Status == "open" {
+		kind, ref := b.input(id)
+		if (kind == inputTicket || kind == inputTicketReply) && ref == strconv.FormatInt(ticketID, 10) {
+			text += "\n\n<b>Вы отвечаете в это обращение.</b> Пишите сюда: можно отправить несколько сообщений, фото или документ. Выход — /cancel или главное меню."
+		} else {
+			text += "\n\nНажмите «Ответить», чтобы продолжить переписку."
+		}
+	}
+	return text, keyboard(rows...), nil
 }
 
 func supportAttachment(ctx context.Context) (string, string) {
@@ -96,7 +123,7 @@ func (b *Bot) resolveOwnTicket(ctx context.Context, queryID string, chatID teleg
 	}
 	b.clearInput(tgID)
 	text, kb := b.ticketScreen(ctx, tgID, id)
-	b.upsert(ctx, chatID, messageID, text, kb)
+	b.upsertTicket(ctx, chatID, messageID, text, kb)
 	b.answer(ctx, queryID, "Проблема решена. Обращение сохранено в истории.", false)
 }
 
@@ -119,7 +146,7 @@ func (b *Bot) ticketAttachment(ctx context.Context, queryID string, chatID teleg
 		b.answer(ctx, queryID, "Вложение недоступно", true)
 		return
 	}
-	messages, err := b.db.TicketMessages(ctx, ticketID, 500)
+	messages, err := b.db.TicketHistory(ctx, ticketID)
 	if err == nil {
 		for _, m := range messages {
 			if m.ID != id || m.FileID == nil || m.FileType == nil {

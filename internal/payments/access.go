@@ -2,6 +2,7 @@ package payments
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
@@ -20,21 +21,22 @@ func (s *Service) Access(ctx context.Context, subject domain.Subject, username s
 	if strings.TrimSpace(username) != "" {
 		access.Username = username
 	}
-	if subject.TelegramID == nil && subject.RemnawaveUser != nil && *subject.RemnawaveUser != "" {
+	if subject.RemnawaveUser != nil && *subject.RemnawaveUser != "" {
 		access.Username = *subject.RemnawaveUser
 	}
 
 	var panelErr error
 	if s.panelReady() {
-		lookup := ""
-		if subject.TelegramID == nil {
-			lookup = access.Username
-		}
-		users, err := s.findPanelUsers(ctx, subject.TelegramID, lookup)
+		users, err := s.findPanelUsers(ctx, subject.TelegramID, access.Username)
 		if err != nil {
 			panelErr = err
 		} else if user := remnawave.PickUser(users); user != nil {
 			panelErr = s.fillAccess(ctx, &access, subject, *user)
+			if subject.TelegramID != nil && subject.RemnawaveUser != nil && user.TelegramID == nil {
+				// Repair an interrupted account link with an absolute identity update.
+				_, err := s.panel.UpdateUser(ctx, remnawave.UpdateUserParams{UserID: user.ID, TelegramID: subject.TelegramID})
+				panelErr = errors.Join(panelErr, err)
+			}
 		}
 	}
 	if access.Found {
@@ -54,9 +56,40 @@ func (s *Service) Access(ctx context.Context, subject domain.Subject, username s
 }
 
 // fillAccess переносит ответ панели в доменную модель.
+// SupportAccess reads profile identifiers without repairing links or mutating
+// a profile when a staff member merely opens a support ticket.
+func (s *Service) SupportAccess(ctx context.Context, subject domain.Subject) (domain.Access, error) {
+	access := domain.Access{Username: fallbackUsername(subject)}
+	if s.panelReady() {
+		users, err := s.findPanelUsers(ctx, subject.TelegramID, access.Username)
+		if err != nil {
+			return access, err
+		}
+		if user := remnawave.PickUser(users); user != nil {
+			access.Found = true
+			access.Username = user.Username
+			access.PanelUserID = user.ID
+			access.PanelUserUUID = user.UUID
+			access.Active = user.IsActive()
+			access.DeviceLimit = panelDeviceLimit(*user)
+			if !user.ExpireAt.IsZero() {
+				expiry := user.ExpireAt.Time
+				access.ExpireAt = &expiry
+			}
+			return access, nil
+		}
+	}
+	if order, err := s.db.SubscriptionForOwner(ctx, subject.TelegramID, &subject.ID); err == nil && order != nil && order.ExpireAt != nil {
+		access.ExpireAt = order.ExpireAt
+		access.Active = order.ExpireAt.After(time.Now())
+	}
+	return access, nil
+}
+
 func (s *Service) fillAccess(ctx context.Context, access *domain.Access, subject domain.Subject, user remnawave.User) error {
 	access.Found = true
 	access.PanelUserID = user.ID
+	access.PanelUserUUID = user.UUID
 	access.Username = user.Username
 	access.Active = user.IsActive()
 	access.URL = remnawave.SubscriptionURL(s.cfg.APIBaseURL, user)

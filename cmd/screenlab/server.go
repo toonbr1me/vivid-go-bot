@@ -20,7 +20,7 @@ import (
 
 // This command is deliberately separate from cmd/vivid. It accepts only the
 // named loopback lab database, never the application's DATABASE_URL or users.
-func serveLab(port int) error {
+func serveLab(port int, themeDir string) error {
 	databaseURL := os.Getenv("VIVID_LAB_DATABASE_URL")
 	target, err := url.Parse(databaseURL)
 	if err != nil || target == nil || target.Path != "/vivid_ui_lab" || target.Port() != "55439" || (target.Hostname() != "localhost" && target.Hostname() != "127.0.0.1") {
@@ -37,7 +37,8 @@ func serveLab(port int) error {
 	if err != nil {
 		return err
 	}
-	cfg := &config.Settings{BrandName: "Vivid · демо", Currency: "RUB", SiteEnabled: true, AdminIDs: map[int64]bool{id: true}, WebDir: "web", MinPaymentAmount: domain.FromRubles(1)}
+	cfg := &config.Settings{Currency: "RUB", SiteEnabled: true, AdminIDs: map[int64]bool{id: true}, WebDir: themeDir, MinPaymentAmount: domain.FromRubles(1), DeviceLimitEnabled: true, DeviceLimitBase: 5, TrialWebDays: 1}
+	cfg.DatabaseURL = databaseURL
 	for i, days := range []int{30, 90, 365} {
 		prices := []int64{299, 799, 2499}
 		if err = db.SavePlan(ctx, domain.Plan{ID: fmt.Sprintf("demo-%d", days), Title: fmt.Sprintf("%d дней", days), Days: days, Price: domain.FromRubles(prices[i]), Devices: 3, SortOrder: i, IsActive: true}); err != nil {
@@ -68,6 +69,7 @@ func serveLab(port int) error {
 	if err != nil {
 		return err
 	}
+	app.StartLive(ctx)
 	tokenBytes := make([]byte, 32)
 	if _, err = rand.Read(tokenBytes); err != nil {
 		return err

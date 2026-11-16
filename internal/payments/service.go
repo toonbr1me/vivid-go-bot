@@ -551,6 +551,16 @@ func (s *Service) HandleEvent(ctx context.Context, providerName string, event Ev
 	if providerName != "" && order.Provider != providerName {
 		return false, fmt.Errorf("заказ %s принадлежит шлюзу %s", order.OrderID, order.Provider)
 	}
+	// A one-off invoice must be settled by its own transaction. Recurring
+	// subscriptions have distinct checkout/debit IDs and are linked separately.
+	if event.Status == StatusPaid && providerName == "platega" {
+		if event.Amount == nil || *event.Amount <= 0 || event.Currency == "" || event.TransactionID == "" {
+			return false, fmt.Errorf("%w: неполное подтверждение Platega", ErrVerification)
+		}
+		if order.RecurringAgreementID == nil && (deref(order.PaymentLinkID) == "" || event.TransactionID != *order.PaymentLinkID) {
+			return false, fmt.Errorf("%w: транзакция Platega не принадлежит счёту", ErrVerification)
+		}
+	}
 	if event.Amount != nil && *event.Amount != order.Amount {
 		return false, fmt.Errorf("сумма %s не совпала с заказом %s", event.Amount.String(), order.Amount.String())
 	}
@@ -754,6 +764,9 @@ func (s *Service) planExtraDevices(plan domain.Plan) *int {
 }
 
 func fallbackUsername(subject domain.Subject) string {
+	if subject.RemnawaveUser != nil && strings.TrimSpace(*subject.RemnawaveUser) != "" {
+		return *subject.RemnawaveUser
+	}
 	if subject.TelegramID != nil {
 		return fmt.Sprintf("tg_%d", *subject.TelegramID)
 	}

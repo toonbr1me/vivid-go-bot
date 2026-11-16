@@ -33,10 +33,14 @@ func (b *Bot) subscriptionCard(ctx context.Context, id int64) (cardState, bool) 
 		page.Status = "Активна"
 		page.Tone = "ok"
 		page.Note = ""
-	} else if access.ExpireAt != nil {
+	} else if access.ExpireAt != nil && !access.ExpireAt.After(time.Now()) {
 		page.Status = "Истекла"
 		page.Tone = "warn"
 		page.Note = "Продлите подписку, чтобы вернуть доступ"
+	} else if access.ExpireAt != nil {
+		page.Status = "Требуется проверка"
+		page.Tone = "warn"
+		page.Note = "Срок ещё действует. Проверьте ограничения или обратитесь в поддержку."
 	}
 	if access.ExpireAt != nil {
 		page.Kicker = "Оплачено до"
@@ -75,6 +79,14 @@ func (b *Bot) subscriptionCard(ctx context.Context, id int64) (cardState, bool) 
 		actions = append(actions, button(label, "nav:buy"))
 	}
 	actions = append(actions, button("История обращений", "support:list"))
+	if guidance, err := b.pay.CustomerGuidance(ctx, subject, access, "bot"); err == nil && (accessErr == nil || access.Found || guidance.Action == "order") {
+		page.Note = guidance.Detail
+		if guidance.Action == "order" {
+			page.Status = guidance.Title
+			page.Tone = "warn"
+			actions = append([]telego.InlineKeyboardButton{button(guidance.Label, "check:"+guidance.OrderID)}, actions...)
+		}
+	}
 	if accessErr != nil {
 		page.Status = "Данные неполные"
 		page.Tone = "warn"

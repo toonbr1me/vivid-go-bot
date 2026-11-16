@@ -165,7 +165,8 @@ func Truncate(t *testing.T, db *storage.DB) {
 		partner_invite_codes, plans, device_packs, device_slot_grants,
 		device_slot_renewals, app_settings, order_fulfillment_steps,
 		order_notification_log, polls, poll_deliveries, poll_answers,
-		funnel_daily, feature_requests, feature_request_votes, payment_inbox, bot_ui_preferences
+		funnel_daily, feature_requests, feature_request_votes, payment_inbox, bot_ui_preferences,
+		broadcasts, broadcast_deliveries, panel_events, panel_notification_cooldowns
 		RESTART IDENTITY CASCADE`); err != nil {
 		t.Fatalf("не удалось очистить базу: %v", err)
 	}

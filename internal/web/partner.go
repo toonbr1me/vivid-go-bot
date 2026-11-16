@@ -12,10 +12,16 @@ import (
 
 // partnerData — кабинет партнёра.
 type partnerData struct {
-	Partner *domain.Partner
-	Codes   []domain.PromoCode
-	Rewards []domain.PartnerReward
-	Balance domain.Money
+	Partner     *domain.Partner
+	Codes       []domain.PromoCode
+	Rewards     []domain.PartnerReward
+	Balance     domain.Money
+	Rewarded    domain.Money
+	Accrued     domain.Money
+	Credited    domain.Money
+	Cancelled   domain.Money
+	Invite      *domain.Partner
+	InviteToken string
 }
 
 // partnerClaim — привязка аккаунта к партнёрству.
@@ -25,6 +31,9 @@ type partnerData struct {
 // к партнёру один раз, и начисления с этого момента идут на его баланс.
 func (s *Server) partnerClaim(w http.ResponseWriter, r *http.Request) {
 	token := strings.TrimSpace(r.URL.Query().Get("token"))
+	if r.Method == http.MethodPost {
+		token = strings.TrimSpace(r.PostFormValue("token"))
+	}
 	if token == "" {
 		s.renderError(w, r, http.StatusNotFound, "Ссылка не найдена",
 			"Ссылка-приглашение выглядит как /partner/claim?token=…")
@@ -39,18 +48,16 @@ func (s *Server) partnerClaim(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 	defer cancel()
 
-	partnerID, err := s.db.ConsumePartnerInviteCode(ctx, token)
-	if err != nil {
-		s.log.Error("партнёр: код приглашения", "err", err)
-		s.flashRedirect(w, r, "/partner", "error", "Не удалось применить приглашение.")
+	if r.Method == http.MethodGet {
+		partner, err := s.db.PartnerInvite(ctx, token)
+		if err != nil || partner == nil {
+			s.flashRedirect(w, r, "/partner", "error", "Приглашение недоступно. Попросите владельца выдать новую ссылку.")
+			return
+		}
+		s.renderPage(w, r, "partner.html", http.StatusOK, pageMeta{Title: "Подтверждение партнёрства"}, partnerData{Invite: partner, InviteToken: token})
 		return
 	}
-	if partnerID == nil {
-		s.flashRedirect(w, r, "/partner", "error",
-			"Ссылка уже использована или истекла. Попросите владельца выдать новую.")
-		return
-	}
-	partner, err := s.db.LinkPartnerSubject(ctx, *partnerID, subject.ID)
+	partner, err := s.db.ClaimPartnerInvite(ctx, token, subject.ID)
 	if err != nil {
 		s.log.Error("партнёр: привязка аккаунта", "err", err)
 		s.flashRedirect(w, r, "/partner", "error", "Не удалось привязать аккаунт.")
@@ -80,6 +87,13 @@ func (s *Server) partnerCabinet(w http.ResponseWriter, r *http.Request) {
 	data := partnerData{}
 	if partner != nil {
 		data.Partner = partner
+		totals, err := s.db.PartnerRewardTotals(ctx, partner.ID)
+		if err != nil {
+			s.renderError(w, r, http.StatusServiceUnavailable, "Начисления недоступны", "Не удалось получить суммы начислений. Попробуйте позже.")
+			return
+		}
+		data.Rewarded, data.Accrued = totals.Accrued+totals.Credited, totals.Accrued
+		data.Credited, data.Cancelled = totals.Credited, totals.Cancelled
 		if codes, err := s.db.PartnerCodes(ctx, partner.ID); err == nil {
 			data.Codes = codes
 		}

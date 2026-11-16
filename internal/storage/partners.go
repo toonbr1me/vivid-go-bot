@@ -118,7 +118,14 @@ func (db *DB) LinkPartnerSubject(ctx context.Context, partnerID, subjectID int64
 		return nil, err
 	}
 	defer tx.Rollback(ctx)
+	partner, err := linkPartnerSubject(ctx, tx, partnerID, subjectID)
+	if err != nil {
+		return nil, err
+	}
+	return partner, tx.Commit(ctx)
+}
 
+func linkPartnerSubject(ctx context.Context, tx pgx.Tx, partnerID, subjectID int64) (*domain.Partner, error) {
 	// Привязка делается один раз: UPDATE без WHERE subject_id IS NULL
 	// ничего не меняет, если аккаунт уже привязан.
 	tag, err := tx.Exec(ctx, `
@@ -137,7 +144,10 @@ func (db *DB) LinkPartnerSubject(ctx context.Context, partnerID, subjectID int64
 		if err != nil {
 			return nil, err
 		}
-		return &partner, tx.Commit(ctx)
+		if partner.SubjectID == nil || *partner.SubjectID != subjectID {
+			return nil, errors.New("партнёр уже привязан к другому аккаунту")
+		}
+		return &partner, nil
 	}
 
 	var total int64
@@ -168,10 +178,69 @@ func (db *DB) LinkPartnerSubject(ctx context.Context, partnerID, subjectID int64
 	if err != nil {
 		return nil, err
 	}
-	if err := tx.Commit(ctx); err != nil {
+	return &partner, nil
+}
+
+// PartnerInvite reads an invitation without consuming it.
+func (db *DB) PartnerInvite(ctx context.Context, code string) (*domain.Partner, error) {
+	row := db.Pool.QueryRow(ctx, `SELECT p.id, p.subject_id, p.name, p.contact, p.status,
+		p.payout_details, p.notes, p.created_at FROM partners p
+		JOIN partner_invite_codes c ON c.partner_id=p.id
+		WHERE c.code=$1 AND c.expires_at>now() AND c.used_at IS NULL`, code)
+	partner, err := scanPartner(row)
+	if errors.Is(err, ErrNotFound) {
+		return nil, nil
+	}
+	return &partner, err
+}
+
+// ClaimPartnerInvite consumes and links in one transaction. Failed links leave
+// the invitation usable. A repeat by its linked account is idempotent.
+func (db *DB) ClaimPartnerInvite(ctx context.Context, code string, subjectID int64) (*domain.Partner, error) {
+	tx, err := db.Pool.Begin(ctx)
+	if err != nil {
 		return nil, err
 	}
-	return &partner, nil
+	defer tx.Rollback(ctx)
+	var partnerID int64
+	var used *time.Time
+	err = tx.QueryRow(ctx, `SELECT partner_id, used_at FROM partner_invite_codes
+		WHERE code=$1 AND expires_at>now() FOR UPDATE`, code).Scan(&partnerID, &used)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	if used != nil {
+		var same bool
+		if err := tx.QueryRow(ctx, `SELECT subject_id=$2 FROM partners WHERE id=$1`, partnerID, subjectID).Scan(&same); err != nil {
+			return nil, err
+		}
+		if !same {
+			return nil, ErrNotFound
+		}
+	}
+	partner, err := linkPartnerSubject(ctx, tx, partnerID, subjectID)
+	if err != nil {
+		return nil, err
+	}
+	if _, err = tx.Exec(ctx, `UPDATE partner_invite_codes SET used_at=COALESCE(used_at,now()) WHERE code=$1`, code); err != nil {
+		return nil, err
+	}
+	return partner, tx.Commit(ctx)
+}
+
+type PartnerRewardTotals struct{ Accrued, Credited, Cancelled domain.Money }
+
+func (db *DB) PartnerRewardTotals(ctx context.Context, partnerID int64) (PartnerRewardTotals, error) {
+	var totals PartnerRewardTotals
+	err := db.Pool.QueryRow(ctx, `SELECT
+		COALESCE(round(sum(amount) FILTER (WHERE status='accrued')*100)::bigint,0),
+		COALESCE(round(sum(amount) FILTER (WHERE status='credited')*100)::bigint,0),
+		COALESCE(round(sum(amount) FILTER (WHERE status='cancelled')*100)::bigint,0)
+		FROM partner_rewards WHERE partner_id=$1`, partnerID).Scan(&totals.Accrued, &totals.Credited, &totals.Cancelled)
+	return totals, err
 }
 
 // CreatePartnerInviteCode выдаёт код привязки партнёра к кабинету.
@@ -250,13 +319,28 @@ func (db *DB) CreditPartnerReward(
 	ctx context.Context, partnerID int64, orderID string, subjectID *int64,
 	amount domain.Money, partnerSubjectID *int64,
 ) (*domain.PartnerReward, error) {
-	return creditPartnerReward(ctx, db.Pool, partnerID, orderID, subjectID, amount, partnerSubjectID)
+	tx, err := db.Pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+	reward, err := creditPartnerReward(ctx, tx, partnerID, orderID, subjectID, amount, partnerSubjectID)
+	if err != nil {
+		return nil, err
+	}
+	return reward, tx.Commit(ctx)
 }
 
 func creditPartnerReward(
 	ctx context.Context, q Querier, partnerID int64, orderID string, subjectID *int64,
 	amount domain.Money, partnerSubjectID *int64,
 ) (*domain.PartnerReward, error) {
+	// Serialize with invitation claims, then use the current linked account.
+	// Otherwise a reward arriving between the transfer's SUM and UPDATE could
+	// be marked credited without being included in the transferred balance.
+	if err := q.QueryRow(ctx, `SELECT subject_id FROM partners WHERE id=$1 FOR UPDATE`, partnerID).Scan(&partnerSubjectID); err != nil {
+		return nil, err
+	}
 	var reward domain.PartnerReward
 	err := q.QueryRow(ctx, `
 		INSERT INTO partner_rewards (partner_id, order_id, subject_id, amount, status)

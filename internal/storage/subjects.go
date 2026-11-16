@@ -86,10 +86,42 @@ func (db *DB) UpsertGoogleSubject(ctx context.Context, googleSub, email, name st
 
 // AttachTelegram привязывает Telegram к веб-аккаунту.
 func (db *DB) AttachTelegram(ctx context.Context, subjectID, telegramID int64) error {
-	_, err := db.Pool.Exec(ctx, `
-		UPDATE accounts SET telegram_id = $2 WHERE id = $1 AND telegram_id IS NULL`,
+	tag, err := db.Pool.Exec(ctx, `
+		UPDATE accounts SET telegram_id = $2,
+		remnawave_username=COALESCE(NULLIF(remnawave_username,''),'web_'||id)
+		WHERE id = $1 AND telegram_id IS NULL`,
 		subjectID, telegramID)
+	if err == nil && tag.RowsAffected() != 1 {
+		return ErrNotFound
+	}
 	return err
+}
+
+// AttachTelegramByCode locks the live invitation and binds it atomically.
+func (db *DB) AttachTelegramByCode(ctx context.Context, code string, subjectID, telegramID int64) error {
+	tx, err := db.Pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	var id int64
+	if err := tx.QueryRow(ctx, `SELECT account_id FROM telegram_link_codes
+		WHERE code=$1 AND account_id=$2 AND used_at IS NULL AND expires_at>now() FOR UPDATE`, code, subjectID).Scan(&id); err != nil {
+		return err
+	}
+	tag, err := tx.Exec(ctx, `UPDATE accounts SET telegram_id=$2,
+		remnawave_username=COALESCE(NULLIF(remnawave_username,''),'web_'||id)
+		WHERE id=$1 AND (telegram_id IS NULL OR telegram_id=$2)`, id, telegramID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() != 1 {
+		return ErrNotFound
+	}
+	if _, err := tx.Exec(ctx, `UPDATE telegram_link_codes SET used_at=now() WHERE code=$1`, code); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 // SetRemnawaveUsername запоминает имя подписки в панели.

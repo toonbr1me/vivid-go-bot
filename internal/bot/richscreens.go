@@ -188,16 +188,22 @@ func (b *Bot) richMain(ctx context.Context, tgID int64) (string, *telego.InlineK
 		out.WriteString(".</p>")
 	}
 
+	if status == "NONE" && strings.TrimSpace(b.texts.Main.Lead) != "" {
+		out.WriteString("<p>" + b.text(b.texts.Main.Lead, nil) + "</p>")
+	}
 	out.WriteString("<table bordered striped compact>")
 	out.WriteString("<tr><td>" + escapeHTML(b.texts.Rich.Subscription) + "</td><td align=\"right\"><b>" + escapeHTML(b.richStatus(access, status)) + "</b></td></tr>")
 	if status == "NONE" {
-		out.WriteString("<tr><td>" + escapeHTML(b.texts.Rich.PaymentOnce) + "</td><td align=\"right\">" + escapeHTML(b.texts.Rich.PaymentOnce) + "</td></tr>")
+		out.WriteString("<tr><td>" + escapeHTML(b.texts.Rich.PaymentLabel) + "</td><td align=\"right\">" + escapeHTML(b.texts.Rich.PaymentOnce) + "</td></tr>")
 	} else {
 		if access.ExpireAt != nil {
 			out.WriteString("<tr><td>" + escapeHTML(b.texts.Rich.Until) + "</td><td align=\"right\">" + escapeHTML(b.richExpire(access.ExpireAt)) + "</td></tr>")
 		}
 		if label := b.trafficLabel(access); label != "" {
 			out.WriteString("<tr><td>" + escapeHTML(b.texts.Rich.Traffic) + "</td><td align=\"right\">" + escapeHTML(label) + "</td></tr>")
+		}
+		if access.DeviceLimit > 0 {
+			out.WriteString("<tr><td>" + escapeHTML(b.texts.Rich.Devices) + "</td><td align=\"right\">" + escapeHTML(b.richDeviceCount(access)) + "</td></tr>")
 		}
 	}
 	out.WriteString("</table>")

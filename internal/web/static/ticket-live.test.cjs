@@ -33,3 +33,16 @@ test('background tabs do not acknowledge unread answers until visible',async()=>
   assert.equal(h.requests.length,1);assert.equal(h.requests[0].url,'/support/tickets/42/read');assert.match(h.requests[0].options.body,/csrf=csrf-token&through=9/);
   h.listeners.visibilitychange();assert.equal(h.requests.length,1);
 });
+
+test('staff viewing a conversation does not acknowledge the client unread state',()=>{
+  const h=harness();h.chat.attrs['data-staff']='true';
+  h.send({open:true,messages:[{id:10,html:'reply',from_admin:true}]});
+  h.listeners.visibilitychange();
+  assert.equal(h.requests.length,0);
+});
+
+test('live chat labels clients and support consistently for staff',()=>{
+  const h=harness();h.chat.attrs['data-staff']='true';
+  h.send({open:true,messages:[{id:11,html:'question'},{id:12,html:'answer',from_admin:true},{id:13,html:'hint',assistant:true}]});
+  assert.deepEqual(h.chat.children.map(n=>n.children[0].children[0].textContent),['Клиент','Поддержка','Помощник']);
+});

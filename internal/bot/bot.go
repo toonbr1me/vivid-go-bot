@@ -33,6 +33,7 @@ const (
 	inputTicketReply  = "ticket_reply"
 	inputPollQuestion = "poll_question"
 	inputPollOptions  = "poll_options"
+	inputBroadcast    = "broadcast"
 	inputTimeout      = 20 * time.Minute
 )
 
@@ -54,6 +55,7 @@ type Bot struct {
 
 	mu                 sync.Mutex
 	inputs             map[int64]inputState
+	ticketLists        map[int64]ticketListPosition
 	promos             map[int64]string
 	widgetRefresh      map[int64]time.Time
 	widgetsUnsupported bool
@@ -236,6 +238,7 @@ func (b *Bot) register(h *telegohandler.BotHandler) {
 	h.HandleMessage(b.cleanCommand(b.handleCloseTicketCommand), telegohandler.CommandEqual("close"))
 	h.HandleMessage(b.cleanCommand(b.handleStats), telegohandler.CommandEqual("stats"))
 	h.HandleMessage(b.cleanCommand(b.handlePollsCommand), telegohandler.CommandEqual("polls"))
+	h.HandleMessage(b.cleanCommand(b.handleAnnounce), telegohandler.CommandEqual("announce"))
 	h.HandleMessage(b.cleanCommand(b.handlePartnersCommand), telegohandler.CommandEqual("partners"))
 
 	h.HandleMessage(b.handleText, telegohandler.AnyMessageWithText())
