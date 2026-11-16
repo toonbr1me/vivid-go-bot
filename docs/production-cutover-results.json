@@ -1,0 +1,338 @@
+{
+  "date": "2026-11-16",
+  "timezone": "Asia/Yekaterinburg",
+  "code_revision": "1058ba8",
+  "production_cutover": true,
+  "release": {
+    "revision": "1058ba8",
+    "binary_sha256": "09b4fb31201b7646900046ae380746d263605f9964e85442a47b39300878ebce",
+    "post_cutover_backup_sha256": "6b561fa60cbc85c03e2b5282008651d6ad41cfcfcd4abf1cc9c527d24e91b960",
+    "started_at": "2026-11-16T13:10:40.485406241Z",
+    "healthy": true,
+    "restarts": 0
+  },
+  "snapshot": {
+    "phase": "final",
+    "bytes": 682982,
+    "sha256": "1bfd98929d068bcf3ad3ab94a1e14762eae8501b11b61be667362b7d5dd0afbc",
+    "verified": true
+  },
+  "before": {
+    "phase": "final-before",
+    "original_tables": 42,
+    "orders": 2476,
+    "accounts": 1941,
+    "balances": 28,
+    "unchanged_original_fields": true,
+    "statuses": [
+      {
+        "status": "declined",
+        "orders": 375
+      },
+      {
+        "status": "manual_granted",
+        "orders": 418
+      },
+      {
+        "status": "paid",
+        "orders": 646
+      },
+      {
+        "status": "pending",
+        "orders": 13
+      },
+      {
+        "status": "trial_granted",
+        "orders": 1024
+      }
+    ]
+  },
+  "after": {
+    "phase": "final-after",
+    "original_tables": 42,
+    "orders": 2476,
+    "accounts": 1941,
+    "balances": 28,
+    "unchanged_original_fields": true,
+    "statuses": [
+      {
+        "status": "failed",
+        "orders": 375
+      },
+      {
+        "status": "pending",
+        "orders": 13
+      },
+      {
+        "status": "provisioned",
+        "orders": 2088
+      }
+    ]
+  },
+  "preflight": {
+    "active_order_rows": 268,
+    "bot_style": "legacy",
+    "namespace": "",
+    "ok": true,
+    "paid_orders": 491,
+    "panel_profiles_checked": 5,
+    "panel_profiles_resolved": 5,
+    "payments_enabled": true,
+    "providers": [
+      "yookassa",
+      "platega"
+    ],
+    "public_url": "https://berlogapn.com",
+    "site_url": "https://berlogapn.com",
+    "waiting_access": 0
+  },
+  "runtime": {
+    "running": true,
+    "healthy": "healthy",
+    "stats": {
+      "accounts": 1941,
+      "orders": 2476,
+      "balances": 28,
+      "tickets": 97,
+      "waiting_access": 0,
+      "legacy_preserved": 2463,
+      "synthetic_test_accounts": 0,
+      "invalid_status": 0
+    },
+    "error_lines": [],
+    "namespace": "",
+    "theme_dir": ""
+  },
+  "public": {
+    "python_stopped": true,
+    "python_auto_restart_disabled": true,
+    "https_checks": [
+      {
+        "ingress": "45.134.38.139",
+        "path": "/healthz",
+        "http": 200
+      },
+      {
+        "ingress": "45.134.38.139",
+        "path": "/",
+        "http": 200
+      },
+      {
+        "ingress": "45.134.38.139",
+        "path": "/login",
+        "http": 200
+      },
+      {
+        "ingress": "45.134.38.139",
+        "path": "/account",
+        "http": 303
+      },
+      {
+        "ingress": "45.134.38.139",
+        "path": "/admin",
+        "http": 303
+      },
+      {
+        "ingress": "45.134.38.139",
+        "path": "/webhooks/platega",
+        "missing_credentials_http": 400
+      },
+      {
+        "ingress": "45.150.110.167",
+        "path": "/healthz",
+        "http": 200
+      },
+      {
+        "ingress": "45.150.110.167",
+        "path": "/",
+        "http": 200
+      },
+      {
+        "ingress": "45.150.110.167",
+        "path": "/login",
+        "http": 200
+      },
+      {
+        "ingress": "45.150.110.167",
+        "path": "/account",
+        "http": 303
+      },
+      {
+        "ingress": "45.150.110.167",
+        "path": "/admin",
+        "http": 303
+      },
+      {
+        "ingress": "45.150.110.167",
+        "path": "/webhooks/platega",
+        "missing_credentials_http": 400
+      },
+      {
+        "ingress": "45.134.38.139",
+        "subscription_page_http": 302
+      },
+      {
+        "ingress": "45.150.110.167",
+        "subscription_page_http": 302
+      }
+    ]
+  },
+  "authenticated_pages": {
+    "read_only_business_operations": true,
+    "temporary_sessions_removed": true,
+    "checks": [
+      {
+        "role": "customer",
+        "path": "/account",
+        "http": 200,
+        "nonempty": true
+      },
+      {
+        "role": "customer",
+        "path": "/buy?plan=30d",
+        "http": 200,
+        "nonempty": true
+      },
+      {
+        "role": "customer",
+        "path": "/connect",
+        "http": 200,
+        "nonempty": true
+      },
+      {
+        "role": "customer",
+        "path": "/support",
+        "http": 200,
+        "nonempty": true
+      },
+      {
+        "role": "admin",
+        "path": "/admin",
+        "http": 200,
+        "nonempty": true
+      },
+      {
+        "role": "admin",
+        "path": "/admin/orders",
+        "http": 200,
+        "nonempty": true
+      },
+      {
+        "role": "admin",
+        "path": "/admin/tickets",
+        "http": 200,
+        "nonempty": true
+      },
+      {
+        "existing_subscription_url_http": 200,
+        "nonempty": true
+      }
+    ]
+  },
+  "acquiring_read_only": {
+    "real_acquiring_read_checks": [
+      {
+        "provider": "yookassa",
+        "read_only_api_http": 200,
+        "transaction_matches": true
+      },
+      {
+        "provider": "platega",
+        "read_only_api_http": 200,
+        "transaction_matches": true
+      }
+    ],
+    "no_payment_created": true,
+    "no_event_applied": true
+  },
+  "fixed_rehearsal": [
+    {
+      "origin_server": "alex-nether",
+      "target_server": "yotta-ger",
+      "phase": "purchase",
+      "results": [
+        {
+          "check": "HTTP checkout on copied Python catalog",
+          "status": "pending",
+          "amount_minor": 30000,
+          "plan": "30d"
+        },
+        {
+          "check": "double checkout reuses invoice",
+          "pass": true
+        },
+        {
+          "check": "forged callback rejected",
+          "http": 400
+        },
+        {
+          "check": "wrong amount cannot grant access",
+          "http": 200
+        },
+        {
+          "check": "wrong currency cannot grant access",
+          "http": 200
+        },
+        {
+          "check": "payment callback grants access",
+          "status": "provisioned",
+          "panel_creates": 1,
+          "expiry_writes": 1
+        },
+        {
+          "check": "five repeated concurrent callbacks do not extend twice",
+          "pass": true
+        },
+        {
+          "check": "panel outage preserves paid order",
+          "status": "paid",
+          "provisioned": false
+        }
+      ]
+    },
+    {
+      "origin_server": "alex-nether",
+      "target_server": "yotta-ger",
+      "phase": "recover",
+      "results": [
+        {
+          "check": "paid order survives process restart and grants once",
+          "status": "provisioned",
+          "added_days": 30.0
+        },
+        {
+          "check": "post-restart duplicate callback adds no time",
+          "pass": true
+        },
+        {
+          "check": "lost webhook recovered using real Platega CheckPayment adapter and mock API",
+          "status": "provisioned"
+        },
+        {
+          "check": "renewals keep same panel profile",
+          "panel_creates": 1,
+          "expiry_writes": 3
+        }
+      ]
+    },
+    {
+      "origin_server": "alex-nether",
+      "target_server": "yotta-ger",
+      "phase": "negative",
+      "results": [
+        {
+          "check": "authenticated CONFIRMED missing amount and currency",
+          "http": 400,
+          "observed_status": "pending",
+          "validation_gap": false
+        },
+        {
+          "check": "authenticated CONFIRMED mismatching invoice transaction ID",
+          "http": 200,
+          "observed_status": "pending",
+          "validation_gap": false
+        }
+      ]
+    }
+  ]
+}
