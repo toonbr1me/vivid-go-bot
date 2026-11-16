@@ -29,14 +29,9 @@ type adminSession struct {
 // Can — есть ли право на действие.
 func (a adminSession) Can(action string) bool {
 	if a.Owner {
-		return true
+		return storage.RoleCan(storage.RoleOwner, action)
 	}
-	switch action {
-	case "tickets.view", "tickets.take", "tickets.close", "tickets.reply":
-		return a.Role == adminRoleSupport || a.Role == storage.RoleAdmin
-	default:
-		return false
-	}
+	return storage.RoleCan(a.Role, action)
 }
 
 // staffAccess определяет роль человека: владелец, сотрудник или никто.
@@ -55,6 +50,9 @@ func (s *Server) staffAccess(ctx context.Context, subject *domain.Subject) admin
 	}
 	member, err := s.db.StaffMemberByID(ctx, *subject.TelegramID)
 	if err != nil || member == nil || !member.IsActive {
+		return session
+	}
+	if !storage.RoleCan(member.Role, "tickets.view") {
 		return session
 	}
 	session.Role = member.Role

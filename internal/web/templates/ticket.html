@@ -8,8 +8,10 @@
 </div>
 
 <section class="card">
+  {{if and .Data.Open .Data.CanCompensate}}<form method="post" action="/support/tickets/{{.Data.Ticket.ID}}/compensate"><input type="hidden" name="csrf" value="{{.CSRF}}"><button type="submit" class="btn btn-ghost">Компенсация · 3 дня</button><p class="muted small">Одна компенсация на обращение. Повторное нажатие продолжит ту же выдачу.</p></form>{{end}}
   {{if .Data.Ticket.Context}}<p class="muted">{{.Data.Ticket.Context}}</p>{{end}}
-  <div class="chat" id="chat" data-ticket="{{.Data.Ticket.ID}}" data-csrf="{{.CSRF}}">
+  <h2>История переписки</h2>
+  <div class="chat" id="chat" data-ticket="{{.Data.Ticket.ID}}" data-csrf="{{.CSRF}}" data-staff="{{.Data.Staff}}">
     {{range .Data.Messages}}
     <div class="message{{if .FromAdmin}} message-support{{end}}" data-id="{{.ID}}">
       <div class="message-head">

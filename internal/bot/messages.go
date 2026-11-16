@@ -114,18 +114,15 @@ func (b *Bot) attachWebAccount(ctx context.Context, chatID telego.ChatID, tgID i
 	current, err := b.db.SubjectByTelegramID(ctx, tgID)
 	switch {
 	case err == nil && current.ID != subject.ID:
-		b.send(ctx, chatID, b.texts.Session.AnotherProfile, keyboard(b.backRow()))
+		b.send(ctx, chatID, b.texts.Session.AnotherProfile+"\n\nПоддержка поможет проверить оба профиля и сохранить оплаченные подписки и историю.", keyboard([]telego.InlineKeyboardButton{button("Помощь с объединением профилей", "support:new")}, b.backRow()))
 		return
 	case err != nil && !errors.Is(err, storage.ErrNotFound):
 		b.send(ctx, chatID, b.texts.Session.TelegramFailed, keyboard(b.backRow()))
 		return
 	}
-	if err := b.db.AttachTelegram(ctx, subject.ID, tgID); err != nil {
+	if err := b.db.AttachTelegramByCode(ctx, code, subject.ID, tgID); err != nil {
 		b.send(ctx, chatID, b.texts.Session.AttachFailed, keyboard(b.backRow()))
 		return
-	}
-	if _, err := b.db.ConsumeLinkCode(ctx, code); err != nil {
-		_ = err
 	}
 
 	site := b.siteURL()
@@ -200,6 +197,7 @@ func (b *Bot) handleReferralCommand(ctx *telegohandler.Context, message telego.M
 }
 
 func (b *Bot) handleSupportCommand(ctx *telegohandler.Context, message telego.Message) error {
+	b.clearInput(message.From.ID)
 	text, kb := b.supportScreen(ctx, message.From.ID)
 	b.send(ctx, telego.ChatID{ID: message.Chat.ID}, text, kb)
 	return nil
@@ -253,6 +251,8 @@ func (b *Bot) handleText(ctx *telegohandler.Context, message telego.Message) err
 	text := strings.TrimSpace(message.Text)
 
 	switch kind {
+	case inputBroadcast:
+		b.handleBroadcastInput(ctx, chatID, tgID, ref, text)
 	case inputPromo:
 		b.clearInput(tgID)
 		ctx = ctx.WithContext(context.WithValue(ctx, promoPlanKey{}, ref))
@@ -406,17 +406,9 @@ func (b *Bot) handleTicketInput(ctx context.Context, chatID telego.ChatID, tgID 
 			b.send(ctx, chatID, b.texts.Ticket.SendFailed, keyboard(b.backRow()))
 			return
 		}
-		b.clearInput(tgID)
+		b.setInput(tgID, inputTicket, strconv.FormatInt(open.ID, 10))
 		b.cleanIncoming(ctx)
-		if b.cfg.BotCleanChat {
-			b.showSavedTicket(ctx, tgID, open.ID)
-			return
-		}
-		b.send(ctx, chatID, b.text(b.texts.Ticket.Added, map[string]any{"ID": open.ID}),
-			keyboard([]telego.InlineKeyboardButton{
-				button(b.texts.Ticket.Open, "ticket:"+strconv.FormatInt(open.ID, 10)),
-				button("🏠 Меню", "nav:main"),
-			}))
+		b.showSavedTicket(ctx, tgID, open.ID)
 		return
 	}
 	title := firstRunes(text, 60)
@@ -428,18 +420,10 @@ func (b *Bot) handleTicketInput(ctx context.Context, chatID telego.ChatID, tgID 
 		b.send(ctx, chatID, b.texts.Ticket.CreateFail, keyboard(b.backRow()))
 		return
 	}
-	b.clearInput(tgID)
+	b.setInput(tgID, inputTicket, strconv.FormatInt(ticket.ID, 10))
 	b.cleanIncoming(ctx)
 	b.notifyStaff(ctx, ticket, text)
-	if b.cfg.BotCleanChat {
-		b.showSavedTicket(ctx, tgID, ticket.ID)
-		return
-	}
-	b.send(ctx, chatID, b.text(b.texts.Ticket.Created, map[string]any{"ID": ticket.ID}),
-		keyboard([]telego.InlineKeyboardButton{
-			button(b.texts.Ticket.Open, "ticket:"+strconv.FormatInt(ticket.ID, 10)),
-			button("🏠 Меню", "nav:main"),
-		}))
+	b.showSavedTicket(ctx, tgID, ticket.ID)
 }
 
 // notifyStaff пересылает новое обращение дежурным: иначе оно ждёт, пока
@@ -470,6 +454,11 @@ func (b *Bot) handleTicketReply(ctx context.Context, chatID telego.ChatID, tgID 
 		b.send(ctx, chatID, b.texts.Ticket.NotFound, keyboard(b.backRow()))
 		return
 	}
+	if ticket.Status != "open" {
+		b.clearInput(tgID)
+		b.send(ctx, chatID, "Обращение закрыто. Переписка сохранена в истории.", keyboard([]telego.InlineKeyboardButton{button("Открыть историю", "ticket:"+rawID)}))
+		return
+	}
 	subjectID := int64(0)
 	if ticket.SubjectID != nil {
 		subjectID = *ticket.SubjectID
@@ -483,20 +472,10 @@ func (b *Bot) handleTicketReply(ctx context.Context, chatID telego.ChatID, tgID 
 		b.send(ctx, chatID, b.texts.Ticket.AnswerFail, keyboard(b.backRow()))
 		return
 	}
-	b.clearInput(tgID)
+	b.setInput(tgID, inputTicketReply, rawID)
 	b.cleanIncoming(ctx)
-	if ticket.TelegramID != nil && b.cfg.BotCleanChat {
+	if ticket.TelegramID != nil && *ticket.TelegramID != tgID {
 		b.showSavedTicket(ctx, *ticket.TelegramID, ticketID)
-	} else if ticket.TelegramID != nil {
-		header := plainLine(b.text(b.texts.Ticket.AnswerTitle, map[string]any{"ID": ticketID, "Text": ""}))
-		_ = b.deliverMarkdown(ctx, telego.ChatID{ID: *ticket.TelegramID}, 0,
-			header+"\n\n"+text,
-			keyboard([]telego.InlineKeyboardButton{
-				button(b.texts.Ticket.Open, "ticket:"+strconv.FormatInt(ticketID, 10)),
-			}))
 	}
-	b.send(ctx, chatID, b.texts.Ticket.AnswerSent,
-		keyboard([]telego.InlineKeyboardButton{
-			button(b.texts.Ticket.ToTicket, "ticket:"+strconv.FormatInt(ticketID, 10)),
-		}))
+	b.showSavedTicket(ctx, tgID, ticketID)
 }

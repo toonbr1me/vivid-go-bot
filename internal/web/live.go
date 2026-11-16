@@ -152,16 +152,12 @@ func (s *Server) ticketStream(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx := r.Context()
 	ticket, err := s.db.TicketByID(ctx, ticketID)
-	if err != nil || !ticketOwned(ticket, subject) {
+	if err != nil || !ticketOwned(ticket, subject) && s.staffAccess(ctx, subject).Role == "" {
 		http.NotFound(w, r)
 		return
 	}
 
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		http.Error(w, "поток не поддерживается", http.StatusInternalServerError)
-		return
-	}
+	controller := http.NewResponseController(w)
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -183,8 +179,7 @@ func (s *Server) ticketStream(w http.ResponseWriter, r *http.Request) {
 		if _, err := fmt.Fprintf(w, "data: %s\n\n", encoded); err != nil {
 			return false
 		}
-		flusher.Flush()
-		return true
+		return controller.Flush() == nil
 	}
 
 	if !send() {
@@ -205,7 +200,9 @@ func (s *Server) ticketStream(w http.ResponseWriter, r *http.Request) {
 			if _, err := fmt.Fprint(w, ": ping\n\n"); err != nil {
 				return
 			}
-			flusher.Flush()
+			if err := controller.Flush(); err != nil {
+				return
+			}
 		}
 	}
 }
@@ -216,7 +213,7 @@ func (s *Server) ticketPayload(ctx context.Context, ticketID int64) (map[string]
 	if err != nil {
 		return nil, err
 	}
-	messages, err := s.db.TicketMessages(ctx, ticketID, 200)
+	messages, err := s.db.TicketHistory(ctx, ticketID)
 	if err != nil {
 		return nil, err
 	}

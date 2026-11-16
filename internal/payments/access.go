@@ -2,6 +2,7 @@ package payments
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
@@ -20,21 +21,22 @@ func (s *Service) Access(ctx context.Context, subject domain.Subject, username s
 	if strings.TrimSpace(username) != "" {
 		access.Username = username
 	}
-	if subject.TelegramID == nil && subject.RemnawaveUser != nil && *subject.RemnawaveUser != "" {
+	if subject.RemnawaveUser != nil && *subject.RemnawaveUser != "" {
 		access.Username = *subject.RemnawaveUser
 	}
 
 	var panelErr error
 	if s.panelReady() {
-		lookup := ""
-		if subject.TelegramID == nil {
-			lookup = access.Username
-		}
-		users, err := s.findPanelUsers(ctx, subject.TelegramID, lookup)
+		users, err := s.findPanelUsers(ctx, subject.TelegramID, access.Username)
 		if err != nil {
 			panelErr = err
 		} else if user := remnawave.PickUser(users); user != nil {
 			panelErr = s.fillAccess(ctx, &access, subject, *user)
+			if subject.TelegramID != nil && subject.RemnawaveUser != nil && user.TelegramID == nil {
+				// Repair an interrupted account link with an absolute identity update.
+				_, err := s.panel.UpdateUser(ctx, remnawave.UpdateUserParams{UserID: user.ID, TelegramID: subject.TelegramID})
+				panelErr = errors.Join(panelErr, err)
+			}
 		}
 	}
 	if access.Found {

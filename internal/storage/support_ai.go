@@ -171,37 +171,53 @@ func (db *DB) SetTicketSupportMode(ctx context.Context, ticketID int64, mode str
 	return err
 }
 
-// CloseIdleAITickets закрывает обращения, где помощник давно не отвечал.
-//
-// Незакрытое обращение в режиме помощника выглядит так, будто его читают, а
-// его не читают: через двое суток его закрывают и оставляют живого
-// сотрудника.
+// CloseIdleAITickets transfers stale assistant conversations to a person.
+// Silence is never evidence that a customer's issue has been resolved.
 func (db *DB) CloseIdleAITickets(ctx context.Context, hours int, text string) (int, error) {
-	rows, err := db.Pool.Query(ctx, `
-		UPDATE support_tickets t SET status = 'closed', support_mode = 'human',
+	tickets, err := db.HandoffIdleAITickets(ctx, hours, text)
+	return len(tickets), err
+}
+
+func (db *DB) HandoffIdleAITickets(ctx context.Context, hours int, text string) ([]AITicket, error) {
+	tx, err := db.Pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+	rows, err := tx.Query(ctx, `
+		UPDATE support_tickets t SET support_mode = 'human', work_state = 'new',
 		       ai_claim = NULL, ai_locked_until = NULL, updated_at = now()
 		WHERE t.status = 'open' AND t.support_mode = 'assistant'
 		  AND t.updated_at < now() - make_interval(hours => $1)
-		RETURNING t.id, t.subject_id`, hours)
+		  AND (t.ai_locked_until IS NULL OR t.ai_locked_until <= now())
+		RETURNING t.id, t.subject_id, t.telegram_id`, hours)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	defer rows.Close()
-	closed := 0
+	var tickets []AITicket
 	for rows.Next() {
-		var id int64
-		var subjectID *int64
-		if err := rows.Scan(&id, &subjectID); err != nil {
-			return closed, err
+		var ticket AITicket
+		if err := rows.Scan(&ticket.ID, &ticket.SubjectID, &ticket.TelegramID); err != nil {
+			return nil, err
 		}
+		tickets = append(tickets, ticket)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	rows.Close()
+	for _, ticket := range tickets {
 		if text != "" {
-			if _, err := db.Pool.Exec(ctx, `
+			if _, err := tx.Exec(ctx, `
 				INSERT INTO support_messages (ticket_id, subject_id, message, is_from_admin, is_assistant)
-				VALUES ($1, $2, $3, TRUE, TRUE)`, id, subjectID, text); err != nil {
-				return closed, err
+				VALUES ($1, $2, $3, TRUE, TRUE)`, ticket.ID, ticket.SubjectID, text); err != nil {
+				return nil, err
 			}
 		}
-		closed++
 	}
-	return closed, rows.Err()
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+	return tickets, nil
 }

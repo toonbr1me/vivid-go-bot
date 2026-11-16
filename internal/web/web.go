@@ -144,6 +144,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /support/tickets/{id}/updates", s.ticketStream)
 	s.mux.HandleFunc("POST /support/tickets/{id}", s.csrf(s.ticketReply))
 	s.mux.HandleFunc("POST /support/tickets/{id}/resolve", s.csrf(s.ticketResolve))
+	s.mux.HandleFunc("POST /support/tickets/{id}/compensate", s.csrf(s.ticketCompensate))
 	s.mux.HandleFunc("POST /support/tickets/{id}/read", s.csrf(s.ticketRead))
 	s.mux.HandleFunc("GET /support/tickets/{id}/files/{message}", s.ticketFile)
 
@@ -154,6 +155,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /static/bot-mascot/{name}", s.botMascot)
 	s.mux.HandleFunc("GET /partner", s.partnerCabinet)
 	s.mux.HandleFunc("GET /partner/claim", s.partnerClaim)
+	s.mux.HandleFunc("POST /partner/claim", s.csrf(s.partnerClaim))
 
 	// Админка: тот же вход через Google, но доступ — только сотрудникам.
 	s.mux.HandleFunc("GET /admin", s.adminHome)
@@ -181,6 +183,7 @@ func (s *Server) routes() {
 	})
 
 	s.mux.HandleFunc("POST /webhooks/{provider}", s.paymentWebhook)
+	s.mux.HandleFunc("POST /webhooks/remnawave", s.panelWebhook)
 
 	s.mux.Handle("/static/", s.render.staticHandler())
 	s.mux.HandleFunc("GET /favicon.ico", func(w http.ResponseWriter, r *http.Request) {
@@ -240,6 +243,9 @@ type statusWriter struct {
 	http.ResponseWriter
 	status int
 }
+
+// ResponseController needs to reach the actual writer for streaming responses.
+func (w *statusWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
 
 func (w *statusWriter) WriteHeader(code int) {
 	if w.status == 0 {

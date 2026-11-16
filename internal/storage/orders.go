@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -310,10 +311,11 @@ func (db *DB) HasPaidProvisioning(ctx context.Context, subjectID int64) (bool, e
 // ExpiringSubscriptions — заказы, у которых срок подходит к концу.
 func (db *DB) ExpiringSubscriptions(ctx context.Context, from, to time.Time) ([]domain.Order, error) {
 	return db.queryOrders(ctx, `
-		SELECT `+orderColumns+` FROM (
-			SELECT DISTINCT ON (telegram_id) * FROM orders
-			WHERE telegram_id IS NOT NULL AND status = 'provisioned'
-			  AND kind = 'subscription' AND expire_at IS NOT NULL
-			ORDER BY telegram_id, expire_at DESC, created_at DESC
+		SELECT `+strings.Replace(orderColumns, "telegram_id", "recipient_telegram_id", 1)+` FROM (
+			SELECT DISTINCT ON (a.id) o.*, a.telegram_id AS recipient_telegram_id FROM orders o
+			JOIN accounts a ON (o.account_id=a.id OR (o.account_id IS NULL AND o.telegram_id=a.telegram_id))
+			WHERE a.telegram_id IS NOT NULL AND o.status = 'provisioned'
+			  AND o.kind = 'subscription' AND o.expire_at IS NOT NULL
+			ORDER BY a.id, o.expire_at DESC, o.created_at DESC
 		) latest WHERE expire_at BETWEEN $1 AND $2`, from, to)
 }

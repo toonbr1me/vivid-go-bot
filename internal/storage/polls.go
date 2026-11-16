@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -142,15 +143,10 @@ func (db *DB) PollResults(ctx context.Context, pollID int64) (PollCounts, error)
 // active — только люди с действующей подпиской; all — все, кто когда-либо
 // пользовался ботом.
 func (db *DB) PollAudience(ctx context.Context, audience string, limit int) ([]int64, error) {
-	query := `
-		SELECT telegram_id FROM accounts
-		WHERE telegram_id IS NOT NULL
-		  AND ($1 <> 'active' OR id IN (
-		      SELECT subject_id FROM device_slot_grants WHERE subject_id IS NOT NULL
-		      UNION SELECT subject_id FROM orders
-		      WHERE subject_id IS NOT NULL AND status = 'provisioned'
-		                AND expire_at > now()))
-		ORDER BY id LIMIT $2`
+	if !validAudience(audience) {
+		return nil, fmt.Errorf("unknown audience")
+	}
+	query := audienceBase + ` LIMIT $2`
 	rows, err := db.Pool.Query(ctx, query, audience, limit)
 	if err != nil {
 		return nil, err

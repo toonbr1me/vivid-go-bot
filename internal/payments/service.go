@@ -754,6 +754,9 @@ func (s *Service) planExtraDevices(plan domain.Plan) *int {
 }
 
 func fallbackUsername(subject domain.Subject) string {
+	if subject.RemnawaveUser != nil && strings.TrimSpace(*subject.RemnawaveUser) != "" {
+		return *subject.RemnawaveUser
+	}
 	if subject.TelegramID != nil {
 		return fmt.Sprintf("tg_%d", *subject.TelegramID)
 	}

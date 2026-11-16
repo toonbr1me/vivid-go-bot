@@ -15,6 +15,8 @@ import (
 )
 
 type accountData struct {
+	Guidance      *domain.CustomerGuidance
+	GuidanceURL   string
 	Recurring     *domain.RecurringAgreement
 	Access        domain.Access
 	AccessError   string
@@ -57,8 +59,26 @@ func (s *Server) accountPage(w http.ResponseWriter, r *http.Request) {
 	}
 	access, err := s.pay.Access(ctx, *subject, panelUsername(subject))
 	data.Access = access
+	if guidance, err := s.pay.CustomerGuidance(ctx, *subject, access, "web"); err == nil {
+		data.Guidance = &guidance
+		switch guidance.Action {
+		case "connect":
+			data.GuidanceURL = "/connect"
+		case "order":
+			data.GuidanceURL = "/pay/success?order=" + url.QueryEscape(guidance.OrderID)
+		case "recurring":
+			data.GuidanceURL = "/account#recurring"
+		case "support":
+			data.GuidanceURL = "/support"
+		default:
+			data.GuidanceURL = "/buy"
+		}
+	}
 	if err != nil {
 		data.AccessError = "Панель не отвечает — показываем последние известные данные."
+		if access.Found {
+			data.AccessError = "Подписка доступна. Не удалось обновить часть сведений об устройствах."
+		}
 	}
 	data.DeviceLimit = access.DeviceLimit
 	if a, err := s.db.LatestRecurringForSubject(ctx, subject.ID); err == nil {

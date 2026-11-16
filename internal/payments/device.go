@@ -211,7 +211,7 @@ func (s *Service) CheckoutDevices(ctx context.Context, purchase DevicePurchase) 
 	if !s.registry.Enabled() {
 		return domain.Checkout{}, ErrNoProviders
 	}
-	user, err := s.panelUser(ctx, purchase.TelegramID, s.lookupUsername(purchase.Username, purchase.TelegramID, purchase.AccountID))
+	user, err := s.panelUser(ctx, subject.TelegramID, fallbackUsername(subject))
 	if err != nil {
 		return domain.Checkout{}, fmt.Errorf("%w: %v", ErrNoSubscription, err)
 	}
@@ -442,7 +442,7 @@ func (s *Service) syncLimitForOrder(ctx context.Context, subject domain.Subject,
 		return nil, nil
 	}
 	username := deref(order.Username)
-	if username == "" {
+	if username == "" || subject.RemnawaveUser != nil {
 		username = fallbackUsername(subject)
 	}
 	user, err := s.panelUser(ctx, order.TelegramID, username)
@@ -523,15 +523,7 @@ func (s *Service) SyncDeviceLimitForSubject(ctx context.Context, subjectID int64
 	if err != nil {
 		return nil, err
 	}
-	username := ""
-	if subject.TelegramID == nil {
-		if subject.RemnawaveUser != nil {
-			username = *subject.RemnawaveUser
-		}
-		if username == "" {
-			username = fmt.Sprintf("web_%d", subject.ID)
-		}
-	}
+	username := fallbackUsername(subject)
 	user, err := s.panelUser(ctx, subject.TelegramID, username)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {

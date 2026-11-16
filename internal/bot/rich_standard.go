@@ -14,6 +14,10 @@ import (
 // short guidance and grouped Telegram buttons. It never embeds a widget.
 func (b *Bot) standardRichScreen(ctx context.Context, id int64, name string) (string, *telego.InlineKeyboardMarkup, bool) {
 	switch name {
+	case "main":
+		return b.richMain(ctx, id)
+	case "subscription":
+		return b.richSubscription(ctx, id)
 	case "profile":
 		return b.standardRichProfile(ctx, id)
 	case "history":
@@ -50,25 +54,7 @@ func (b *Bot) standardRichScreen(ctx context.Context, id int64, name string) (st
 	if !ok {
 		return "", nil, false
 	}
-	if name == "main" || name == "subscription" {
-		if name == "subscription" {
-			state.Pages[0].Title = "Моя подписка"
-		}
-		html, kb := richCardDocument(state)
-		rows := [][]telego.InlineKeyboardButton{}
-		for _, control := range state.Pages[0].Buttons {
-			a := state.Actions[control.Index]
-			a.Style = control.Style
-			rows = append(rows, []telego.InlineKeyboardButton{a})
-		}
-		if name == "main" {
-			rows = append(rows, []telego.InlineKeyboardButton{button("Устройства", "nav:devices"), button("Аккаунт", "nav:profile")}, []telego.InlineKeyboardButton{button("Помощь", "nav:support"), button("Ещё", "nav:more")})
-		} else {
-			rows = append(rows, []telego.InlineKeyboardButton{button("Устройства", "nav:devices"), button("Проверить подписку", "nav:diagnostics")}, []telego.InlineKeyboardButton{button("Обновить", "nav:subscription"), button("Главная", "nav:main")})
-		}
-		kb = keyboard(rows...)
-		return html, kb, true
-	}
+
 	html, kb := richCardDocument(state)
 	return html, kb, true
 }

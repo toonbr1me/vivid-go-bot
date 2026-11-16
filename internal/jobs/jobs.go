@@ -6,12 +6,15 @@ package jobs
 import (
 	"context"
 	"fmt"
+	"html"
 	"log/slog"
+	"net/url"
 	"time"
 
 	"golang.org/x/sync/errgroup"
 
 	"github.com/toonbr1me/vivid-go-bot/internal/config"
+	"github.com/toonbr1me/vivid-go-bot/internal/domain"
 	"github.com/toonbr1me/vivid-go-bot/internal/payments"
 	"github.com/toonbr1me/vivid-go-bot/internal/storage"
 	"github.com/toonbr1me/vivid-go-bot/internal/support"
@@ -31,6 +34,20 @@ func Run(ctx context.Context, db *storage.DB, pay *payments.Service, sender Send
 // Помощника может не быть: тогда он просто не отвечает.
 func RunWithAssistant(ctx context.Context, db *storage.DB, pay *payments.Service, sender Sender, cfg *config.Settings, assistant *support.Assistant) error {
 	group, ctx := errgroup.WithContext(ctx)
+	if worker, ok := sender.(interface {
+		ProcessBroadcasts(context.Context, int) error
+	}); ok {
+		group.Go(func() error {
+			return every(ctx, "рассылки", 2*time.Second, func(ctx context.Context) error { return worker.ProcessBroadcasts(ctx, 20) })
+		})
+	}
+	if worker, ok := sender.(interface {
+		ProcessPanelEvents(context.Context, int) error
+	}); ok {
+		group.Go(func() error {
+			return every(ctx, "события панели", 5*time.Second, func(ctx context.Context) error { return worker.ProcessPanelEvents(ctx, 20) })
+		})
+	}
 
 	group.Go(func() error {
 		return every(ctx, "выдача заказов", time.Minute, func(ctx context.Context) error {
@@ -53,7 +70,7 @@ func RunWithAssistant(ctx context.Context, db *storage.DB, pay *payments.Service
 
 	group.Go(func() error {
 		return every(ctx, "напоминания о сроке", 15*time.Minute, func(ctx context.Context) error {
-			return remindExpiry(ctx, db, sender)
+			return remindExpiry(ctx, db, sender, cfg)
 		})
 	})
 
@@ -83,13 +100,13 @@ func RunWithAssistant(ctx context.Context, db *storage.DB, pay *payments.Service
 			})
 		})
 		group.Go(func() error {
-			return every(ctx, "закрытие забытых обращений", time.Hour, func(ctx context.Context) error {
+			return every(ctx, "передача забытых обращений", time.Hour, func(ctx context.Context) error {
 				closed, err := assistant.CloseIdle(ctx)
 				if err != nil {
 					return err
 				}
 				if closed > 0 {
-					slog.Info("закрыто обращений без ответа", "обращений", closed)
+					slog.Info("обращения переданы сотрудникам", "обращений", closed)
 				}
 				return nil
 			})
@@ -117,7 +134,7 @@ func every(ctx context.Context, name string, interval time.Duration, task func(c
 }
 
 // remindExpiry предупреждает за сутки до конца подписки.
-func remindExpiry(ctx context.Context, db *storage.DB, sender Sender) error {
+func remindExpiry(ctx context.Context, db *storage.DB, sender Sender, configs ...*config.Settings) error {
 	now := time.Now().UTC()
 	orders, err := db.ExpiringSubscriptions(ctx, now, now.Add(24*time.Hour))
 	if err != nil {
@@ -131,14 +148,39 @@ func remindExpiry(ctx context.Context, db *storage.DB, sender Sender) error {
 		if err != nil || !settings.Expiry {
 			continue
 		}
+		subject, err := db.SubjectByTelegramID(ctx, *order.TelegramID)
+		if err != nil {
+			return err
+		}
+		var recurring *domain.RecurringAgreement
+		if agreement, err := db.LatestRecurringForSubject(ctx, subject.ID); err == nil {
+			recurring = &agreement
+		} else if err != storage.ErrNotFound {
+			return err
+		}
 		claim, err := db.ClaimReminder(ctx, *order.TelegramID, "expiry", order.ExpireAt.UTC())
 		if err != nil || claim == "" {
 			continue
 		}
+		location := time.Local
+		if len(configs) > 0 && configs[0] != nil && configs[0].Timezone != "" {
+			if configured, err := time.LoadLocation(configs[0].Timezone); err == nil {
+				location = configured
+			}
+		}
 		text := fmt.Sprintf(
 			"⏳ <b>Подписка заканчивается</b>\n\nДоступ действует до <b>%s</b>.\n"+
 				"Продлите заранее, чтобы не перенастраивать подключение.",
-			order.ExpireAt.In(time.Local).Format("02.01.2006"))
+			order.ExpireAt.In(location).Format("02.01.2006"))
+		if recurring != nil && recurring.Enabled {
+			text = "🔁 <b>Автопродление</b>\n\n" + html.EscapeString(recurring.StatusText())
+			if recurring.Activated && recurring.LastError == "" && recurring.NextChargeAt != nil {
+				text += fmt.Sprintf("\nСледующее списание: %s — %s %s каждые %d дней.", recurring.NextChargeAt.In(location).Format("02.01.2006 15:04"), recurring.Amount.String(), html.EscapeString(recurring.Currency), recurring.Days)
+			}
+			text += "\nУправление и отключение доступны в аккаунте. Если платёж уже отправлен, повторно платить не нужно."
+		} else if recurring != nil && recurring.StopReason != "user" {
+			text += "\n\n" + html.EscapeString(recurring.StatusText())
+		}
 		sendErr := sender.SendText(ctx, *order.TelegramID, text)
 		if err := db.FinishReminder(ctx, claim, sendErr == nil); err != nil {
 			return err
@@ -173,8 +215,13 @@ func remindUnpaid(ctx context.Context, db *storage.DB, sender Sender, cfg *confi
 		if err != nil || claim == "" {
 			continue
 		}
-		text := "💳 <b>Счёт ждёт оплаты</b>\n\n" +
-			"Если хотите продолжить оформление, откройте бота и выберите тариф."
+		text := "💳 <b>Счёт ждёт оплаты</b>\n\nЗаказ <code>" + html.EscapeString(order.OrderID) + "</code>."
+		if order.PaymentURL != nil {
+			if link, err := url.Parse(*order.PaymentURL); err == nil && (link.Scheme == "https" || link.Scheme == "http") && link.Host != "" {
+				text += "\n<a href=\"" + html.EscapeString(link.String()) + "\">Продолжить оплату этого счёта</a>"
+			}
+		}
+		text += "\nЕсли уже оплатили, проверьте этот заказ в истории покупок."
 		sendErr := sender.SendText(ctx, *order.TelegramID, text)
 		if err := db.FinishReminder(ctx, claim, sendErr == nil); err != nil {
 			return err

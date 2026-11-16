@@ -132,6 +132,9 @@ func (db *DB) RecentAudit(ctx context.Context, limit int) ([]AuditEntry, error) 
 
 // Permission проверяет право сотрудника. Владелец умеет всё.
 func (db *DB) Permission(ctx context.Context, telegramID int64, action string, adminIDs map[int64]bool) bool {
+	if !knownStaffAction(action) {
+		return false
+	}
 	if adminIDs[telegramID] {
 		return true
 	}
@@ -139,14 +142,31 @@ func (db *DB) Permission(ctx context.Context, telegramID int64, action string, a
 	if err != nil || member == nil || !member.IsActive {
 		return false
 	}
-	switch action {
-	case "staff.manage", "settings.edit", "plans.edit", "orders.view", "orders.retry":
-		return member.Role == RoleOwner || member.Role == RoleAdmin
-	case "support.answer", "support.compensate":
-		return true
-	default:
+	return RoleCan(member.Role, action)
+}
+
+func RoleCan(role, action string) bool {
+	if !knownStaffAction(action) {
+		return false
+	}
+	if role == RoleOwner || role == RoleAdmin {
 		return true
 	}
+	if role != RoleSupport {
+		return false
+	}
+	switch action {
+	case "support.answer", "support.compensate", "tickets.view", "tickets.take", "tickets.close", "tickets.reply", "tickets.transfer", "tickets.note", "tickets.snooze":
+		return true
+	}
+	return false
+}
+func knownStaffAction(action string) bool {
+	switch action {
+	case "staff.manage", "settings.edit", "plans.edit", "plans.manage", "orders.view", "orders.retry", "stats.view", "promo.manage", "partners.manage", "withdrawal.approve", "subscription.grant", "audit.view", "broadcast.send", "polls.manage", "support.answer", "support.compensate", "tickets.view", "tickets.take", "tickets.close", "tickets.reply", "tickets.transfer", "tickets.note", "tickets.snooze":
+		return true
+	}
+	return false
 }
 
 func nullString(value string) any {

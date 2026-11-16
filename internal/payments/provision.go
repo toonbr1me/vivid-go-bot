@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
+	"slices"
 	"time"
 
 	"github.com/toonbr1me/vivid-go-bot/internal/domain"
@@ -70,11 +72,7 @@ func (s *Service) currentExpiry(ctx context.Context, telegramID *int64, username
 	if !s.panelReady() {
 		return time.Time{}, errors.New("панель управления не настроена")
 	}
-	lookup := ""
-	if telegramID == nil {
-		lookup = username
-	}
-	users, err := s.findPanelUsers(ctx, telegramID, lookup)
+	users, err := s.findPanelUsers(ctx, telegramID, username)
 	if err != nil {
 		return time.Time{}, err
 	}
@@ -94,13 +92,10 @@ func (s *Service) ensureUserExpireAt(ctx context.Context, telegramID *int64, use
 		return time.Time{}, errors.New("панель управления не настроена")
 	}
 	canonical := username
-	lookupUsername := ""
 	if telegramID != nil {
 		canonical = fmt.Sprintf("tg_%d", *telegramID)
-	} else {
-		lookupUsername = username
 	}
-	users, err := s.findPanelUsers(ctx, telegramID, lookupUsername)
+	users, err := s.findPanelUsers(ctx, telegramID, username)
 	if err != nil {
 		return time.Time{}, err
 	}
@@ -112,22 +107,24 @@ func (s *Service) ensureUserExpireAt(ctx context.Context, telegramID *int64, use
 		if user.ID == 0 {
 			return time.Time{}, errors.New("у пользователя панели нет идентификатора")
 		}
-		// Срок уже тот же — идти в панель незачем. Так повторная выдача
-		// не дёргает панель лишний раз.
-		if !user.ExpireAt.Time.IsZero() && !user.ExpireAt.Time.Before(target) {
+		limitMatches := profile.TrafficLimitBytes == nil || user.TrafficLimitBytes != nil && *user.TrafficLimitBytes == *profile.TrafficLimitBytes || user.TrafficLimitBytes == nil && profile.TrafficLimitBytes != nil && *profile.TrafficLimitBytes == 0
+		groupsMatch := len(profile.InternalSquadUUIDs) == 0 || slices.Equal(user.ActiveInternalSquads, profile.InternalSquadUUIDs)
+		externalMatches := profile.ExternalSquadUUID == "" || user.Raw["externalSquadUuid"] != nil
+		if !user.ExpireAt.Time.Before(target) && limitMatches && groupsMatch && externalMatches {
 			return user.ExpireAt.Time, nil
 		}
-		if profile.ExternalSquadUUID != "" && user.Raw["externalSquadUuid"] == nil {
-			if _, err := s.panel.UpdateUser(ctx, remnawave.UpdateUserParams{
-				UserID:            user.ID,
-				ExpireAt:          &target,
-				ExternalSquadUUID: &profile.ExternalSquadUUID,
-				InternalSquads:    squadsPtr(profile),
-			}); err == nil {
-				return target, nil
-			}
+		if user.ExpireAt.Time.After(target) {
+			target = user.ExpireAt.Time
 		}
-		if _, err := s.panel.UpdateExpireAt(ctx, user.ID, target, profile.InternalSquadUUIDs); err != nil {
+		params := remnawave.UpdateUserParams{UserID: user.ID, ExpireAt: &target, InternalSquads: squadsPtr(profile)}
+		// A configured limit is an absolute value, so retrying is safe.
+		if profile.TrafficLimitBytes != nil {
+			params.TrafficLimitBytes = &profile.TrafficLimitBytes
+		}
+		if profile.ExternalSquadUUID != "" && user.Raw["externalSquadUuid"] == nil {
+			params.ExternalSquadUUID = &profile.ExternalSquadUUID
+		}
+		if _, err := s.panel.UpdateUser(ctx, params); err != nil {
 			return time.Time{}, err
 		}
 		return target, nil
@@ -231,7 +228,7 @@ func (s *Service) provisionSubscription(ctx context.Context, order domain.Order)
 		return domain.ProvisionResult{}, errors.New("заказ не оплачен")
 	}
 	username := deref(order.Username)
-	if username == "" {
+	if username == "" || subject.RemnawaveUser != nil {
 		username = fallbackUsername(subject)
 	}
 	journal := s.db.Journal(order.OrderID)
@@ -245,12 +242,31 @@ func (s *Service) provisionSubscription(ctx context.Context, order domain.Order)
 		return domain.ProvisionResult{}, err
 	}
 	profile := s.paidProfile()
+	upgrade := false
 	if order.Provider == "trial" {
 		profile = s.trialProfile(plan.TrialKind)
+	} else if order.PlanID != "gift" {
+		raw, err := journal.Once(ctx, "trial_upgrade", func(ctx context.Context, tx storage.Tx) (any, error) {
+			return tx.TrialUpgradeNeeded(ctx, subject, order.OrderID)
+		})
+		if err != nil {
+			return domain.ProvisionResult{}, err
+		}
+		if err := json.Unmarshal(raw, &upgrade); err != nil {
+			return domain.ProvisionResult{}, err
+		}
+		if upgrade && profile.TrafficLimitBytes == nil {
+			profile.TrafficLimitBytes = new(int64)
+		}
 	}
 	expireAt, err := s.ensureUserExpireAt(ctx, order.TelegramID, username, target, profile)
 	if err != nil {
 		return domain.ProvisionResult{}, err
+	}
+	if upgrade && s.cfg.TrialResetOnPaid {
+		if err := s.resetTrialTraffic(ctx, journal, subject, username); err != nil {
+			return domain.ProvisionResult{}, err
+		}
 	}
 	if order.AccountID != nil {
 		_ = s.db.SetRemnawaveUsername(ctx, *order.AccountID, username)
@@ -303,6 +319,33 @@ func (s *Service) provisionSubscription(ctx context.Context, order domain.Order)
 		result.DevicesRenewed = len(order.DeviceRenewals)
 	}
 	return result, nil
+}
+
+func (s *Service) resetTrialTraffic(ctx context.Context, journal *storage.Journal, subject domain.Subject, username string) error {
+	resetter, ok := s.panel.(interface {
+		ResetTraffic(context.Context, int64) error
+	})
+	if !ok {
+		return errors.New("панель не поддерживает сброс пробного трафика")
+	}
+	user, err := s.panelUser(ctx, subject.TelegramID, username)
+	if err != nil {
+		return err
+	}
+	claimed, err := journal.ClaimTrialTrafficReset(ctx, subject)
+	if err != nil || !claimed {
+		return err
+	}
+	resetErr := resetter.ResetTraffic(ctx, user.ID)
+	// ResetTraffic has no idempotency key. A timeout is recorded for review;
+	// repeating it could erase traffic already used after the paid upgrade.
+	result := "done"
+	if resetErr != nil {
+		result = "review"
+		slog.Warn("сброс пробного трафика требует проверки; повтор отключён", "subject", subject.ID, "err", resetErr)
+	}
+	_, err = journal.Once(ctx, "trial_traffic_reset_result", func(context.Context, storage.Tx) (any, error) { return result, nil })
+	return err
 }
 
 // reserveDays — сколько дней начисляем.
@@ -673,17 +716,36 @@ func (s *Service) findPanelUsers(ctx context.Context, telegramID *int64, lookupU
 	if !s.panelReady() {
 		return nil, errors.New("панель управления не настроена")
 	}
+	var users []remnawave.User
 	if telegramID != nil {
-		return s.panel.UsersByTelegramID(ctx, *telegramID)
+		var err error
+		users, err = s.panel.UsersByTelegramID(ctx, *telegramID)
+		if err != nil {
+			return nil, err
+		}
+		if linked := remnawave.PickUser(users); linked != nil && (lookupUsername == "" || lookupUsername == fmt.Sprintf("tg_%d", *telegramID) || lookupUsername == linked.Username) {
+			return users, nil
+		}
 	}
-	if lookupUsername == "" {
+	if lookupUsername != "" {
+		user, err := s.panel.UserByUsername(ctx, lookupUsername)
+		if err != nil {
+			return nil, err
+		}
+		if user != nil {
+			if telegramID != nil && user.TelegramID != nil && *user.TelegramID != *telegramID {
+				return nil, errors.New("подписка привязана к другому Telegram")
+			}
+			if linked := remnawave.PickUser(users); linked != nil && linked.ID != user.ID {
+				return nil, errors.New("обнаружены разные подписки веб-аккаунта и Telegram: обратитесь в поддержку")
+			}
+			return []remnawave.User{*user}, nil
+		}
+	}
+	if telegramID == nil && lookupUsername == "" {
 		return nil, errors.New("нужно имя пользователя панели")
 	}
-	user, err := s.panel.UserByUsername(ctx, lookupUsername)
-	if err != nil || user == nil {
-		return nil, err
-	}
-	return []remnawave.User{*user}, nil
+	return users, nil
 }
 
 func (s *Service) panelUser(ctx context.Context, telegramID *int64, username string) (*remnawave.User, error) {

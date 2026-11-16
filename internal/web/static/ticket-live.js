@@ -8,7 +8,7 @@
   if (!ticketID) return;
   var through = 0, acknowledged = 0;
   function markRead() {
-    if (document.visibilityState !== 'visible' || through <= acknowledged) return;
+    if (chat.getAttribute('data-staff') === 'true' || document.visibilityState !== 'visible' || through <= acknowledged) return;
     var current = through;
     fetch('/support/tickets/' + encodeURIComponent(ticketID) + '/read', {
       method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'},
@@ -47,7 +47,7 @@
       var head = document.createElement('div');
       head.className = 'message-head';
       var who = document.createElement('strong');
-      who.textContent = message.assistant ? 'Помощник' : (message.from_admin ? 'Поддержка' : 'Вы');
+      who.textContent = message.assistant ? 'Помощник' : (message.from_admin ? 'Поддержка' : (chat.getAttribute('data-staff') === 'true' ? 'Клиент' : 'Вы'));
       var when = document.createElement('span');
       when.className = 'muted small';
       when.textContent = formatTime(message.created_at);

@@ -59,6 +59,7 @@ type RichTexts struct {
 	NoData       string `json:"no_data"`
 	None         string `json:"none"`
 	PaymentOnce  string `json:"payment_once"`
+	PaymentLabel string `json:"payment_label"`
 	AutoRenewNo  string `json:"auto_renew_no"`
 	Connect      string `json:"connect"`
 	ConnectHint  string `json:"connect_hint"`
