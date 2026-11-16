@@ -8,5 +8,6 @@
   <button class="btn btn-wide" type="submit">Войти по коду</button>
  </form>
  {{if .Data.GoogleEnabled}}<div class="divider">или</div><a class="btn btn-ghost btn-wide" href="/auth/google?next={{.Data.Next}}">Войти через Google</a>{{if .Data.GoogleError}}<p class="form-error">{{.Data.GoogleError}}</p>{{end}}{{end}}
- <div class="auth-hint"><h2>Где взять код</h2><ol><li>{{if .BotURL}}Откройте <a href="{{.BotURL}}">тестового бота</a>{{else}}Откройте бота{{end}}.</li><li>Отправьте <code>/weblogin</code>.</li><li>Перейдите по ссылке из ответа или введите код здесь.</li></ol><p class="muted small">Код одноразовый и действует 30 минут.</p></div>
+ <p class="muted small">Для входа используются технические <a href="/cookies">cookies</a>. При выборе Google получаем разрешённые имя, e-mail и идентификатор профиля. <a href="/privacy">Как обрабатываются данные</a>.</p>
+ <div class="auth-hint"><h2>Где взять код</h2><ol><li>{{if .BotURL}}Откройте <a href="{{.BotURL}}">бота Берлоги</a>{{else}}Откройте бота{{end}}.</li><li>Отправьте <code>/weblogin</code>.</li><li>Перейдите по ссылке из ответа или введите код здесь.</li></ol><p class="muted small">Код одноразовый и действует 30 минут.</p></div>
 </section></div>{{end}}

@@ -217,6 +217,23 @@ func (s *Server) ticketReply(w http.ResponseWriter, r *http.Request) {
 			"Не удалось отправить сообщение. Попробуйте позже.")
 		return
 	}
+	if staff && !ticketOwned(ticket, subject) && s.notify != nil {
+		owner := ticket.TelegramID
+		if ticket.SubjectID != nil {
+			if account, e := s.db.SubjectByID(ctx, *ticket.SubjectID); e == nil && account.TelegramID != nil {
+				owner = account.TelegramID
+			}
+		}
+		if owner != nil {
+			if notifier, ok := s.notify.(interface {
+				SendTicketUpdate(context.Context, int64, int64, string, string) error
+			}); ok {
+				if e := notifier.SendTicketUpdate(ctx, *owner, ticketID, text, "support"); e != nil {
+					s.log.Warn("ответ сохранён, Telegram недоступен", "ticket", ticketID)
+				}
+			}
+		}
+	}
 	s.flashRedirect(w, r, "/support/tickets/"+strconv.FormatInt(ticketID, 10), "ok", "Сообщение отправлено.")
 }
 

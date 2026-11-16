@@ -66,3 +66,38 @@ func TestBerlogaThemeRendersRealPageContracts(t *testing.T) {
 		})
 	}
 }
+
+func TestBerlogaLegalDocumentsDiscloseActualData(t *testing.T) {
+	r, err := newRenderer(&config.Settings{WebDir: filepath.Join("..", "..", "web", "themes", "berloga")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		path, page string
+		want       []string
+	}{
+		{"/terms", "documents.html", []string{"Администрация сервиса", "возврат", "автоматические списания"}},
+		{"/privacy", "documents.html", []string{"vivid_session", "vivid_csrf", "vivid_flash", "vivid_ref", "Groq", "Telegram ID", "12 месяцев", "США"}},
+		{"/cookies", "cookies.html", []string{"vivid_session", "30 дней", "24 часов", "60 секунд"}},
+	} {
+		w := httptest.NewRecorder()
+		if err := r.render(w, 200, tc.page, pageData{Site: r.theme, Path: tc.path, Data: documentData{Title: "Legal"}}); err != nil {
+			t.Fatal(err)
+		}
+		body := w.Body.String()
+		for _, want := range tc.want {
+			if want == "12 месяцев" {
+				if strings.Contains(body, want) {
+					t.Fatal("unimplemented retention promise")
+				}
+				continue
+			}
+			if !strings.Contains(body, want) {
+				t.Fatalf("%s lacks %q", tc.path, want)
+			}
+		}
+		if strings.Contains(body, "Документ ещё не опубликован") {
+			t.Fatal("document not published")
+		}
+	}
+}

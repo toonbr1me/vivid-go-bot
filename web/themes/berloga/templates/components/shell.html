@@ -22,7 +22,7 @@
 
 {{define "berloga/footer"}}
 <footer class="foot"><div class="wrap">
- <ul class="foot-nav"><li><a href="/">Главная</a></li><li><a href="/buy">Тарифы</a></li><li><a href="/support">Поддержка</a></li><li><a href="/terms">Соглашение</a></li><li><a href="/privacy">Конфиденциальность</a></li>{{if .BotURL}}<li><a href="{{.BotURL}}">Telegram</a></li>{{end}}</ul>
+ <ul class="foot-nav"><li><a href="/">Главная</a></li><li><a href="/buy">Тарифы</a></li><li><a href="/support">Поддержка</a></li><li><a href="/terms">Соглашение</a></li><li><a href="/privacy">Конфиденциальность</a></li><li><a href="/cookies">Cookies</a></li>{{if .BotURL}}<li><a href="{{.BotURL}}">Telegram</a></li>{{end}}</ul>
  <p>{{if .Site.LegalEntity}}{{.Site.LegalEntity}}{{else}}Администрация сервиса «Берлога»{{end}}</p>
  {{if .Site.SupportEmail}}<p><a href="mailto:{{.Site.SupportEmail}}">{{.Site.SupportEmail}}</a></p>{{end}}
  <p>{{if eq .Site.Data.environment "development"}}Go development · отдельная тестовая база{{else}}© {{.Year}} Берлога{{end}}</p>

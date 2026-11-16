@@ -407,8 +407,8 @@ func (b *Bot) handleTicketInput(ctx context.Context, chatID telego.ChatID, tgID 
 			return
 		}
 		b.setInput(tgID, inputTicket, strconv.FormatInt(open.ID, 10))
-		b.cleanIncoming(ctx)
-		b.showSavedTicket(ctx, tgID, open.ID)
+		b.notifyStaff(ctx, *open, text)
+		b.ticketSent(ctx, tgID, open.ID, false)
 		return
 	}
 	title := firstRunes(text, 60)
@@ -421,16 +421,15 @@ func (b *Bot) handleTicketInput(ctx context.Context, chatID telego.ChatID, tgID 
 		return
 	}
 	b.setInput(tgID, inputTicket, strconv.FormatInt(ticket.ID, 10))
-	b.cleanIncoming(ctx)
 	b.notifyStaff(ctx, ticket, text)
-	b.showSavedTicket(ctx, tgID, ticket.ID)
+	b.ticketSent(ctx, tgID, ticket.ID, true)
 }
 
 // notifyStaff пересылает новое обращение дежурным: иначе оно ждёт, пока
 // кто-нибудь откроет очередь.
 func (b *Bot) notifyStaff(ctx context.Context, ticket storage.Ticket, text string) {
-	note := fmt.Sprintf("🆕 Обращение #%d\n\n%s\n\n%s", ticket.ID,
-		escapeHTML(ticket.Subject), escapeHTML(firstRunes(text, 500)))
+	note := fmt.Sprintf("<b>Сообщение клиента · #%d</b>\n\n%s\n\n%s", ticket.ID,
+		b.ticketCustomerDetails(ctx, ticket), escapeHTML(firstRunes(text, 1200)))
 	kb := keyboard([]telego.InlineKeyboardButton{
 		button("Открыть", "ticket:"+strconv.FormatInt(ticket.ID, 10)),
 	})
@@ -473,9 +472,17 @@ func (b *Bot) handleTicketReply(ctx context.Context, chatID telego.ChatID, tgID 
 		return
 	}
 	b.setInput(tgID, inputTicketReply, rawID)
-	b.cleanIncoming(ctx)
+	deliveryStatus := "Ответ сохранён в обращении"
 	if ticket.TelegramID != nil && *ticket.TelegramID != tgID {
-		b.showSavedTicket(ctx, *ticket.TelegramID, ticketID)
+		if err := b.SendTicketUpdate(ctx, *ticket.TelegramID, ticketID, text, "support"); err != nil {
+			b.logError("не удалось доставить ответ клиенту", err)
+			deliveryStatus = "Ответ сохранён; Telegram-уведомление не доставлено"
+		} else {
+			deliveryStatus = "Ответ доставлен клиенту"
+		}
+		if fileID != "" {
+			_ = b.deliverSupportFile(ctx, *ticket.TelegramID, fileID, fileType)
+		}
 	}
-	b.showSavedTicket(ctx, tgID, ticketID)
+	b.upsertTicket(ctx, chatID, 0, "<b>"+deliveryStatus+" · #"+rawID+"</b>\nМожно отправить ещё сообщение. /cancel — выйти из режима ответа.", keyboard([]telego.InlineKeyboardButton{button("Обращение", "ticket:"+rawID), button("Очередь", b.ticketListBack(tgID, true))}))
 }

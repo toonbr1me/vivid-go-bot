@@ -195,6 +195,18 @@ func (a *Assistant) notifyUser(ctx context.Context, ticket *storage.AITicket, an
 	if a.notify == nil || ticket.TelegramID == nil {
 		return
 	}
+	if notifier, ok := a.notify.(interface {
+		SendTicketUpdate(context.Context, int64, int64, string, string) error
+	}); ok {
+		kind := "assistant"
+		if answer == HandoffText {
+			kind = "handoff"
+		}
+		if err := notifier.SendTicketUpdate(ctx, *ticket.TelegramID, ticket.ID, answer, kind); err != nil {
+			a.log.Warn("помощник: сообщение не доставлено", "ticket", ticket.ID, "err", err)
+		}
+		return
+	}
 	header := "### 💬 Ответ помощника по обращению #" + fmt.Sprint(ticket.ID)
 	if rich, ok := a.notify.(richNotifier); ok {
 		if err := rich.SendRichMarkdown(ctx, *ticket.TelegramID, header+"\n\n"+answer); err != nil {
