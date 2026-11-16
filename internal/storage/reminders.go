@@ -90,7 +90,7 @@ func (db *DB) PendingOrdersForReminder(ctx context.Context, olderThan time.Time,
 		 WHERE a.telegram_id IS NOT NULL
 		) orders WHERE status = 'pending'
 		  AND payment_url IS NOT NULL AND created_at <= $1
-		  AND (payment_expires_at IS NULL OR payment_expires_at > now())
+		  AND payment_expires_at > now()
 		  AND NOT EXISTS (SELECT 1 FROM reminder_log r WHERE r.telegram_id = orders.recipient_telegram_id
 		    AND r.kind = 'unpaid' AND r.target_at = orders.created_at
 		    AND (r.status = 'sent' OR r.lease_until > now()))

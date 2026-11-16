@@ -71,10 +71,10 @@ func (db *DB) Stats(ctx context.Context, sinceDays int) (StatsSummary, error) {
 			(SELECT count(*) FROM accounts WHERE telegram_id IS NOT NULL),
 			(SELECT count(*) FROM orders WHERE status = 'provisioned' AND kind = 'subscription'),
 			(SELECT count(*) FROM orders WHERE status = 'provisioned' AND expire_at > now()),
-			(SELECT count(*) FROM orders WHERE status IN ('paid','provisioned')
+			(SELECT count(*) FROM orders WHERE status IN ('paid','provisioned') AND amount > 0
 			   AND created_at >= now() - make_interval(days => $1)),
 			(SELECT COALESCE(round(sum(amount) * 100), 0)::bigint FROM orders
-			   WHERE status IN ('paid','provisioned')
+			   WHERE status IN ('paid','provisioned') AND amount > 0
 			     AND created_at >= now() - make_interval(days => $1)),
 			(SELECT count(*) FROM trials),
 			(SELECT count(*) FROM support_tickets WHERE status = 'open')`,

@@ -6,6 +6,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -16,6 +17,7 @@ import (
 
 func main() {
 	url := flag.String("url", os.Getenv("DATABASE_URL"), "строка подключения")
+	jsonOutput := flag.Bool("json", false, "машиночитаемый отчёт")
 	flag.Parse()
 	if *url == "" {
 		fmt.Fprintln(os.Stderr, "нужен -url или DATABASE_URL")
@@ -31,7 +33,12 @@ func main() {
 		os.Exit(1)
 	}
 	defer db.Close()
-	fmt.Printf("миграции и перенос субъектов прошли за %v\n", time.Since(start).Truncate(time.Millisecond))
+	elapsed := time.Since(start).Milliseconds()
+	if !*jsonOutput {
+		fmt.Printf("миграции и перенос субъектов прошли за %vms\n", elapsed)
+	}
+	counts := map[string]int{}
+	issues := []string{}
 
 	checks := []struct {
 		name string
@@ -56,9 +63,37 @@ func main() {
 	for _, item := range checks {
 		var value int
 		if err := db.Pool.QueryRow(ctx, item.sql).Scan(&value); err != nil {
-			fmt.Printf("  %-32s ошибка: %v\n", item.name, err)
+			issues = append(issues, fmt.Sprintf("%s: %v", item.name, err))
 			continue
 		}
-		fmt.Printf("  %-32s %d\n", item.name, value)
+		counts[item.name] = value
+		if !*jsonOutput {
+			fmt.Printf("  %-32s %d\n", item.name, value)
+		}
+	}
+	for _, item := range []struct{ name, sql string }{
+		{"orders_without_owner", `SELECT count(*) FROM orders WHERE account_id IS NULL`},
+		{"trials_without_owner", `SELECT count(*) FROM trials WHERE subject_id IS NULL`},
+		{"balances_without_owner", `SELECT count(*) FROM user_balance WHERE subject_id IS NULL`},
+		{"unmapped_order_status", `SELECT count(*) FROM orders WHERE status NOT IN ('pending','paid','provisioned','failed','cancelled','refunded')`},
+		{"issued_order_status", `SELECT count(*) FROM orders WHERE status='paid' AND provisioned_at IS NOT NULL`},
+		{"negative_order_amount", `SELECT count(*) FROM orders WHERE amount<0`},
+	} {
+		var value int
+		if err := db.Pool.QueryRow(ctx, item.sql).Scan(&value); err != nil {
+			issues = append(issues, fmt.Sprintf("%s: %v", item.name, err))
+		} else if value != 0 {
+			issues = append(issues, fmt.Sprintf("%s: %d", item.name, value))
+		}
+	}
+	if *jsonOutput {
+		_ = json.NewEncoder(os.Stdout).Encode(map[string]any{"migration_ms": elapsed, "counts": counts, "issues": issues, "ok": len(issues) == 0})
+	} else {
+		for _, issue := range issues {
+			fmt.Fprintln(os.Stderr, issue)
+		}
+	}
+	if len(issues) > 0 {
+		os.Exit(1)
 	}
 }

@@ -45,7 +45,8 @@ func TestWebInvoicesAndExpiryUseNewlyLinkedTelegram(t *testing.T) {
 		t.Fatal(err)
 	}
 	link := "https://pay.example/original?x=1&y=2"
-	if _, err := db.CreateOrder(ctx, domain.Order{OrderID: "web-invoice", Provider: "yookassa", AccountID: &s.ID, PlanID: "30d", Kind: domain.KindSubscription, Status: domain.OrderPending, Currency: "RUB", Amount: 10000, PaymentURL: &link}); err != nil {
+	expires := time.Now().Add(time.Hour)
+	if _, err := db.CreateOrder(ctx, domain.Order{OrderID: "web-invoice", Provider: "yookassa", AccountID: &s.ID, PlanID: "30d", Kind: domain.KindSubscription, Status: domain.OrderPending, Currency: "RUB", Amount: 10000, PaymentURL: &link, PaymentExpiresAt: &expires}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := db.Pool.Exec(ctx, `UPDATE orders SET created_at=now()-interval '2 hours' WHERE order_id='web-invoice'`); err != nil {

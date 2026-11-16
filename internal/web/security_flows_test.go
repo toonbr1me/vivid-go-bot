@@ -25,6 +25,8 @@ func TestPaymentWebhookValidationAndDurableAcceptance(t *testing.T) {
 		{"broken_json", `{`, true, 400, false},
 		{"oversized", strings.Repeat("x", (1<<20)+1), true, 400, false},
 		{"not_settled", `{"status":"PENDING","payload":"order-1"}`, true, 200, false},
+		{"missing_money", `{"status":"CONFIRMED","payload":"order-1","id":"tx-1"}`, true, 400, false},
+		{"wrong_transaction", `{"status":"CONFIRMED","payload":"order-1","id":"other-tx","amount":100,"currency":"RUB"}`, true, 200, false},
 		{"wrong_amount", `{"status":"CONFIRMED","payload":"order-1","id":"tx-1","amount":200,"currency":"RUB"}`, true, 200, false},
 		{"wrong_currency", `{"status":"CONFIRMED","payload":"order-1","id":"tx-1","amount":100,"currency":"USD"}`, true, 200, false},
 		{"paid_panel_offline", `{"status":"CONFIRMED","payload":"order-1","id":"tx-1","amount":100,"currency":"RUB"}`, true, 200, true},
@@ -45,6 +47,9 @@ func TestPaymentWebhookValidationAndDurableAcceptance(t *testing.T) {
 			days := 30
 			_, err = db.CreateOrder(ctx, domain.Order{OrderID: "order-1", Provider: "platega", TelegramID: subject.TelegramID, AccountID: &subject.ID, PlanID: "30d", Kind: domain.KindSubscription, Amount: 10000, Currency: "RUB", Status: domain.OrderPending, PlanDays: &days})
 			if err != nil {
+				t.Fatal(err)
+			}
+			if err := db.SetPaymentLink(ctx, "order-1", "https://pay.example", "tx-1", nil); err != nil {
 				t.Fatal(err)
 			}
 			request := func() *httptest.ResponseRecorder {
