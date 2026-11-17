@@ -96,8 +96,8 @@ func textsPtr() *texts.Texts {
 // вручную в каждом экране незачем.
 func (b *Bot) text(text string, data map[string]any) string {
 	values := map[string]any{
-		"Brand":    b.cfg.BrandName,
-		"Currency": b.cfg.Currency,
+		"Brand":    b.cfg.Current().BrandName,
+		"Currency": b.cfg.Current().Currency,
 	}
 	for key, value := range data {
 		values[key] = value
@@ -188,6 +188,7 @@ func (b *Bot) logError(message string, err error) {
 // удобство, а не условие приёма сообщений.
 func (b *Bot) setCommands(ctx context.Context) error {
 	commands := []telego.BotCommand{
+		{Command: "gifts", Description: "Подарить подписку"},
 		{Command: "start", Description: "Главное меню"},
 		{Command: "menu", Description: "Открыть меню заново"},
 		{Command: "buy", Description: "Выбрать тариф"},
@@ -213,6 +214,8 @@ func (b *Bot) setCommands(ctx context.Context) error {
 // register навешивает обработчики. Порядок важен: telegohandler выполняет
 // только первый подошедший обработчик, поэтому команды идут до общего текста.
 func (b *Bot) register(h *telegohandler.BotHandler) {
+	h.HandleMessage(b.cleanCommand(b.handleGiftsCommand), telegohandler.CommandEqual("gifts"))
+	h.HandleMessage(b.cleanCommand(b.handleGiftsCommand), telegohandler.CommandEqual("gift"))
 	h.HandleMessage(b.cleanCommand(b.handleStart), telegohandler.CommandEqual("start"))
 	h.HandleMessage(b.cleanCommand(b.handleMenuCommand), telegohandler.CommandEqual("menu"))
 	h.HandleMessage(b.cleanCommand(b.handleBuyCommand), telegohandler.CommandEqual("buy"))
@@ -255,7 +258,7 @@ func (b *Bot) register(h *telegohandler.BotHandler) {
 // должно выглядеть как игнорирование: при его включении сотрудник всё
 // равно получает уведомление.
 func (b *Bot) ticketMode() string {
-	if b.cfg != nil && b.cfg.AssistantEnabled() {
+	if b.cfg != nil && b.cfg.Current().AssistantEnabled() {
 		return storage.SupportModeAssistant
 	}
 	return storage.SupportModeHuman
@@ -393,7 +396,7 @@ func ignoreNotModified(err error) error {
 
 // richAvailable — можно ли пробовать богатые сообщения.
 func (b *Bot) richAvailable() bool {
-	return b != nil && b.rich != nil && b.cfg != nil && b.cfg.RichMessages && b.rich.Available()
+	return b != nil && b.rich != nil && b.cfg != nil && b.cfg.Current().RichMessages && b.rich.Available()
 }
 
 // deliverRich пытается отправить rich-сообщение.
@@ -615,12 +618,12 @@ func (b *Bot) clearInput(tgID int64) {
 
 // isStaff отвечает на вопрос «можно ли этому человеку админку».
 func (b *Bot) isStaff(ctx context.Context, tgID int64) bool {
-	return b.db.Permission(ctx, tgID, "tickets.view", b.cfg.AdminIDs)
+	return b.db.Permission(ctx, tgID, "tickets.view", b.cfg.Current().AdminIDs)
 }
 
 // isOwner — владелец сервиса: он один, отвечает за деньги и рассылки.
 func (b *Bot) isOwner(ctx context.Context, tgID int64) bool {
-	return b.cfg != nil && b.cfg.AdminIDs[tgID]
+	return b.cfg != nil && b.cfg.Current().AdminIDs[tgID]
 }
 
 func quoteUsername(user telego.User) string {

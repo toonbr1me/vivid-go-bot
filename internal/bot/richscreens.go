@@ -162,7 +162,7 @@ func (b *Bot) richMain(ctx context.Context, tgID int64) (string, *telego.InlineK
 		}
 	}
 
-	heading := b.cfg.BrandName
+	heading := b.cfg.Current().BrandName
 	if mascot := strings.TrimSpace(b.texts.Persona.Mascot); mascot != "" {
 		heading = mascot + " " + heading
 	}
@@ -220,9 +220,9 @@ func (b *Bot) richMain(ctx context.Context, tgID int64) (string, *telego.InlineK
 	if hint != "" {
 		out.WriteString("\n<p>" + escapeHTML(hint) + "</p>")
 	}
-	if status == "NONE" && trialAvailable && b.cfg.TrialBotDays > 0 {
+	if status == "NONE" && trialAvailable && b.cfg.Current().TrialBotDays > 0 {
 		trial := b.text(b.texts.Rich.TrialHint, map[string]any{
-			"Days": b.cfg.TrialBotDays, "DaysWord": daysWord(b.cfg.TrialBotDays),
+			"Days": b.cfg.Current().TrialBotDays, "DaysWord": daysWord(b.cfg.Current().TrialBotDays),
 		})
 		out.WriteString("\n<blockquote>" + trial + "</blockquote>")
 	}
@@ -320,9 +320,9 @@ func (b *Bot) richBuy(ctx context.Context, tgID int64) (string, *telego.InlineKe
 		if best[quote.Plan.ID] {
 			title += " 🔥"
 		}
-		price := "<b>" + escapeHTML(priceText(quote.Amount, b.cfg.Currency)) + "</b>"
+		price := "<b>" + escapeHTML(priceText(quote.Amount, b.cfg.Current().Currency)) + "</b>"
 		if quote.Amount < quote.Price {
-			price += " <s>" + escapeHTML(priceText(quote.Price, b.cfg.Currency)) + "</s>"
+			price += " <s>" + escapeHTML(priceText(quote.Price, b.cfg.Current().Currency)) + "</s>"
 		}
 		term := fmt.Sprintf("%d %s", quote.Plan.Days, daysWord(quote.Plan.Days))
 		out.WriteString("<tr><td>" + title + "</td><td align=\"center\">" + escapeHTML(term) + "</td><td align=\"right\">" + price + "</td></tr>")
@@ -344,7 +344,7 @@ func (b *Bot) richBuy(ctx context.Context, tgID int64) (string, *telego.InlineKe
 		if quote.Rejection != "" {
 			continue
 		}
-		label := quote.Plan.Title + " · " + priceText(quote.Amount, b.cfg.Currency)
+		label := quote.Plan.Title + " · " + priceText(quote.Amount, b.cfg.Current().Currency)
 		pair = append(pair, button(label, "plan:"+quote.Plan.ID))
 		if len(pair) == 2 {
 			rows = append(rows, pair)
@@ -360,7 +360,7 @@ func (b *Bot) richBuy(ctx context.Context, tgID int64) (string, *telego.InlineKe
 
 // richDevices — лимит, подключённые устройства, слоты и докупка.
 func (b *Bot) richDevices(ctx context.Context, tgID int64) (string, *telego.InlineKeyboardMarkup, bool) {
-	if !b.cfg.DeviceLimitEnabled {
+	if !b.cfg.Current().DeviceLimitEnabled {
 		return "", nil, false
 	}
 	subject, err := b.subject(ctx, tgID)
@@ -436,7 +436,7 @@ func (b *Bot) richDevices(ctx context.Context, tgID int64) (string, *telego.Inli
 			if slot.Renewable {
 				rows = append(rows, []telego.InlineKeyboardButton{
 					button(b.text(b.texts.Buttons.RenewSlot, map[string]any{
-						"Slot": firstRunes(slot.Title, 22), "Price": priceText(slot.Price, b.cfg.Currency),
+						"Slot": firstRunes(slot.Title, 22), "Price": priceText(slot.Price, b.cfg.Current().Currency),
 					}), "dev:renew:"+slot.OrderID),
 				})
 			}
@@ -451,10 +451,10 @@ func (b *Bot) richDevices(ctx context.Context, tgID int64) (string, *telego.Inli
 			if quote.Pack.Devices > 0 {
 				title = fmt.Sprintf("+%d %s", quote.Pack.Devices, devicesWord(quote.Pack.Devices))
 			}
-			out.WriteString("<li>" + escapeHTML(title) + " · " + escapeHTML(priceText(quote.Amount, b.cfg.Currency)) + "</li>")
+			out.WriteString("<li>" + escapeHTML(title) + " · " + escapeHTML(priceText(quote.Amount, b.cfg.Current().Currency)) + "</li>")
 			rows = append(rows, []telego.InlineKeyboardButton{
 				button(b.text(b.texts.Buttons.BuySlot, map[string]any{
-					"Slot": title, "Price": priceText(quote.Amount, b.cfg.Currency),
+					"Slot": title, "Price": priceText(quote.Amount, b.cfg.Current().Currency),
 				}), "dev:buy:"+quote.Pack.ID),
 			})
 		}

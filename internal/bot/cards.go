@@ -268,7 +268,7 @@ func (b *Bot) deliverUI(ctx context.Context, id int64, messageID int, state card
 		return fmt.Errorf("card data exceeds limit: %d", len(payload))
 	}
 	oldID, raw, _ := b.db.BotCard(ctx, id)
-	if messageID == 0 && b.cfg.BotCleanChat && !forceNewCard(ctx) {
+	if messageID == 0 && b.cfg.Current().BotCleanChat && !forceNewCard(ctx) {
 		messageID = oldID
 	}
 	var previous cardState
@@ -283,7 +283,7 @@ func (b *Bot) deliverUI(ctx context.Context, id int64, messageID int, state card
 		return err
 	}
 	message, err := b.api.SendWidget(ctx, &telego.SendWidgetParams{ChatID: telego.ChatID{ID: id}, HTML: html, ChatData: string(payload), AllowQueries: true,
-		Caption: "Кабинет " + b.cfg.BrandName, ShowCaptionAboveMedia: true})
+		Caption: "Кабинет " + b.cfg.Current().BrandName, ShowCaptionAboveMedia: true})
 	if err != nil {
 		// A new template may be refused while a compatible widget already in
 		// this private chat can still be updated. Keep that widget usable and

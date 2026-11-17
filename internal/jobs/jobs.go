@@ -34,23 +34,47 @@ func Run(ctx context.Context, db *storage.DB, pay *payments.Service, sender Send
 // Помощника может не быть: тогда он просто не отвечает.
 func RunWithAssistant(ctx context.Context, db *storage.DB, pay *payments.Service, sender Sender, cfg *config.Settings, assistant *support.Assistant) error {
 	group, ctx := errgroup.WithContext(ctx)
+	group.Go(func() error {
+		return observedEvery(ctx, db, sender, cfg, "поведенческие кампании", time.Minute, func(ctx context.Context) error {
+			now := time.Now()
+			if zone := cfg.Current().Timezone; zone != "" {
+				location, err := time.LoadLocation(zone)
+				if err != nil {
+					return err
+				}
+				now = now.In(location)
+			}
+			_, err := db.ProcessCampaigns(ctx, cfg.Current().AdminIDs, now)
+			return err
+		})
+	})
+	group.Go(func() error {
+		return observedEvery(ctx, db, sender, cfg, "контроль очередей", time.Minute, func(ctx context.Context) error { return db.CheckOperationalBacklog(ctx) })
+	})
+	group.Go(func() error {
+		return observedEvery(ctx, db, sender, cfg, "первое подключение", 30*time.Minute, func(ctx context.Context) error { return remindNotConnected(ctx, db, pay, sender, cfg) })
+	})
+	group.Go(func() error {
+		return observedEvery(ctx, db, sender, cfg, "удержание", 30*time.Minute, func(ctx context.Context) error { return retentionReminders(ctx, db, pay, sender, cfg) })
+	})
+
 	if worker, ok := sender.(interface {
 		ProcessBroadcasts(context.Context, int) error
 	}); ok {
 		group.Go(func() error {
-			return every(ctx, "рассылки", 2*time.Second, func(ctx context.Context) error { return worker.ProcessBroadcasts(ctx, 20) })
+			return observedEvery(ctx, db, sender, cfg, "рассылки", 2*time.Second, func(ctx context.Context) error { return worker.ProcessBroadcasts(ctx, 20) })
 		})
 	}
 	if worker, ok := sender.(interface {
 		ProcessPanelEvents(context.Context, int) error
 	}); ok {
 		group.Go(func() error {
-			return every(ctx, "события панели", 5*time.Second, func(ctx context.Context) error { return worker.ProcessPanelEvents(ctx, 20) })
+			return observedEvery(ctx, db, sender, cfg, "события панели", 5*time.Second, func(ctx context.Context) error { return worker.ProcessPanelEvents(ctx, 20) })
 		})
 	}
 
 	group.Go(func() error {
-		return every(ctx, "выдача заказов", time.Minute, func(ctx context.Context) error {
+		return observedEvery(ctx, db, sender, cfg, "выдача заказов", time.Minute, func(ctx context.Context) error {
 			if err := pay.ReconcilePayments(ctx, 25); err != nil {
 				return err
 			}
@@ -69,26 +93,26 @@ func RunWithAssistant(ctx context.Context, db *storage.DB, pay *payments.Service
 	})
 
 	group.Go(func() error {
-		return every(ctx, "напоминания о сроке", 15*time.Minute, func(ctx context.Context) error {
+		return observedEvery(ctx, db, sender, cfg, "напоминания о сроке", 15*time.Minute, func(ctx context.Context) error {
 			return remindExpiry(ctx, db, sender, cfg)
 		})
 	})
 
 	group.Go(func() error {
-		return every(ctx, "напоминания о счёте", 30*time.Minute, func(ctx context.Context) error {
+		return observedEvery(ctx, db, sender, cfg, "напоминания о счёте", 30*time.Minute, func(ctx context.Context) error {
 			return remindUnpaid(ctx, db, sender, cfg)
 		})
 	})
 
 	group.Go(func() error {
-		return every(ctx, "лимит устройств", 10*time.Minute, func(ctx context.Context) error {
+		return observedEvery(ctx, db, sender, cfg, "лимит устройств", 10*time.Minute, func(ctx context.Context) error {
 			return sweepDevices(ctx, db, pay, cfg)
 		})
 	})
 
 	if assistant != nil && assistant.Enabled() {
 		group.Go(func() error {
-			return every(ctx, "помощник поддержки", 20*time.Second, func(ctx context.Context) error {
+			return observedEvery(ctx, db, sender, cfg, "помощник поддержки", 20*time.Second, func(ctx context.Context) error {
 				done, err := assistant.Handle(ctx)
 				if err != nil {
 					return err
@@ -100,7 +124,7 @@ func RunWithAssistant(ctx context.Context, db *storage.DB, pay *payments.Service
 			})
 		})
 		group.Go(func() error {
-			return every(ctx, "передача забытых обращений", time.Hour, func(ctx context.Context) error {
+			return observedEvery(ctx, db, sender, cfg, "передача забытых обращений", time.Hour, func(ctx context.Context) error {
 				closed, err := assistant.CloseIdle(ctx)
 				if err != nil {
 					return err
@@ -195,6 +219,7 @@ func remindExpiry(ctx context.Context, db *storage.DB, sender Sender, configs ..
 // remindUnpaid напоминает о счёте, который так и не оплатили. Выключается
 // нулевой настройкой REMIND_UNPAID_INVOICE_HOURS.
 func remindUnpaid(ctx context.Context, db *storage.DB, sender Sender, cfg *config.Settings) error {
+	cfg = cfg.Current()
 	if cfg.RemindUnpaidHours <= 0 {
 		return nil
 	}
@@ -237,6 +262,7 @@ func remindUnpaid(ctx context.Context, db *storage.DB, sender Sender, cfg *confi
 // Поднимать лимит имеет право только выдача заказа; опускать — лишь здесь,
 // и только если панельное значение совпадает с тем, что бот записал сам.
 func sweepDevices(ctx context.Context, db *storage.DB, pay *payments.Service, cfg *config.Settings) error {
+	cfg = cfg.Current()
 	if !cfg.DeviceLimitEnabled {
 		return nil
 	}

@@ -49,13 +49,13 @@ func (s *Server) accountPage(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	data := accountData{
-		DeviceEnabled: s.cfg.DeviceLimitEnabled,
+		DeviceEnabled: s.cfg.Current().DeviceLimitEnabled,
 		Options:       s.pay.PaymentOptions(true),
 		Promo:         strings.TrimSpace(r.URL.Query().Get("promo")),
 		HasTelegram:   subject.TelegramID != nil,
 		HasGoogle:     subject.GoogleSub != nil,
-		BotUsername:   s.cfg.BotUsername,
-		TrialEnabled:  s.cfg.TrialWebDays > 0,
+		BotUsername:   s.cfg.Current().BotUsername,
+		TrialEnabled:  s.cfg.Current().TrialWebDays > 0,
 	}
 	access, err := s.pay.Access(ctx, *subject, panelUsername(subject))
 	data.Access = access
@@ -84,7 +84,7 @@ func (s *Server) accountPage(w http.ResponseWriter, r *http.Request) {
 	if a, err := s.db.LatestRecurringForSubject(ctx, subject.ID); err == nil {
 		data.Recurring = &a
 	}
-	if data.DeviceLimit == 0 && s.cfg.DeviceLimitEnabled {
+	if data.DeviceLimit == 0 && s.cfg.Current().DeviceLimitEnabled {
 		if managed, err := s.pay.ManagedDeviceLimit(ctx, subject.ID); err == nil {
 			data.DeviceLimit = managed
 		}
@@ -99,11 +99,11 @@ func (s *Server) accountPage(w http.ResponseWriter, r *http.Request) {
 	}
 	if mode, err := s.db.ReferralMode(ctx, subject.ID); err == nil && mode != "" {
 		data.ReferralMode = mode
-	} else if s.cfg.ReferralMode != "" {
-		data.ReferralMode = s.cfg.ReferralMode
+	} else if s.cfg.Current().ReferralMode != "" {
+		data.ReferralMode = s.cfg.Current().ReferralMode
 	}
-	if subject.RefCode != nil && s.cfg.BotUsername != "" {
-		data.RefLink = "https://t.me/" + s.cfg.BotUsername + "?start=ref_" + *subject.RefCode
+	if subject.RefCode != nil && s.cfg.Current().BotUsername != "" {
+		data.RefLink = "https://t.me/" + s.cfg.Current().BotUsername + "?start=ref_" + *subject.RefCode
 	}
 	if topic := r.URL.Query().Get("link"); topic == "1" && subject.TelegramID == nil {
 		data.ShowLink = true
@@ -112,12 +112,12 @@ func (s *Server) accountPage(w http.ResponseWriter, r *http.Request) {
 			s.log.Error("кабинет: код привязки", "err", err)
 		} else {
 			data.LinkCode = code
-			if s.cfg.BotUsername != "" {
-				data.LinkURL = "https://t.me/" + s.cfg.BotUsername + "?start=link_" + code
+			if s.cfg.Current().BotUsername != "" {
+				data.LinkURL = "https://t.me/" + s.cfg.Current().BotUsername + "?start=link_" + code
 			}
 		}
 	}
-	if s.cfg.DeviceLimitEnabled && access.ExpireAt != nil {
+	if s.cfg.Current().DeviceLimitEnabled && access.ExpireAt != nil {
 		slots, err := s.pay.DeviceSlots(ctx, subject.ID, access.ExpireAt)
 		if err != nil {
 			s.log.Warn("кабинет: слоты устройств", "err", err)

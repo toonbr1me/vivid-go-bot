@@ -54,6 +54,16 @@ func (b *Bot) ticketSummaryScreen(ctx context.Context, id, ticketID int64) (stri
 		}
 		break
 	}
+	if !c.owner && b.isStaff(ctx, id) {
+		if history, e := b.db.StaffTicketHistory(ctx, ticketID); e == nil {
+			for i := len(history) - 1; i >= 0; i-- {
+				if history[i].Internal {
+					text += "\n\n<b>Последняя внутренняя заметка</b>\n" + escapeHTML(firstRunes(history[i].Text, 500))
+					break
+				}
+			}
+		}
+	}
 	rows := [][]telego.InlineKeyboardButton{{button("История переписки", fmt.Sprintf("ticket:page:%d,-1", ticketID))}}
 	for _, action := range c.actions {
 		rows = append(rows, []telego.InlineKeyboardButton{action})

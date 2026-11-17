@@ -1,4 +1,7 @@
-﻿# vivid-go-bot
+# vivid-go-bot
+
+Новые рабочие сценарии: [поддержка, каталог, подарки, история,
+поведенческие рассылки и эксплуатация](docs/product-operations.md).
 
 Оформление лендинга и кабинета: [руководство по темам](docs/themes.md),
 готовый пример — [`web/themes/starter`](web/themes/starter/theme.json).

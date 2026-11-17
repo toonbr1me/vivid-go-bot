@@ -1,0 +1,19 @@
+{{define "content"}}
+<div class="page-head"><div><h1>Поведенческие кампании</h1><p class="muted">Автоматические сообщения по состоянию клиента · время {{.Data.Timezone}}</p></div></div>
+<p>Сохранённая кампания остаётся на паузе до проверки предпросмотра. Один клиент получает не больше одного сообщения кампаний за 24 часа.</p>
+{{range .Data.Campaigns}}
+<article class="card"><h2><a href="/admin/campaigns/{{.ID}}">{{.Title}}</a></h2><p>{{campaignAudience .Audience}} · {{if .Enabled}}Включена{{else}}На паузе{{end}} · до {{.DailyLimit}} сообщений за 24 часа</p>{{if .LastError}}<p role="alert">{{.LastError}}</p>{{end}}</article>
+{{else}}<p class="muted">Кампаний пока нет.</p>{{end}}
+<section class="card"><h2>Новая кампания</h2><form method="post" class="stack">
+<input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="revision" value="0">
+<label>Название<input name="title" maxlength="80" required></label>
+<label>Аудитория<select name="audience"><option value="trial_only">Пробовали без покупки</option><option value="abandoned">Бросили оплату</option><option value="expired">Подписка истекла</option><option value="not_connected">Не подключились</option></select></label>
+<label>Сообщение<textarea name="message" rows="6" maxlength="3000" required placeholder="Обычный текст, без HTML-разметки"></textarea></label>
+<label>Промокод для кнопки<input name="promo" maxlength="32" placeholder="Необязательно"></label>
+<label>Максимум сообщений за 24 часа<input type="number" name="daily_limit" min="1" max="10000" value="100" required></label>
+<label>Повтор одному клиенту через дней<input type="number" name="cooldown_days" min="0" max="365" value="0" required></label><p class="muted small">0 — один раз за всё время кампании. Для повторов задайте от 7 до 365 дней.</p>
+<div class="grid-two"><label>Отправлять с часа<input type="number" name="send_from" min="0" max="23" value="9" required></label><label>До часа, не включая<input type="number" name="send_to" min="1" max="24" value="21" required></label></div>
+<label>Начать не раньше · {{.Data.Timezone}}<input type="datetime-local" name="starts_at"></label>
+<button class="btn btn-primary">Сохранить и открыть предпросмотр</button>
+</form></section>
+{{end}}

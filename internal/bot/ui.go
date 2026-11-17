@@ -89,19 +89,19 @@ func backRow() []telego.InlineKeyboardButton {
 
 // siteURL — адрес сайта, если он включён и настроен.
 func (b *Bot) siteURL() string {
-	if !b.cfg.SiteEnabled {
+	if !b.cfg.Current().SiteEnabled {
 		return ""
 	}
-	return strings.TrimRight(b.cfg.SiteBaseURL, "/")
+	return strings.TrimRight(b.cfg.Current().SiteBaseURL, "/")
 }
 
 func (b *Bot) legalURLs() (terms, privacy string) {
 	site := b.siteURL()
-	terms = b.cfg.TermsURL
+	terms = b.cfg.Current().TermsURL
 	if terms == "" && site != "" {
 		terms = site + "/terms"
 	}
-	privacy = b.cfg.PrivacyURL
+	privacy = b.cfg.Current().PrivacyURL
 	if privacy == "" && site != "" {
 		privacy = site + "/privacy"
 	}
@@ -112,10 +112,10 @@ func (b *Bot) referralLink(subject domain.Subject) string {
 	if subject.RefCode == nil || *subject.RefCode == "" {
 		return ""
 	}
-	if b.cfg.BotUsername == "" {
+	if b.cfg.Current().BotUsername == "" {
 		return ""
 	}
-	return "https://t.me/" + b.cfg.BotUsername + "?start=ref_" + *subject.RefCode
+	return "https://t.me/" + b.cfg.Current().BotUsername + "?start=ref_" + *subject.RefCode
 }
 
 // happURL — https-страница-мостик: Telegram не принимает happ:// в кнопках,
@@ -156,7 +156,7 @@ func (b *Bot) mainKeyboard(status string, trialAvailable bool) *telego.InlineKey
 	return b.buildMenu(status, menuConditions{
 		Payments: b.pay.Registry().Enabled(),
 		Trial:    trialAvailable,
-		Devices:  b.cfg.DeviceLimitEnabled,
+		Devices:  b.cfg.Current().DeviceLimitEnabled,
 	})
 }
 
@@ -242,7 +242,7 @@ func (b *Bot) settingsKeyboard(settings storage.NotificationSettings) *telego.In
 }
 
 func (b *Bot) activityNotificationsEnabled() bool {
-	return b.cfg.RemindUnpaidHours > 0 || b.cfg.RemindNotConnectedHours > 0
+	return b.cfg.Current().RemindUnpaidHours > 0 || b.cfg.Current().RemindNotConnectedHours > 0
 }
 
 func (b *Bot) infoKeyboard() *telego.InlineKeyboardMarkup {
@@ -328,9 +328,9 @@ func (b *Bot) connectKeyboard() *telego.InlineKeyboardMarkup {
 			urlButton("🤖 Incy · Android", "https://play.google.com/store/apps/details?id=llc.itdev.incy"),
 		},
 	}
-	if b.cfg.ConnectGuideURL != "" {
+	if b.cfg.Current().ConnectGuideURL != "" {
 		rows = append(rows, []telego.InlineKeyboardButton{
-			urlButton(b.texts.Buttons.Guide, b.cfg.ConnectGuideURL),
+			urlButton(b.texts.Buttons.Guide, b.cfg.Current().ConnectGuideURL),
 		})
 	}
 	rows = append(rows, []telego.InlineKeyboardButton{

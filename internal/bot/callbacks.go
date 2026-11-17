@@ -39,6 +39,20 @@ func (b *Bot) handleCallback(ctx *telegohandler.Context, q telego.CallbackQuery)
 	}
 
 	switch kind {
+	case "history":
+		page, _ := strconv.Atoi(action)
+		text, kb := b.historyScreen(ctx, tgID, page)
+		b.upsert(ctx, chatID, messageID, text, kb)
+		b.answer(ctx, q.ID, "", false)
+	case "gift":
+		b.giftCallback(ctx, q.ID, chatID, messageID, tgID, action, rest)
+	case "queue":
+		page, _ := strconv.Atoi(rest)
+		text, kb := b.staffQueue(ctx, tgID, action, page)
+		b.upsert(ctx, chatID, messageID, text, kb)
+		b.answer(ctx, q.ID, "", false)
+	case "staffticket":
+		b.staffTicketCallback(ctx, q.ID, chatID, messageID, tgID, action, rest)
 	case "ann":
 		b.broadcastCallback(ctx, q.ID, chatID, messageID, tgID, action, rest)
 	case "ops":
@@ -67,7 +81,7 @@ func (b *Bot) handleCallback(ctx *telegohandler.Context, q telego.CallbackQuery)
 		text, kb := b.classicDevices(ctx, tgID, page)
 		b.upsert(ctx, chatID, messageID, text, kb)
 	case "view":
-		if b.cfg.BotStyle != "" {
+		if b.cfg.Current().BotStyle != "" {
 			b.answer(ctx, q.ID, "Вид интерфейса задаёт владелец сервиса", false)
 			b.showCommandScreen(ctx, chatID, "main", tgID)
 			return nil
@@ -102,7 +116,7 @@ func (b *Bot) handleCallback(ctx *telegohandler.Context, q telego.CallbackQuery)
 		if chatID.ID != tgID {
 			return nil
 		}
-		if action == "toggle" && b.cfg.RecurringEnabled {
+		if action == "toggle" && b.cfg.Current().RecurringEnabled {
 			on := !b.checkoutRecurring(ctx, tgID, rest)
 			if err := b.db.SaveCheckoutPreference(ctx, tgID, rest, on); err != nil {
 				b.answer(ctx, q.ID, "Не удалось сохранить выбор", true)
@@ -634,7 +648,8 @@ func (b *Bot) closeTicket(ctx context.Context, queryID string, chatID telego.Cha
 		b.answer(ctx, queryID, "Обращение не найдено", true)
 		return
 	}
-	closed, err := b.db.CloseTicket(ctx, ticketID)
+	err = b.db.StaffTicketAction(ctx, ticketID, tgID, "close", "", 0)
+	closed := err == nil
 	if err != nil {
 		b.answer(ctx, queryID, "Не удалось закрыть", true)
 		return

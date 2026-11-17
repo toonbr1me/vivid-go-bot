@@ -19,6 +19,7 @@ import (
 
 // Settings — полный набор настроек процесса.
 type Settings struct {
+	runtime *runtimeSettings
 	// Подключения и секреты (только окружение).
 	TelegramToken       string
 	DatabaseURL         string
@@ -146,7 +147,7 @@ func NewSource(overlay map[string]string) *Source {
 }
 
 func (s *Source) raw(name string) (string, bool) {
-	if s.overlay != nil {
+	if s.overlay != nil && Editable(name) {
 		if value, ok := s.overlay[name]; ok && strings.TrimSpace(value) != "" {
 			return value, true
 		}

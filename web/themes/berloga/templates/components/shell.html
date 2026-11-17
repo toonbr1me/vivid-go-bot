@@ -33,12 +33,12 @@
 {{define "berloga/staff-nav"}}
 <nav class="staff-nav" aria-label="Управление сервисом">
  <a href="/admin"{{if eq .View "admin"}} aria-current="page"{{end}}>Сводка</a>
- <a href="/admin/tickets"{{if eq .View "admin_tickets"}} aria-current="page"{{end}}>Очередь</a>
- <a href="/admin/orders"{{if eq .View "admin_orders"}} aria-current="page"{{end}}>Проблемные оплаты</a>
- <a href="/admin/promos"{{if eq .View "admin_promos"}} aria-current="page"{{end}}>Промокоды</a>
- <a href="/admin/partners"{{if eq .View "admin_partners"}} aria-current="page"{{end}}>Партнёры</a>
- <a href="/admin/audit"{{if eq .View "admin_audit"}} aria-current="page"{{end}}>Журнал</a>
- <a href="/admin/appearance"{{if eq .View "admin_appearance"}} aria-current="page"{{end}}>Оформление бота</a>
- <a href="/admin/screens"{{if eq .View "admin_screens"}} aria-current="page"{{end}}>Экраны</a>
+ {{if .Staff.Can "stats.view"}}{{if .Staff.Can "refund.manage"}}<a href="/admin/refunds">Возвраты</a>{{end}}<a href="/admin/operations">Состояние сервиса</a>{{end}}{{if .Staff.Can "broadcast.send"}}<a href="/admin/campaigns">Кампании</a>{{end}}<a href="/admin/tickets"{{if eq .View "admin_tickets"}} aria-current="page"{{end}}>Очередь</a>
+ {{if .Staff.Can "plans.manage"}}<a href="/admin/plans">Тарифы и устройства</a>{{end}}{{if .Staff.Can "settings.edit"}}<a href="/admin/settings">Настройки</a>{{end}}{{if .Staff.Can "staff.manage"}}<a href="/admin/staff">Сотрудники</a>{{end}}{{if .Staff.Can "withdrawal.approve"}}<a href="/admin/withdrawals">Выплаты</a>{{end}}{{if .Staff.Can "orders.view"}}<a href="/admin/orders"{{if eq .View "admin_orders"}} aria-current="page"{{end}}>Проблемные оплаты</a>{{end}}
+ {{if .Staff.Can "promo.manage"}}<a href="/admin/promos"{{if eq .View "admin_promos"}} aria-current="page"{{end}}>Промокоды</a>{{end}}
+ {{if .Staff.Can "partners.manage"}}<a href="/admin/partners"{{if eq .View "admin_partners"}} aria-current="page"{{end}}>Партнёры</a>{{end}}
+ {{if .Staff.Can "audit.view"}}<a href="/admin/audit"{{if eq .View "admin_audit"}} aria-current="page"{{end}}>Журнал</a>{{end}}
+ {{if .Staff.Can "settings.edit"}}<a href="/admin/appearance"{{if eq .View "admin_appearance"}} aria-current="page"{{end}}>Оформление бота</a>{{end}}
+ {{if .Staff.Can "settings.edit"}}<a href="/admin/screens"{{if eq .View "admin_screens"}} aria-current="page"{{end}}>Экраны</a>{{end}}
 </nav>
 {{end}}

@@ -69,6 +69,7 @@ func New(db *storage.DB, pay *payments.Service, cfg *config.Settings, logger *sl
 		hub:     newLiveHub(),
 		started: time.Now(),
 	}
+	cfg.EnableRuntime()
 	s.routes()
 	return s, nil
 }
@@ -85,7 +86,7 @@ func (s *Server) Handler() http.Handler {
 
 // Run поднимает сервер и корректно останавливает его по отмене контекста.
 func (s *Server) Run(ctx context.Context) error {
-	addr := fmt.Sprintf("%s:%d", s.cfg.WebhookHost, s.cfg.WebhookPort)
+	addr := fmt.Sprintf("%s:%d", s.cfg.Current().WebhookHost, s.cfg.Current().WebhookPort)
 	server := &http.Server{
 		Addr:              addr,
 		Handler:           s.Handler(),
@@ -128,6 +129,9 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /auth/google/callback", s.googleCallback)
 	s.mux.HandleFunc("POST /logout", s.csrf(s.logout))
 
+	s.mux.HandleFunc("GET /gifts", s.giftsPage)
+	s.mux.HandleFunc("POST /gifts", s.csrf(s.giftsPage))
+	s.mux.HandleFunc("GET /history", s.historyPage)
 	s.mux.HandleFunc("GET /account", s.accountPage)
 	s.mux.HandleFunc("POST /account/promo", s.csrf(s.accountPromo))
 	s.mux.HandleFunc("POST /account/referral-mode", s.csrf(s.accountReferralMode))
@@ -158,6 +162,20 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /partner/claim", s.csrf(s.partnerClaim))
 
 	// Админка: тот же вход через Google, но доступ — только сотрудникам.
+	s.mux.HandleFunc("GET /admin/settings", s.adminSettings)
+	s.mux.HandleFunc("POST /admin/settings", s.csrf(s.adminSettings))
+	s.mux.HandleFunc("GET /admin/plans", s.adminPlans)
+	s.mux.HandleFunc("POST /admin/plans", s.csrf(s.adminPlans))
+	s.mux.HandleFunc("GET /admin/staff", s.adminStaff)
+	s.mux.HandleFunc("POST /admin/staff", s.csrf(s.adminStaff))
+	s.mux.HandleFunc("GET /admin/withdrawals", s.adminWithdrawals)
+	s.mux.HandleFunc("POST /admin/withdrawals", s.csrf(s.adminWithdrawals))
+	s.mux.HandleFunc("POST /support/tickets/{id}/staff", s.csrf(s.staffTicketAction))
+	s.mux.HandleFunc("GET /admin/customers/{id}", s.adminCustomer)
+	s.mux.HandleFunc("GET /admin/campaigns", s.adminCampaigns)
+	s.mux.HandleFunc("POST /admin/campaigns", s.csrf(s.adminCampaigns))
+	s.mux.HandleFunc("GET /admin/campaigns/{id}", s.adminCampaign)
+	s.mux.HandleFunc("POST /admin/campaigns/{id}", s.csrf(s.adminCampaign))
 	s.mux.HandleFunc("GET /admin", s.adminHome)
 	s.mux.HandleFunc("GET /admin/promos", s.adminPromosPage)
 	s.mux.HandleFunc("POST /admin/promos", s.csrf(s.adminPromoCreate))
@@ -168,6 +186,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /admin/partners/{id}", s.adminPartnerPage)
 	s.mux.HandleFunc("POST /admin/partners/{id}", s.csrf(s.adminPartnerUpdate))
 	s.mux.HandleFunc("POST /admin/partners/{id}/invite", s.csrf(s.adminPartnerInvite))
+	s.mux.HandleFunc("GET /admin/tickets/updates", s.staffQueueStream)
 	s.mux.HandleFunc("GET /admin/tickets", s.adminTicketsPage)
 	s.mux.HandleFunc("GET /admin/audit", s.adminAuditPage)
 	s.mux.HandleFunc("GET /admin/orders", s.adminOrdersPage)
@@ -177,6 +196,11 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /admin/appearance", s.csrf(s.adminAppearanceSave))
 	s.mux.HandleFunc("GET /static/bot-widget-runtime.js", s.widgetRuntime)
 
+	s.mux.HandleFunc("GET /readyz", s.ready)
+	s.mux.HandleFunc("GET /metrics", s.metrics)
+	s.mux.HandleFunc("GET /admin/operations", s.adminOperations)
+	s.mux.HandleFunc("GET /admin/refunds", s.adminRefunds)
+	s.mux.HandleFunc("POST /admin/refunds", s.csrf(s.adminRefunds))
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		_, _ = fmt.Fprintf(w, "ok %s", time.Since(s.started).Truncate(time.Second))
@@ -388,11 +412,11 @@ func (s *Server) isSecure(r *http.Request) bool {
 // siteURL — адрес сайта без хвостового слэша. Для писем и ссылок берём
 // SITE_BASE_URL, а если он не задан — адрес запроса.
 func (s *Server) siteURL(r *http.Request) string {
-	if s.cfg.SiteBaseURL != "" {
-		return s.cfg.SiteBaseURL
+	if s.cfg.Current().SiteBaseURL != "" {
+		return s.cfg.Current().SiteBaseURL
 	}
-	if s.cfg.PublicBaseURL != "" {
-		return s.cfg.PublicBaseURL
+	if s.cfg.Current().PublicBaseURL != "" {
+		return s.cfg.Current().PublicBaseURL
 	}
 	scheme := "http"
 	if s.isSecure(r) {
@@ -402,10 +426,10 @@ func (s *Server) siteURL(r *http.Request) string {
 }
 
 func (s *Server) botURL() string {
-	if s.cfg.BotUsername == "" {
+	if s.cfg.Current().BotUsername == "" {
 		return ""
 	}
-	return "https://t.me/" + s.cfg.BotUsername
+	return "https://t.me/" + s.cfg.Current().BotUsername
 }
 
 // localPath пускает только относительные адреса: адрес возврата после входа

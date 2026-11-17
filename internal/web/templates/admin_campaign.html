@@ -1,0 +1,24 @@
+{{define "content"}}
+{{$p:=.Data.Preview}}{{$c:=$p.Campaign}}
+<div class="page-head"><div><h1>{{$c.Title}}</h1><p>{{campaignAudience $c.Audience}} · {{if $c.Enabled}}Включена{{else}}На паузе{{end}}</p></div><a href="/admin/campaigns">Все кампании</a></div>
+{{if $c.LastError}}<p class="card" role="alert">{{$c.LastError}}</p>{{end}}
+<section class="card"><h2>Предпросмотр</h2><div class="message-text" style="white-space:pre-wrap">{{$c.Text}}</div>{{if $c.PromoCode}}<p>Кнопка: Применить {{$c.PromoCode}}</p>{{end}}
+<dl class="facts"><div><dt>Подходят сейчас с учётом пауз и повторов</dt><dd>{{$p.Eligible}}</dd></div><div><dt>Клиентов в истории кампании</dt><dd>{{$p.Enrolled}}</dd></div><div><dt>Доставлено</dt><dd>{{$p.Sent}}</dd></div><div><dt>Ожидают</dt><dd>{{$p.Pending}}</dd></div><div><dt>Ошибок</dt><dd>{{$p.Failed}}</dd></div><div><dt>Без подтверждения</dt><dd>{{$p.Uncertain}}</dd></div><div><dt>Пропущено</dt><dd>{{$p.Skipped}}</dd></div></dl>
+<p>Начало не раньше {{.Data.StartsLocal}} · {{.Data.Timezone}}.</p>
+<p>До {{$c.DailyLimit}} сообщений за 24 часа, с {{$c.SendFrom}} до {{$c.SendTo}} · {{.Data.Timezone}}. {{if $c.CooldownDays}}Повтор клиенту не раньше чем через {{$c.CooldownDays}} дней.{{else}}Каждому клиенту — одна постановка за всё время кампании.{{end}}</p>
+<p class="muted">Аудитория обновляется автоматически. Перед доставкой проверяются состояние клиента и настройки уведомлений. Пауза убирает ожидающие сообщения; уже переданное Telegram сообщение может дойти.</p>
+<form method="post"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="revision" value="{{$c.Revision}}">{{if $c.Enabled}}<button class="btn btn-ghost" name="action" value="pause">Приостановить кампанию</button>{{else}}<button class="btn btn-primary" name="action" value="enable">Включить автоматическую отправку</button>{{end}}</form>
+</section>
+<details class="card"><summary>Изменить условия и текст</summary><p>Сохранение остановит текущую отправку. Новую версию нужно включить после предпросмотра.</p><form method="post" class="stack">
+<input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="revision" value="{{$c.Revision}}">
+<label>Название<input name="title" maxlength="80" value="{{$c.Title}}" required></label>
+<label>Аудитория<select name="audience"><option value="trial_only" {{if eq $c.Audience "trial_only"}}selected{{end}}>Пробовали без покупки</option><option value="abandoned" {{if eq $c.Audience "abandoned"}}selected{{end}}>Бросили оплату</option><option value="expired" {{if eq $c.Audience "expired"}}selected{{end}}>Подписка истекла</option><option value="not_connected" {{if eq $c.Audience "not_connected"}}selected{{end}}>Не подключились</option></select></label>
+<label>Сообщение<textarea name="message" rows="6" maxlength="3000" required>{{$c.Text}}</textarea></label>
+<label>Промокод<input name="promo" maxlength="32" value="{{$c.PromoCode}}"></label>
+<label>Лимит за 24 часа<input type="number" name="daily_limit" min="1" max="10000" value="{{$c.DailyLimit}}" required></label>
+<label>Повтор через дней · 0 — один раз<input type="number" name="cooldown_days" min="0" max="365" value="{{$c.CooldownDays}}" required></label>
+<label>С часа<input type="number" name="send_from" min="0" max="23" value="{{$c.SendFrom}}" required></label><label>До часа<input type="number" name="send_to" min="1" max="24" value="{{$c.SendTo}}" required></label>
+<label>Начать не раньше · {{.Data.Timezone}}<input type="datetime-local" name="starts_at" value="{{.Data.StartsLocal}}" required></label>
+<button name="action" value="save" class="btn">Сохранить и проверить новую версию</button></form></details>
+<section class="card"><h2>Последние партии</h2>{{range $p.Batches}}<p>{{datetime .CreatedAt}} · {{.Status}} · получателей {{.Total}} · доставлено {{.Sent}} · пропущено {{.Skipped}}</p>{{else}}<p>Отправка ещё не начиналась.</p>{{end}}</section>
+{{end}}

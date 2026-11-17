@@ -1,4 +1,4 @@
-{{define "content"}}<div class="col">
+{{define "content"}}<nav class="nav"><a href="/gifts">Подарить подписку</a><a href="/history">Вся история покупок</a></nav><div class="col">
 <p class="eyebrow page-eyebrow">Личный кабинет</p><h1>{{if .Subject.Name}}{{str .Subject.Name}}{{else if .Subject.Email}}{{str .Subject.Email}}{{else}}Ваш доступ{{end}}</h1>
 {{if .Data.AccessError}}<p class="notice-line">{{.Data.AccessError}}</p>{{end}}
 {{if .Data.Guidance}}<div class="note"><strong>{{.Data.Guidance.Title}}</strong><p>{{.Data.Guidance.Detail}}</p><a href="{{.Data.GuidanceURL}}">{{.Data.Guidance.Label}} →</a></div>{{end}}

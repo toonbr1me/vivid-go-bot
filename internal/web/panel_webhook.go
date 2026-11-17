@@ -83,7 +83,7 @@ func panelEvent(body []byte) (storage.PanelEvent, error) {
 }
 
 func (s *Server) panelWebhook(w http.ResponseWriter, r *http.Request) {
-	secret := s.cfg.RemnawaveWebhookSecret
+	secret := s.cfg.Current().RemnawaveWebhookSecret
 	if secret == "" {
 		http.NotFound(w, r)
 		return

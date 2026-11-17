@@ -117,7 +117,7 @@ func (s *Server) loginPage(w http.ResponseWriter, r *http.Request) {
 	data := loginData{
 		Next:          localPath(r.URL.Query().Get("next"), "/account"),
 		Code:          strings.TrimSpace(r.URL.Query().Get("code")),
-		GoogleEnabled: s.cfg.GoogleClientID != "" && s.cfg.GoogleSecret != "",
+		GoogleEnabled: s.cfg.Current().GoogleClientID != "" && s.cfg.Current().GoogleSecret != "",
 	}
 	if r.URL.Query().Get("error") == "google" {
 		data.GoogleError = "Не удалось войти через Google. Попробуйте ещё раз или используйте код из бота."
@@ -228,7 +228,7 @@ func (o *oauthStates) take(state string) (oauthPending, bool) {
 }
 
 func (s *Server) googleEnabled() bool {
-	return s.cfg.GoogleClientID != "" && s.cfg.GoogleSecret != ""
+	return s.cfg.Current().GoogleClientID != "" && s.cfg.Current().GoogleSecret != ""
 }
 
 func (s *Server) googleRedirectURL(r *http.Request) string {
@@ -248,7 +248,7 @@ func (s *Server) googleLogin(w http.ResponseWriter, r *http.Request) {
 	s.oauth.put(state, oauthPending{verifier: verifier, next: next, at: time.Now()})
 
 	params := url.Values{}
-	params.Set("client_id", s.cfg.GoogleClientID)
+	params.Set("client_id", s.cfg.Current().GoogleClientID)
 	params.Set("redirect_uri", s.googleRedirectURL(r))
 	params.Set("response_type", "code")
 	params.Set("scope", "openid email profile")
@@ -320,8 +320,8 @@ type googleIdentity struct {
 func (s *Server) exchangeGoogle(ctx context.Context, code, verifier, redirectURL string) (googleIdentity, error) {
 	form := url.Values{}
 	form.Set("code", code)
-	form.Set("client_id", s.cfg.GoogleClientID)
-	form.Set("client_secret", s.cfg.GoogleSecret)
+	form.Set("client_id", s.cfg.Current().GoogleClientID)
+	form.Set("client_secret", s.cfg.Current().GoogleSecret)
 	form.Set("redirect_uri", redirectURL)
 	form.Set("grant_type", "authorization_code")
 	form.Set("code_verifier", verifier)

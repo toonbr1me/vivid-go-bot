@@ -77,7 +77,7 @@ func (s *Service) Plans(ctx context.Context) (map[string]domain.Plan, error) {
 	if err != nil {
 		return nil, err
 	}
-	return domain.Catalogue(s.cfg.TrialWebDays, s.cfg.TrialBotDays, paid), nil
+	return domain.Catalogue(s.cfg.Current().TrialWebDays, s.cfg.Current().TrialBotDays, paid), nil
 }
 
 // Plan резолвит тариф, включая снятый с продажи: на него ссылаются уже
@@ -134,7 +134,7 @@ func (s *Service) QuotePlans(ctx context.Context, subjectID int64, promoCode str
 			} else {
 				quote.BonusDays = resolution.BonusDays
 				quote.Amount = domain.QuotePrice(plan.Price, resolution.DiscountPercent,
-					resolution.DiscountFixed, s.cfg.MinPaymentAmount)
+					resolution.DiscountFixed, s.cfg.Current().MinPaymentAmount)
 			}
 		}
 		out = append(out, quote)
@@ -144,6 +144,8 @@ func (s *Service) QuotePlans(ctx context.Context, subjectID int64, promoCode str
 
 // Purchase — заказ подписки из бота или с сайта.
 type Purchase struct {
+	Gift       bool
+	RequestID  string
 	TelegramID *int64
 	AccountID  *int64
 	Username   string
@@ -166,6 +168,13 @@ func (s *Service) Checkout(ctx context.Context, purchase Purchase) (domain.Check
 	}
 	if !plan.IsTrial && !plan.IsActive {
 		return domain.Checkout{}, ErrPlanUnavailable
+	}
+	if purchase.Gift && (plan.IsTrial || !plan.GiftEnabled || purchase.Recurring || purchase.PromoCode != "") {
+		return domain.Checkout{}, errors.New("для подарка нужен доступный платный тариф без автопродления и промокода")
+	}
+	kind := domain.KindSubscription
+	if purchase.Gift {
+		kind = domain.KindGift
 	}
 	subject, err := s.subject(ctx, purchase.TelegramID, purchase.AccountID)
 	if err != nil {
@@ -207,7 +216,7 @@ func (s *Service) Checkout(ctx context.Context, purchase Purchase) (domain.Check
 
 	unlock := s.lockFor(subject.ID)
 	defer unlock()
-	if existing := s.findLiveOrder(ctx, subject, "subscription", plan.ID, providerName,
+	if existing := s.findLiveOrder(ctx, subject, kind, plan.ID, providerName,
 		method, total, purchase.Recurring); existing != nil {
 		return domain.Checkout{
 			URL:       deref(existing.PaymentURL),
@@ -222,9 +231,9 @@ func (s *Service) Checkout(ctx context.Context, purchase Purchase) (domain.Check
 	request := CreateRequest{
 		OrderID:     orderID,
 		Amount:      total,
-		Currency:    s.cfg.Currency,
+		Currency:    s.cfg.Current().Currency,
 		Description: "Подписка на цифровой сервис, " + plan.Title,
-		ExpiresIn:   time.Duration(s.cfg.LinkTTLMinutes) * time.Minute,
+		ExpiresIn:   time.Duration(s.cfg.Current().LinkTTLMinutes) * time.Minute,
 		SuccessURL:  successURL,
 		FailURL:     failURL,
 		Method:      method,
@@ -239,7 +248,7 @@ func (s *Service) Checkout(ctx context.Context, purchase Purchase) (domain.Check
 	if purchase.Recurring && request.CustomerEmail == "" && providerName == "platega" {
 		return domain.Checkout{}, errors.New("для подписки Platega нужен email")
 	}
-	expiry := time.Now().Add(time.Duration(s.cfg.LinkTTLMinutes) * time.Minute)
+	expiry := time.Now().Add(time.Duration(s.cfg.Current().LinkTTLMinutes) * time.Minute)
 	expires := &expiry
 
 	order := domain.Order{
@@ -249,10 +258,11 @@ func (s *Service) Checkout(ctx context.Context, purchase Purchase) (domain.Check
 		AccountID:        accountIDPtr(subject, purchase),
 		Username:         ptrOrNil(purchase.Username),
 		PlanID:           plan.ID,
-		Kind:             domain.KindSubscription,
+		PlanProfile:      s.snapshotPlan(plan),
+		Kind:             kind,
 		Amount:           total,
 		OriginalAmount:   outcome.OriginalAmount + deviceAmount,
-		Currency:         s.cfg.Currency,
+		Currency:         s.cfg.Current().Currency,
 		PaymentMethod:    ptrOrNil(method),
 		Status:           domain.OrderPending,
 		PaymentExpiresAt: expires,
@@ -265,6 +275,9 @@ func (s *Service) Checkout(ctx context.Context, purchase Purchase) (domain.Check
 		RewardValue:      outcome.RewardValue,
 		RewardScope:      outcome.RewardScope,
 		DeviceCount:      s.planExtraDevices(plan),
+	}
+	if purchase.Gift && order.DeviceCount == nil {
+		order.DeviceCount = new(int)
 	}
 	if purchase.Recurring {
 		order.RecurringAgreementID = &orderID
@@ -322,10 +335,11 @@ func (s *Service) settleFreeOrder(ctx context.Context, orderID string, subject d
 		AccountID:      accountIDPtr(subject, purchase),
 		Username:       ptrOrNil(purchase.Username),
 		PlanID:         plan.ID,
+		PlanProfile:    s.snapshotPlan(plan),
 		Kind:           domain.KindSubscription,
 		Amount:         0,
 		OriginalAmount: outcome.OriginalAmount,
-		Currency:       s.cfg.Currency,
+		Currency:       s.cfg.Current().Currency,
 		PaymentMethod:  ptrOrNil("promo"),
 		Status:         domain.OrderPaid,
 		PromoCode:      ptrOrNil(outcome.Code),
@@ -374,7 +388,7 @@ func (s *Service) applyPromo(ctx context.Context, subjectID int64, plan domain.P
 	}
 	out.Code = resolution.Code
 	out.Amount = domain.QuotePrice(plan.Price, resolution.DiscountPercent,
-		resolution.DiscountFixed, s.cfg.MinPaymentAmount)
+		resolution.DiscountFixed, s.cfg.Current().MinPaymentAmount)
 	out.BonusDays = resolution.BonusDays
 	out.PartnerID = resolution.PartnerID
 	if resolution.RewardType != "" {
@@ -415,12 +429,12 @@ func (s *Service) resolvePromo(ctx context.Context, subjectID int64, raw string,
 	if promo.PerUserLimit > 0 && uses >= promo.PerUserLimit {
 		return domain.PromoResolution{}, fmt.Errorf("%w: лимит применений исчерпан", ErrPromoRejected)
 	}
-	if s.cfg.PromoMaxCodesPerUser > 0 && uses == 0 {
+	if s.cfg.Current().PromoMaxCodesPerUser > 0 && uses == 0 {
 		distinct, err := s.db.DistinctPromoCount(ctx, subjectID)
 		if err != nil {
 			return domain.PromoResolution{}, err
 		}
-		if distinct >= s.cfg.PromoMaxCodesPerUser {
+		if distinct >= s.cfg.Current().PromoMaxCodesPerUser {
 			return domain.PromoResolution{}, fmt.Errorf("%w: превышен общий лимит кодов", ErrPromoRejected)
 		}
 	}
@@ -496,12 +510,12 @@ func (s *Service) RedeemGiftPromo(ctx context.Context, subject domain.Subject, r
 		// него нет, и второй раз он не даёт ничего.
 		return 0, fmt.Errorf("%w: промокод уже был использован", ErrPromoRejected)
 	}
-	if s.cfg.PromoMaxCodesPerUser > 0 {
+	if s.cfg.Current().PromoMaxCodesPerUser > 0 {
 		distinct, err := s.db.DistinctPromoCount(ctx, subject.ID)
 		if err != nil {
 			return 0, err
 		}
-		if distinct >= s.cfg.PromoMaxCodesPerUser {
+		if distinct >= s.cfg.Current().PromoMaxCodesPerUser {
 			return 0, fmt.Errorf("%w: превышен общий лимит кодов", ErrPromoRejected)
 		}
 	}
@@ -510,7 +524,7 @@ func (s *Service) RedeemGiftPromo(ctx context.Context, subject domain.Subject, r
 	order, err := s.db.CreateOrder(ctx, domain.Order{
 		OrderID: s.newOrderID(subject.TelegramID, &subject.ID), Provider: "promo_gift",
 		TelegramID: subject.TelegramID, AccountID: &subject.ID, Username: &username,
-		PlanID: "gift", Kind: domain.KindSubscription, Currency: s.cfg.Currency,
+		PlanID: "gift", Kind: domain.KindSubscription, Currency: s.cfg.Current().Currency,
 		Status: domain.OrderPaid, PromoCode: &code, PlanDays: intPtr(promo.GrantDays),
 	})
 	if err != nil {
@@ -525,6 +539,8 @@ func (s *Service) RedeemGiftPromo(ctx context.Context, subject domain.Subject, r
 // Provision выдаёт оплаченный заказ: подписку, устройства или продление.
 func (s *Service) Provision(ctx context.Context, order domain.Order) (domain.ProvisionResult, error) {
 	switch order.Kind {
+	case domain.KindGift:
+		return domain.ProvisionResult{}, s.db.ReadyGift(ctx, order.OrderID)
 	case domain.KindDevices:
 		if order.RenewGrantID != nil && *order.RenewGrantID != "" {
 			return s.provisionDeviceRenewal(ctx, order)
@@ -711,15 +727,15 @@ func (s *Service) newOrderID(telegramID *int64, accountID *int64) string {
 }
 
 func (s *Service) returnURLs() (string, string) {
-	base := strings.TrimRight(s.cfg.SiteBaseURL, "/")
-	if !s.cfg.SiteEnabled || !strings.HasPrefix(base, "https://") {
+	base := strings.TrimRight(s.cfg.Current().SiteBaseURL, "/")
+	if !s.cfg.Current().SiteEnabled || !strings.HasPrefix(base, "https://") {
 		base = ""
 	}
-	success := s.cfg.SuccessRedirect
+	success := s.cfg.Current().SuccessRedirect
 	if success == "" && base != "" {
 		success = base + "/pay/success"
 	}
-	fail := s.cfg.FailRedirect
+	fail := s.cfg.Current().FailRedirect
 	if fail == "" && base != "" {
 		fail = base + "/pay/fail"
 	}
@@ -731,32 +747,32 @@ func (s *Service) ReturnURLs() (string, string) { return s.returnURLs() }
 
 func (s *Service) paidProfile() domain.ProvisioningProfile {
 	return domain.ProvisioningProfile{
-		ExternalSquadUUID:  s.cfg.ExternalSquadUUID,
-		InternalSquadUUIDs: s.cfg.InternalSquads,
-		TrafficLimitBytes:  s.cfg.TrafficLimitBytes,
+		ExternalSquadUUID:  s.cfg.Current().ExternalSquadUUID,
+		InternalSquadUUIDs: s.cfg.Current().InternalSquads,
+		TrafficLimitBytes:  s.cfg.Current().TrafficLimitBytes,
 	}
 }
 
 func (s *Service) trialProfile(kind string) domain.ProvisioningProfile {
 	profile := s.paidProfile()
-	squads := s.cfg.TrialWebSquads
+	squads := s.cfg.Current().TrialWebSquads
 	if kind == "bot" {
-		squads = s.cfg.TrialBotSquads
+		squads = s.cfg.Current().TrialBotSquads
 	}
 	if len(squads) > 0 {
 		profile.InternalSquadUUIDs = squads
 	}
-	if s.cfg.TrialTrafficBytes != nil {
-		profile.TrafficLimitBytes = s.cfg.TrialTrafficBytes
+	if s.cfg.Current().TrialTrafficBytes != nil {
+		profile.TrafficLimitBytes = s.cfg.Current().TrialTrafficBytes
 	}
 	return profile
 }
 
 func (s *Service) planExtraDevices(plan domain.Plan) *int {
-	if !s.cfg.DeviceLimitEnabled || plan.Devices <= 0 {
+	if !s.cfg.Current().DeviceLimitEnabled || plan.Devices <= 0 {
 		return nil
 	}
-	extra := plan.Devices - s.cfg.DeviceLimitBase
+	extra := plan.Devices - s.cfg.Current().DeviceLimitBase
 	if extra < 0 {
 		extra = 0
 	}
@@ -774,6 +790,10 @@ func fallbackUsername(subject domain.Subject) string {
 }
 
 func accountIDPtr(subject domain.Subject, purchase Purchase) *int64 {
+	if purchase.Gift {
+		id := subject.ID
+		return &id
+	}
 	if purchase.AccountID != nil {
 		return purchase.AccountID
 	}

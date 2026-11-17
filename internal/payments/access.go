@@ -92,7 +92,7 @@ func (s *Service) fillAccess(ctx context.Context, access *domain.Access, subject
 	access.PanelUserUUID = user.UUID
 	access.Username = user.Username
 	access.Active = user.IsActive()
-	access.URL = remnawave.SubscriptionURL(s.cfg.APIBaseURL, user)
+	access.URL = remnawave.SubscriptionURL(s.cfg.Current().APIBaseURL, user)
 	access.TrafficUsedBytes = user.TrafficUsedBytes
 	access.TrafficLimit = user.TrafficLimitBytes
 	if !user.ExpireAt.IsZero() {
@@ -101,7 +101,7 @@ func (s *Service) fillAccess(ctx context.Context, access *domain.Access, subject
 	}
 
 	limit := panelDeviceLimit(user)
-	if limit == 0 && s.cfg.DeviceLimitEnabled {
+	if limit == 0 && s.cfg.Current().DeviceLimitEnabled {
 		if managed, err := s.ManagedDeviceLimit(ctx, subject.ID); err == nil && managed > limit {
 			limit = managed
 		}

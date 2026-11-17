@@ -15,11 +15,11 @@ import (
 // Merchant capabilities are opt-in: the provider must have enabled recurring
 // for this merchant. A supported API does not imply account eligibility.
 func (s *Service) RecurringSupported(o domain.PaymentOption, days int) bool {
-	if s.cfg == nil || !s.cfg.RecurringEnabled || days <= 0 {
+	if s.cfg == nil || !s.cfg.Current().RecurringEnabled || days <= 0 {
 		return false
 	}
 	enabled := false
-	for _, p := range s.cfg.RecurringProviders {
+	for _, p := range s.cfg.Current().RecurringProviders {
 		if p == o.Provider {
 			enabled = true
 		}
@@ -151,7 +151,7 @@ func (s *Service) recurringEventOrder(ctx context.Context, provider string, e Ev
 		// The order may already exist after a crash between insert and linking.
 		_, err = s.db.OrderByID(ctx, id)
 		if errors.Is(err, storage.ErrNotFound) {
-			_, err = s.db.CreateOrder(ctx, domain.Order{OrderID: id, Provider: provider, TelegramID: initial.TelegramID, AccountID: initial.AccountID, PlanID: a.PlanID, Kind: domain.KindSubscription, Amount: a.Amount, OriginalAmount: a.Amount, Currency: a.Currency, PaymentMethod: &a.Method, Status: domain.OrderPending, PlanDays: &a.Days, DeviceCount: a.DeviceCount, RecurringAgreementID: &a.ID})
+			_, err = s.db.CreateOrder(ctx, domain.Order{OrderID: id, Provider: provider, TelegramID: initial.TelegramID, AccountID: initial.AccountID, PlanID: a.PlanID, Kind: domain.KindSubscription, Amount: a.Amount, OriginalAmount: a.Amount, Currency: a.Currency, PaymentMethod: &a.Method, Status: domain.OrderPending, PlanDays: &a.Days, DeviceCount: a.DeviceCount, RecurringAgreementID: &a.ID, PlanProfile: initial.PlanProfile})
 		}
 		if err != nil {
 			return e, err
@@ -177,7 +177,7 @@ func (s *Service) recurringEventOrder(ctx context.Context, provider string, e Ev
 // YooKassa debits are scheduled here; Platega owns its own schedule. A durable
 // pending order and stable idempotence key survive process/API timeouts.
 func (s *Service) ProcessRecurring(ctx context.Context, limit int) error {
-	if s.cfg == nil || !s.cfg.RecurringEnabled {
+	if s.cfg == nil || !s.cfg.Current().RecurringEnabled {
 		return nil
 	}
 	agreements, err := s.db.ActiveRecurring(ctx, limit)
@@ -245,7 +245,7 @@ func (s *Service) processRecurring(ctx context.Context, id string) error {
 	orderID := "renew-" + hex.EncodeToString(digest[:16])
 	order, err := s.db.OrderByID(ctx, orderID)
 	if errors.Is(err, storage.ErrNotFound) {
-		order, err = s.db.CreateOrder(ctx, domain.Order{OrderID: orderID, Provider: a.Provider, TelegramID: initial.TelegramID, AccountID: initial.AccountID, PlanID: a.PlanID, Kind: domain.KindSubscription, Amount: a.Amount, OriginalAmount: a.Amount, Currency: a.Currency, PaymentMethod: &a.Method, Status: domain.OrderPending, PlanDays: &a.Days, DeviceCount: a.DeviceCount, RecurringAgreementID: &a.ID})
+		order, err = s.db.CreateOrder(ctx, domain.Order{OrderID: orderID, Provider: a.Provider, TelegramID: initial.TelegramID, AccountID: initial.AccountID, PlanID: a.PlanID, Kind: domain.KindSubscription, Amount: a.Amount, OriginalAmount: a.Amount, Currency: a.Currency, PaymentMethod: &a.Method, Status: domain.OrderPending, PlanDays: &a.Days, DeviceCount: a.DeviceCount, RecurringAgreementID: &a.ID, PlanProfile: initial.PlanProfile})
 	}
 	if err != nil {
 		return err

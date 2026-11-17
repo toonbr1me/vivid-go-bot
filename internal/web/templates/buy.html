@@ -39,7 +39,7 @@
           </span>
           <span class="muted small">{{perMonth .Quote.Amount .Quote.Plan.Days}} в месяц</span>
           {{if .RecurringOptions}}<span class="muted small">При автопродлении: {{money .Quote.Amount}} каждые {{.Quote.Plan.Days}} {{daysWord .Quote.Plan.Days}}.</span>{{end}}
-          {{if .Quote.Rejection}}<span class="form-error">{{.Quote.Rejection}}</span>{{end}}
+          <span class="muted small">{{if .Quote.Plan.Devices}}{{.Quote.Plan.Devices}} устройств{{else}}Общий лимит устройств{{end}} · {{if .Quote.Plan.TrafficLimitBytes}}{{if eq (i64 .Quote.Plan.TrafficLimitBytes) 0}}Безлимитный трафик{{else}}{{bytes .Quote.Plan.TrafficLimitBytes}} трафика{{end}}{{else}}Трафик по условиям сервиса{{end}}</span>{{if .Quote.Rejection}}<span class="form-error">{{.Quote.Rejection}}</span>{{end}}
         </span>
       </label>
       {{end}}

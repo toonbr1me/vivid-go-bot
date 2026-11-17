@@ -39,7 +39,7 @@ func TestBerlogaThemeRendersRealPageContracts(t *testing.T) {
 		{"guest support", "support.html", `name="contact"`, supportData{}},
 		{"client support", "support.html", `name="device"`, supportData{LoggedIn: true, Tickets: []storage.Ticket{ticket}}},
 		{"ticket", "ticket.html", `id="ticket-compose"`, ticketData{Ticket: ticket, Open: true, Messages: []storage.Message{{ID: 1, Text: "Помогите подключиться", CreatedAt: now}}}},
-		{"queue", "admin_tickets.html", `href="/support/tickets/42"`, adminTickets{Tickets: []storage.Ticket{ticket}}},
+		{"queue", "admin_tickets.html", `href="/support/tickets/42"`, adminTickets{Queue: storage.StaffQueue{Tickets: []storage.StaffTicket{{Ticket: ticket}}}}},
 		{"admin", "admin.html", "Рабочий стол", adminDashboard{}},
 		{"connect", "connect.html", "Установите приложение", connectData{}},
 	} {

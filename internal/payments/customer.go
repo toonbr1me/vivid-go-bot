@@ -24,9 +24,9 @@ func (s *Service) CustomerGuidance(ctx context.Context, subject domain.Subject, 
 	if err != nil {
 		return domain.CustomerGuidance{}, err
 	}
-	days := s.cfg.TrialBotDays
+	days := s.cfg.Current().TrialBotDays
 	if channel == "web" {
-		days = s.cfg.TrialWebDays
+		days = s.cfg.Current().TrialWebDays
 	}
 	return domain.GuideCustomer(access, focus, recurring, !used && days > 0, time.Now()), nil
 }

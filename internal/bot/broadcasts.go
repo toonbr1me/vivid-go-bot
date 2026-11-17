@@ -49,13 +49,13 @@ func (b *Bot) handleAnnounce(ctx *telegohandler.Context, m telego.Message) error
 }
 
 func (b *Bot) broadcastCallback(ctx context.Context, q string, chat telego.ChatID, mid int, actor int64, action, ref string) {
-	if chat.ID != actor || !b.db.Permission(ctx, actor, "broadcast.send", b.cfg.AdminIDs) {
+	if chat.ID != actor || !b.db.Permission(ctx, actor, "broadcast.send", b.cfg.Current().AdminIDs) {
 		b.answer(ctx, q, "Недостаточно прав", true)
 		return
 	}
 	switch action {
 	case "audience":
-		if ref != "all" && ref != "active" && ref != "inactive" {
+		if !storage.ValidAudience(ref) {
 			b.answer(ctx, q, "Неизвестная аудитория", true)
 			return
 		}
@@ -77,6 +77,10 @@ func (b *Bot) broadcastCallback(ctx context.Context, q string, chat telego.ChatI
 	default:
 		b.clearInput(actor)
 		rows := [][]telego.InlineKeyboardButton{{button("Все", "ann:audience:all"), button("С подпиской", "ann:audience:active")}, {button("Без подписки", "ann:audience:inactive")}}
+		rows = append(rows, []telego.InlineKeyboardButton{button("Пробовали без покупки", "ann:audience:trial_only"), button("Бросили оплату", "ann:audience:abandoned")}, []telego.InlineKeyboardButton{button("Подписка истекла", "ann:audience:expired"), button("Не подключились", "ann:audience:not_connected")})
+		if b.siteURL() != "" {
+			rows = append(rows, []telego.InlineKeyboardButton{urlButton("Поведенческие кампании на сайте", b.siteURL()+"/admin/campaigns")})
+		}
 		recent, err := b.db.RecentBroadcasts(ctx, actor)
 		if err != nil {
 			b.answer(ctx, q, "Не удалось загрузить рассылки", true)
@@ -92,7 +96,7 @@ func (b *Bot) broadcastCallback(ctx context.Context, q string, chat telego.ChatI
 }
 
 func (b *Bot) handleBroadcastInput(ctx context.Context, chat telego.ChatID, actor int64, audience, raw string) {
-	if chat.ID != actor || !b.db.Permission(ctx, actor, "broadcast.send", b.cfg.AdminIDs) {
+	if chat.ID != actor || !b.db.Permission(ctx, actor, "broadcast.send", b.cfg.Current().AdminIDs) {
 		b.clearInput(actor)
 		return
 	}
@@ -151,6 +155,7 @@ func (b *Bot) showBroadcast(ctx context.Context, chat telego.ChatID, mid int, ac
 		rows = append(rows, []telego.InlineKeyboardButton{button("Отменить черновик", "ann:cancel:"+id)})
 	} else {
 		text += fmt.Sprintf("\n\nДоставлено: %d · ошибок: %d · без подтверждения: %d · ожидают: %d", x.Sent, x.Failed, x.Uncertain, x.Pending)
+		text += fmt.Sprintf(" · пропущено: %d", x.Skipped)
 		rows = append(rows, []telego.InlineKeyboardButton{button("Обновить", "ann:status:"+id)})
 	}
 	rows = append(rows, []telego.InlineKeyboardButton{button("Рассылки", "ann:home")})
@@ -187,8 +192,38 @@ func (b *Bot) ProcessBroadcasts(ctx context.Context, limit int) error {
 		if err != nil {
 			return err
 		}
-		if !b.db.Permission(ctx, d.ActorID, "broadcast.send", b.cfg.AdminIDs) {
+		if !b.db.Permission(ctx, d.ActorID, "broadcast.send", b.cfg.Current().AdminIDs) {
 			if err = b.db.BlockBroadcast(ctx, d.BroadcastID); err != nil {
+				return err
+			}
+			continue
+		}
+		now := time.Now()
+		if zone := b.cfg.Current().Timezone; zone != "" {
+			location, e := time.LoadLocation(zone)
+			if e != nil {
+				if finishErr := b.db.FinishBroadcastDelivery(ctx, d, "pending", time.Minute); finishErr != nil {
+					return finishErr
+				}
+				return e
+			}
+			now = now.In(location)
+		}
+		allowed, wait, err := b.db.BroadcastDeliveryReady(ctx, d, now)
+		if err != nil {
+			if e := b.db.FinishBroadcastDelivery(ctx, d, "pending", time.Minute); e != nil {
+				return e
+			}
+			return err
+		}
+		if wait > 0 {
+			if err = b.db.FinishBroadcastDelivery(ctx, d, "pending", wait); err != nil {
+				return err
+			}
+			continue
+		}
+		if !allowed {
+			if err = b.db.FinishBroadcastDelivery(ctx, d, "skipped", 0); err != nil {
 				return err
 			}
 			continue

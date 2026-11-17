@@ -9,7 +9,7 @@ import (
 var ErrPermission = errors.New("permission denied")
 
 func (s *Service) CompensateTicket(ctx context.Context, actor, ticketID int64) (domain.Order, bool, error) {
-	if !s.db.Permission(ctx, actor, "support.compensate", s.cfg.AdminIDs) {
+	if !s.db.Permission(ctx, actor, "support.compensate", s.cfg.Current().AdminIDs) {
 		return domain.Order{}, false, ErrPermission
 	}
 	ticket, err := s.db.TicketByID(ctx, ticketID)
@@ -30,13 +30,13 @@ func (s *Service) CompensateTicket(ctx context.Context, actor, ticketID int64) (
 	if subject.TelegramID == nil && subject.RemnawaveUser == nil {
 		return domain.Order{}, false, ErrNoSubscription
 	}
-	unlimited := s.cfg.AdminIDs[actor]
+	unlimited := s.cfg.Current().AdminIDs[actor]
 	if member, e := s.db.StaffMemberByID(ctx, actor); e != nil {
 		return domain.Order{}, false, e
 	} else if member != nil && member.IsActive && member.Role == "owner" {
 		unlimited = true
 	}
-	o, created, err := s.db.ReserveCompensation(ctx, actor, ticketID, subject, s.cfg.SupportCompensationDailyDays, unlimited, s.cfg.Currency)
+	o, created, err := s.db.ReserveCompensation(ctx, actor, ticketID, subject, s.cfg.Current().SupportCompensationDailyDays, unlimited, s.cfg.Current().Currency)
 	if err != nil {
 		return o, created, err
 	}

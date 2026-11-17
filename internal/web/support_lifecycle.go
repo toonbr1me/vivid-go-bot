@@ -15,7 +15,7 @@ func (s *Server) ticketCompensate(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if subject.TelegramID == nil || !s.db.Permission(r.Context(), *subject.TelegramID, "support.compensate", s.cfg.AdminIDs) {
+	if subject.TelegramID == nil || !s.db.Permission(r.Context(), *subject.TelegramID, "support.compensate", s.cfg.Current().AdminIDs) {
 		s.renderError(w, r, 403, "Недостаточно прав", "Компенсация доступна сотрудникам поддержки.")
 		return
 	}

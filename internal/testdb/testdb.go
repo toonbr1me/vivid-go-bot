@@ -156,7 +156,7 @@ func Truncate(t *testing.T, db *storage.DB) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	if _, err := db.Pool.Exec(ctx, `TRUNCATE TABLE
-		accounts, orders, trials, promo_activations, promocodes, promo_intents,
+		campaign_send_slots,campaign_enrollments,campaign_contacts,campaigns,job_health,refund_cases,subscription_gifts,accounts, orders, trials, promo_activations, promocodes, promo_intents,
 		referrals, pending_referral_bonuses, user_balance, user_referral_mode,
 		withdrawal_requests, reminder_log, notification_settings, support_tickets,
 		support_messages, support_notifications, web_support_requests,

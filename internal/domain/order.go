@@ -2,6 +2,14 @@ package domain
 
 import "time"
 
+// PlanProfile holds the optional overrides sold with an order.
+type PlanProfile struct {
+	BaseDevices       *int
+	TrafficLimitBytes *int64
+	InternalSquads    []string
+	ExternalSquadUUID *string
+}
+
 // Статусы заказа. Набор намеренно короткий: всё, что не оплачено и не
 // отменено, — «pending», а выдача отслеживается отдельными полями.
 const (
@@ -23,6 +31,7 @@ const (
 
 // Order — заказ на покупку. У веб-заказа TelegramID может быть nil.
 type Order struct {
+	PlanProfile          *PlanProfile
 	ID                   int64
 	OrderID              string
 	Provider             string
@@ -99,6 +108,7 @@ func (o PaymentOption) Label() string {
 
 // ProvisioningProfile — куда селить пользователя в панели.
 type ProvisioningProfile struct {
+	DeviceLimit        *int
 	ExternalSquadUUID  string
 	InternalSquadUUIDs []string
 	TrafficLimitBytes  *int64
