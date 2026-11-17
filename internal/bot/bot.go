@@ -390,13 +390,18 @@ func (b *Bot) deliverLegacy(ctx context.Context, chatID telego.ChatID, messageID
 func (b *Bot) deliverHTML(ctx context.Context, chatID telego.ChatID, messageID int, text string, kb *telego.InlineKeyboardMarkup) error {
 	messageID = b.nativeTarget(ctx, chatID.ID, messageID)
 	if messageID == 0 {
-		message, err := b.api.SendMessage(ctx, &telego.SendMessageParams{
+		params := &telego.SendMessageParams{
 			ChatID:             chatID,
 			Text:               text,
 			ParseMode:          telego.ModeHTML,
 			LinkPreviewOptions: disabledPreview(),
-			ReplyMarkup:        kb,
-		})
+		}
+		// telego serializes a typed nil interface as JSON null. Telegram expects
+		// the optional keyboard to be omitted completely in that case.
+		if kb != nil {
+			params.ReplyMarkup = kb
+		}
+		message, err := b.api.SendMessage(ctx, params)
 		if err == nil {
 			return b.rememberNative(ctx, chatID.ID, message.MessageID)
 		}
@@ -420,12 +425,15 @@ func (b *Bot) deliverHTML(ctx context.Context, chatID telego.ChatID, messageID i
 func (b *Bot) deliverPlain(ctx context.Context, chatID telego.ChatID, messageID int, text string, kb *telego.InlineKeyboardMarkup) error {
 	messageID = b.nativeTarget(ctx, chatID.ID, messageID)
 	if messageID == 0 {
-		message, err := b.api.SendMessage(ctx, &telego.SendMessageParams{
+		params := &telego.SendMessageParams{
 			ChatID:             chatID,
 			Text:               text,
 			LinkPreviewOptions: disabledPreview(),
-			ReplyMarkup:        kb,
-		})
+		}
+		if kb != nil {
+			params.ReplyMarkup = kb
+		}
+		message, err := b.api.SendMessage(ctx, params)
 		if err == nil {
 			return b.rememberNative(ctx, chatID.ID, message.MessageID)
 		}

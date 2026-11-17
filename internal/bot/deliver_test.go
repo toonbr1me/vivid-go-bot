@@ -63,6 +63,11 @@ func TestSendFallsBackToPlainText(t *testing.T) {
 	if !strings.Contains(caller.bodies[1], "сломанная разметка") {
 		t.Errorf("в повторе потерялся текст: %s", caller.bodies[1])
 	}
+	for _, body := range caller.bodies {
+		if strings.Contains(body, `"reply_markup"`) {
+			t.Fatalf("отсутствующая клавиатура должна быть пропущена: %s", body)
+		}
+	}
 }
 
 // Удачная отправка не повторяется.
@@ -83,5 +88,8 @@ func TestSendDoesNotRetryOnSuccess(t *testing.T) {
 	}
 	if !strings.Contains(caller.bodies[0], `"parse_mode":"HTML"`) {
 		t.Errorf("разметка не запрошена: %s", caller.bodies[0])
+	}
+	if strings.Contains(caller.bodies[0], `"reply_markup"`) {
+		t.Fatalf("отсутствующая клавиатура должна быть пропущена: %s", caller.bodies[0])
 	}
 }

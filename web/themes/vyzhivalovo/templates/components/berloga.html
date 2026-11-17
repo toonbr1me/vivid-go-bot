@@ -1,0 +1,54 @@
+{{define "berloga/hero"}}
+<section class="berloga-hero" aria-labelledby="berloga-title">
+  <div class="berloga-hero-copy">
+    <p class="berloga-kicker"><span aria-hidden="true"></span>{{.Block.Icon}}</p>
+    <h1 id="berloga-title">Своя связь.<br><span>Своя Берлога.</span></h1>
+    <p class="lead">{{.Block.Text}}</p>
+    <div class="hero-actions">
+      {{if .Page.Subject}}<a class="btn btn-primary btn-lg" href="/account">Открыть кабинет <span aria-hidden="true">↗</span></a>
+      {{else}}<a class="btn btn-primary btn-lg" href="/buy">Выбрать тариф <span aria-hidden="true">↗</span></a>{{end}}
+      <a class="berloga-text-link" href="/connect">Как подключиться <span aria-hidden="true">→</span></a>
+    </div>
+    <div class="berloga-route" aria-label="Три шага подключения">
+      <span><i>01</i> Выбрать срок</span><b aria-hidden="true">—</b><span><i>02</i> Добавить подписку</span><b aria-hidden="true">—</b><span><i>03</i> Пользоваться</span>
+    </div>
+    {{if .Page.Data.StarterPrice}}<p class="berloga-start">Тарифы от <strong>{{money .Page.Data.StarterPrice}}</strong> за срок</p>{{end}}
+  </div>
+  <figure class="berloga-scene">
+    <img src="/static/berloga-forest.webp" width="1000" height="3000" fetchpriority="high" alt="Лес, горы и медведь — иллюстрация из оформления Берлоги">
+    <figcaption><span>Берлога</span><p>Лес — снаружи.<br>Всё нужное — под рукой.</p><a href="/account">В свой кабинет <span aria-hidden="true">↗</span></a></figcaption>
+  </figure>
+</section>
+{{end}}
+
+{{define "berloga/plans"}}
+<section class="section" id="pricing" aria-labelledby="berloga-plans-title">
+  <div class="section-head"><h2 id="berloga-plans-title">{{.Block.Title}}</h2><p class="muted">{{.Block.Subtitle}}</p></div>
+  {{if .Page.Data.Plans}}
+  <div class="plans">
+    {{range .Page.Data.Plans}}<article class="plan{{if .Best}} plan-best{{end}}">
+      {{if .Best}}<span class="badge">Выгоднее за месяц</span>{{end}}
+      <h3>{{.Plan.Title}}</h3><p class="muted">{{.Plan.Days}} {{daysWord .Plan.Days}} доступа</p>
+      <div class="plan-price">{{money .Plan.Price}}</div><p class="muted small">{{money .Monthly}} в месяц</p>
+      <ul class="plan-list">
+        <li>{{if gt .Devices 0}}Лимит устройств: {{.Devices}}{{else}}Условия устройств — в тарифе{{end}}</li>
+        <li>Подключение по ссылке</li><li>Управление из кабинета</li><li>Помощь с настройкой</li>
+      </ul><a class="btn {{if .Best}}btn-primary{{else}}btn-ghost{{end}} btn-block" href="/buy?plan={{.Plan.ID}}">Выбрать {{.Plan.Days}} {{daysWord .Plan.Days}}</a>
+    </article>{{end}}
+  </div>
+  {{else}}<div class="card">Тарифы пока недоступны. <a href="/support">Напишите в поддержку</a> — поможем разобраться.</div>{{end}}
+  {{if gt .Page.Data.TrialDays 0}}<div class="trial-banner"><div><h3>Сначала попробовать</h3><p class="muted">Пробный доступ на {{.Page.Data.TrialDays}} {{daysWord .Page.Data.TrialDays}} — без оплаты</p></div>
+    {{if .Page.Data.LoggedIn}}{{if .Page.Data.TrialAvailable}}<form method="post" action="/trial" class="inline-form"><input type="hidden" name="csrf" value="{{.Page.CSRF}}"><button class="btn btn-ghost" type="submit">Попробовать</button></form>{{else}}<a class="btn btn-ghost" href="/account">Моя подписка</a>{{end}}
+    {{else}}<a class="btn btn-ghost" href="/login?next=%2Fbuy">Начать с пробного доступа</a>{{end}}
+  </div>{{end}}
+</section>
+{{end}}
+
+{{define "berloga/features"}}
+<section class="section berloga-features" aria-labelledby="berloga-features-title">
+  <div class="section-head"><h2 id="berloga-features-title">{{.Block.Title}}</h2><p class="muted">В кабинете видно, что уже готово и что делать дальше</p></div>
+  <div class="berloga-feature-grid">
+    {{range $i,$item := .Block.Items}}<article><span class="berloga-feature-index" aria-hidden="true">{{if eq $i 0}}01{{else if eq $i 1}}02{{else}}03{{end}}</span><h3>{{$item.Title}}</h3><p>{{$item.Text}}</p></article>{{end}}
+  </div>
+</section>
+{{end}}
