@@ -37,6 +37,10 @@ func (b *Bot) handleCallback(ctx *telegohandler.Context, q telego.CallbackQuery)
 	if len(parts) > 2 {
 		rest = parts[2]
 	}
+	if b.isSupportBot() && !supportCallback(kind, action) {
+		b.answer(ctx, q.ID, "Эта функция доступна в основном боте сервиса.", true)
+		return nil
+	}
 
 	switch kind {
 	case "history":
@@ -105,6 +109,11 @@ func (b *Bot) handleCallback(ctx *telegohandler.Context, q telego.CallbackQuery)
 			b.showSubscriptionWidget(ctx, chatID, tgID)
 		}
 	case "nav":
+		if b.isSupportBot() && (action == "main" || action == "support") {
+			b.showSupportHome(ctx, chatID, tgID)
+			b.answer(ctx, q.ID, "", false)
+			return nil
+		}
 		b.showScreen(ctx, chatID, messageID, action, tgID)
 		b.answer(ctx, q.ID, "", false)
 
@@ -258,6 +267,17 @@ func (b *Bot) handleCallback(ctx *telegohandler.Context, q telego.CallbackQuery)
 		b.answer(ctx, q.ID, "Кнопка устарела — откройте меню заново", true)
 	}
 	return nil
+}
+
+func supportCallback(kind, action string) bool {
+	switch kind {
+	case "support", "ticket", "queue", "staffticket":
+		return true
+	case "nav":
+		return action == "main" || action == "support"
+	default:
+		return false
+	}
 }
 
 // navigationScreen отдаёт экран по имени раздела.
