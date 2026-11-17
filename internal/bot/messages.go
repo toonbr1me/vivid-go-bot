@@ -22,6 +22,10 @@ import (
 
 func (b *Bot) handleMenuCommand(ctx *telegohandler.Context, message telego.Message) error {
 	if message.From != nil {
+		if b.isSupportBot() {
+			b.showSupportHome(ctx, telego.ChatID{ID: message.Chat.ID}, message.From.ID)
+			return nil
+		}
 		b.showCommandScreen(ctx, telego.ChatID{ID: message.Chat.ID}, "main", message.From.ID)
 	}
 	return nil
@@ -29,6 +33,14 @@ func (b *Bot) handleMenuCommand(ctx *telegohandler.Context, message telego.Messa
 
 func (b *Bot) handleStart(ctx *telegohandler.Context, message telego.Message) error {
 	tgID := message.From.ID
+	if b.isSupportBot() {
+		b.showSupportHome(ctx, telego.ChatID{ID: message.Chat.ID}, tgID)
+		return nil
+	}
+	if code, ok := deepLinkArg(message.Text, "gift_"); ok && message.Chat.ID == tgID {
+		b.claimGift(ctx, telego.ChatID{ID: tgID}, tgID, code)
+		return nil
+	}
 	b.claimReferral(ctx, tgID, message.Text)
 	chatID := telego.ChatID{ID: message.Chat.ID}
 	if chatID.ID == tgID && b.cfg.BotStyle == "" {
@@ -197,6 +209,13 @@ func (b *Bot) handleReferralCommand(ctx *telegohandler.Context, message telego.M
 }
 
 func (b *Bot) handleSupportCommand(ctx *telegohandler.Context, message telego.Message) error {
+	if !b.isSupportBot() && b.cfg.Current().SupportBotEnabled && b.cfg.Current().SupportBotUsername != "" {
+		b.clearInput(message.From.ID)
+		b.send(ctx, telego.ChatID{ID: message.Chat.ID},
+			"<b>Поддержка</b>\n\nДля обращений используйте отдельный бот: там сохраняется история, фотографии и ответы сотрудников.",
+			keyboard([]telego.InlineKeyboardButton{urlButton("Открыть поддержку", "https://t.me/"+b.cfg.Current().SupportBotUsername)}))
+		return nil
+	}
 	b.clearInput(message.From.ID)
 	text, kb := b.supportScreen(ctx, message.From.ID)
 	b.send(ctx, telego.ChatID{ID: message.Chat.ID}, text, kb)
@@ -231,6 +250,10 @@ func (b *Bot) handlePaySupportCommand(ctx *telegohandler.Context, message telego
 func (b *Bot) handleCancelCommand(ctx *telegohandler.Context, message telego.Message) error {
 	tgID := message.From.ID
 	b.clearInput(tgID)
+	if b.isSupportBot() {
+		b.showSupportHome(ctx, telego.ChatID{ID: message.Chat.ID}, tgID)
+		return nil
+	}
 	b.send(ctx, telego.ChatID{ID: message.Chat.ID}, "Отменено.",
 		keyboard([]telego.InlineKeyboardButton{button("🏠 Меню", "nav:main")}))
 	return nil
@@ -265,6 +288,10 @@ func (b *Bot) handleText(ctx *telegohandler.Context, message telego.Message) err
 	case inputPollQuestion, inputPollOptions:
 		b.handlePollInput(ctx, chatID, tgID, kind, ref, text)
 	default:
+		if b.isSupportBot() {
+			b.showSupportHome(ctx, chatID, tgID)
+			return nil
+		}
 		// Свободный текст вне диалога — не ошибка: показываем меню и
 		// подсказываем, где искать нужное.
 		kb := keyboard(
@@ -275,6 +302,12 @@ func (b *Bot) handleText(ctx *telegohandler.Context, message telego.Message) err
 		b.send(ctx, chatID, b.texts.Common.NotUnderstood, kb)
 	}
 	return nil
+}
+
+func (b *Bot) showSupportHome(ctx context.Context, chatID telego.ChatID, tgID int64) {
+	b.clearInput(tgID)
+	text, kb := b.supportScreen(ctx, tgID)
+	b.send(ctx, chatID, text, kb)
 }
 
 func (b *Bot) handlePromoInput(ctx context.Context, chatID telego.ChatID, tgID int64, raw string) {

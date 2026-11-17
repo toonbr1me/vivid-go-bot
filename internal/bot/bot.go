@@ -43,6 +43,13 @@ type inputState struct {
 	at   time.Time
 }
 
+type role string
+
+const (
+	commerceRole role = "commerce"
+	supportRole  role = "support"
+)
+
 // Bot связывает Telegram с сервисом. Поля с картами защищены мьютексом:
 // обновления обрабатываются параллельно.
 type Bot struct {
@@ -52,6 +59,7 @@ type Bot struct {
 	pay   *payments.Service
 	texts *texts.Texts
 	rich  *richmsg.Client
+	role  role
 
 	mu                 sync.Mutex
 	inputs             map[int64]inputState
@@ -63,16 +71,27 @@ type Bot struct {
 
 // New создаёт бота. Проверка токена остаётся клиенту telego.
 func New(api *telego.Bot, db *storage.DB, cfg *config.Settings, pay *payments.Service) *Bot {
+	return newBot(api, db, cfg, pay, commerceRole, cfg.TelegramToken)
+}
+
+// NewSupport создаёт отдельный интерфейс только для обращений. База и
+// бизнес-правила остаются общими с ботом сервиса, но Telegram-токен другой.
+func NewSupport(api *telego.Bot, db *storage.DB, cfg *config.Settings, pay *payments.Service) *Bot {
+	return newBot(api, db, cfg, pay, supportRole, cfg.SupportBotToken)
+}
+
+func newBot(api *telego.Bot, db *storage.DB, cfg *config.Settings, pay *payments.Service, botRole role, richToken string) *Bot {
 	bot := &Bot{
 		api:    api,
 		db:     db,
 		cfg:    cfg,
 		pay:    pay,
+		role:   botRole,
 		inputs: map[int64]inputState{},
 		promos: map[int64]string{},
 	}
 	if cfg != nil && cfg.RichMessages {
-		bot.rich = richmsg.New(cfg.TelegramToken, "")
+		bot.rich = richmsg.New(richToken, "")
 	}
 	// Тексты читаются из файла: без него бот работает на встроенных.
 	values, err := texts.Load(cfg.WebDir)
@@ -83,6 +102,8 @@ func New(api *telego.Bot, db *storage.DB, cfg *config.Settings, pay *payments.Se
 	bot.texts = values
 	return bot
 }
+
+func (b *Bot) isSupportBot() bool { return b.role == supportRole }
 
 // textsPtr — встроенные тексты на случай неудачного чтения файла.
 func textsPtr() *texts.Texts {
@@ -187,6 +208,19 @@ func (b *Bot) logError(message string, err error) {
 // setCommands раскладывает меню команд. Ошибка не мешает работе: меню —
 // удобство, а не условие приёма сообщений.
 func (b *Bot) setCommands(ctx context.Context) error {
+	if b.isSupportBot() {
+		return b.api.SetMyCommands(ctx, &telego.SetMyCommandsParams{
+			Commands: []telego.BotCommand{
+				{Command: "start", Description: "Открыть поддержку"},
+				{Command: "support", Description: "Новое обращение и история"},
+				{Command: "tickets", Description: "Очередь обращений"},
+				{Command: "reply", Description: "Ответить на обращение"},
+				{Command: "close", Description: "Закрыть обращение"},
+				{Command: "cancel", Description: "Отменить ввод"},
+			},
+			Scope: &telego.BotCommandScopeDefault{Type: telego.ScopeTypeDefault},
+		})
+	}
 	commands := []telego.BotCommand{
 		{Command: "start", Description: "Главное меню"},
 		{Command: "menu", Description: "Открыть меню заново"},
@@ -213,6 +247,12 @@ func (b *Bot) setCommands(ctx context.Context) error {
 // register навешивает обработчики. Порядок важен: telegohandler выполняет
 // только первый подошедший обработчик, поэтому команды идут до общего текста.
 func (b *Bot) register(h *telegohandler.BotHandler) {
+	if b.isSupportBot() {
+		b.registerSupport(h)
+		return
+	}
+	h.HandleMessage(b.cleanCommand(b.handleGiftsCommand), telegohandler.CommandEqual("gifts"))
+	h.HandleMessage(b.cleanCommand(b.handleGiftsCommand), telegohandler.CommandEqual("gift"))
 	h.HandleMessage(b.cleanCommand(b.handleStart), telegohandler.CommandEqual("start"))
 	h.HandleMessage(b.cleanCommand(b.handleMenuCommand), telegohandler.CommandEqual("menu"))
 	h.HandleMessage(b.cleanCommand(b.handleBuyCommand), telegohandler.CommandEqual("buy"))
@@ -247,6 +287,19 @@ func (b *Bot) register(h *telegohandler.BotHandler) {
 	h.HandleWidgetQuery(b.handleWidgetQuery)
 	h.Handle(b.handlePreCheckout, telegohandler.AnyPreCheckoutQuery())
 	h.HandleMessage(b.handleSuccessfulPayment, telegohandler.SuccessPayment())
+}
+
+func (b *Bot) registerSupport(h *telegohandler.BotHandler) {
+	h.HandleMessage(b.cleanCommand(b.handleStart), telegohandler.CommandEqual("start"))
+	h.HandleMessage(b.cleanCommand(b.handleMenuCommand), telegohandler.CommandEqual("menu"))
+	h.HandleMessage(b.cleanCommand(b.handleSupportCommand), telegohandler.CommandEqual("support"))
+	h.HandleMessage(b.cleanCommand(b.handleTickets), telegohandler.CommandEqual("tickets"))
+	h.HandleMessage(b.cleanCommand(b.handleReply), telegohandler.CommandEqual("reply"))
+	h.HandleMessage(b.cleanCommand(b.handleCloseTicketCommand), telegohandler.CommandEqual("close"))
+	h.HandleMessage(b.cleanCommand(b.handleCancelCommand), telegohandler.CommandEqual("cancel"))
+	h.HandleMessage(b.handleText, telegohandler.AnyMessageWithText())
+	h.HandleMessage(b.handleSupportAttachment, telegohandler.AnyMessageWithMedia())
+	h.HandleCallbackQuery(b.handleCallback)
 }
 
 // ticketMode — кто отвечает на новое обращение: сотрудник или помощник.

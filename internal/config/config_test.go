@@ -10,7 +10,7 @@ import (
 func clearEnv(t *testing.T) {
 	t.Helper()
 	for _, name := range []string{
-		"BOT_TOKEN", "DATABASE_URL", "API_BASE_URL", "API_TOKEN", "ADMIN_IDS",
+		"BOT_TOKEN", "SUPPORT_BOT_TOKEN", "SUPPORT_BOT_USERNAME", "SUPPORT_BOT_ENABLED", "DATABASE_URL", "API_BASE_URL", "API_TOKEN", "ADMIN_IDS",
 		"REMNAWAVE_WEBHOOK_SECRET", "REMNAWAVE_NAMESPACE", "SUBSCRIPTION_BASE_URL",
 		"BRAND_NAME", "CURRENCY", "SITE_ENABLED", "WEBAPP_ENABLED", "PREVIEW_ENABLED",
 		"RICH_MESSAGES_ENABLED", "DEFAULT_EXPIRE_DAYS", "TRAFFIC_LIMIT_BYTES",
@@ -165,6 +165,27 @@ func TestLoadRichMessagesCanBeDisabled(t *testing.T) {
 	}
 	if settings.RichMessages {
 		t.Fatal("богатые сообщения должны быть выключены")
+	}
+}
+
+func TestLoadSupportBotIsOptInAndEnvironmentOnly(t *testing.T) {
+	baseEnv(t)
+	t.Setenv("SUPPORT_BOT_TOKEN", "456:support")
+	t.Setenv("SUPPORT_BOT_USERNAME", "@vivid_support")
+	t.Setenv("SUPPORT_BOT_ENABLED", "true")
+	settings, err := Load(map[string]string{
+		"SUPPORT_BOT_TOKEN":    "database-token",
+		"SUPPORT_BOT_USERNAME": "database-user",
+		"SUPPORT_BOT_ENABLED":  "false",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if settings.SupportBotToken != "456:support" {
+		t.Fatalf("support bot token was not loaded from environment")
+	}
+	if settings.SupportBotUsername != "vivid_support" || !settings.SupportBotEnabled {
+		t.Fatalf("support bot public settings = username %q enabled %t", settings.SupportBotUsername, settings.SupportBotEnabled)
 	}
 }
 

@@ -118,7 +118,19 @@ func run() error {
 	}
 
 	telegramBot := bot.New(api, db, cfg, pay)
-	site, err := web.New(db, pay, cfg, logger, telegramBot)
+	supportBot := telegramBot
+	if cfg.SupportBotEnabled {
+		if cfg.SupportBotToken == "" {
+			return errors.New("SUPPORT_BOT_ENABLED=true, но SUPPORT_BOT_TOKEN не задан")
+		}
+		supportAPI, err := telego.NewBot(cfg.SupportBotToken, telego.WithLogger(botLogger{log: logger}))
+		if err != nil {
+			return fmt.Errorf("клиент Telegram поддержки: %w", err)
+		}
+		resolveSupportBotUsername(ctx, supportAPI, cfg, logger)
+		supportBot = bot.NewSupport(supportAPI, db, cfg, pay)
+	}
+	site, err := web.New(db, pay, cfg, logger, supportBot)
 	if err != nil {
 		return fmt.Errorf("сайт: %w", err)
 	}
@@ -136,7 +148,7 @@ func run() error {
 			logger.Warn("помощник включён, но модель не настроена: SUPPORT_LLM_MODEL пуст")
 		} else {
 			assistant = support.New(db, client, cfg, pay.Facts(),
-				support.LoadKnowledge(cfg.WebDir), telegramBot, logger)
+				support.LoadKnowledge(cfg.WebDir), supportBot, logger)
 			logger.Info("помощник поддержки включён", "модель", client.Model())
 		}
 	}
@@ -150,6 +162,9 @@ func run() error {
 
 	group, groupCtx := errgroup.WithContext(ctx)
 	group.Go(func() error { return ignoreCancel(telegramBot.Run(groupCtx)) })
+	if supportBot != telegramBot {
+		group.Go(func() error { return ignoreCancel(supportBot.Run(groupCtx)) })
+	}
 	group.Go(func() error { return ignoreCancel(site.Run(groupCtx)) })
 	group.Go(func() error {
 		return ignoreCancel(jobs.RunWithAssistant(groupCtx, db, pay, telegramBot, cfg, assistant))
@@ -160,6 +175,21 @@ func run() error {
 	}
 	logger.Info("сервис остановлен")
 	return nil
+}
+
+func resolveSupportBotUsername(ctx context.Context, api *telego.Bot, cfg *config.Settings, logger *slog.Logger) {
+	if cfg.SupportBotUsername != "" {
+		return
+	}
+	timeoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	me, err := api.GetMe(timeoutCtx)
+	if err != nil {
+		logger.Warn("не удалось узнать username бота поддержки", "err", err)
+		return
+	}
+	cfg.SupportBotUsername = me.Username
+	logger.Info("username бота поддержки определён", "username", me.Username)
 }
 
 // ignoreCancel переводит штатную остановку в nil: отмена контекста — не

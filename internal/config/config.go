@@ -21,6 +21,7 @@ import (
 type Settings struct {
 	// Подключения и секреты (только окружение).
 	TelegramToken       string
+	SupportBotToken     string
 	DatabaseURL         string
 	APIBaseURL          string
 	APIToken            string
@@ -69,6 +70,8 @@ type Settings struct {
 	GoogleClientID     string
 	GoogleSecret       string
 	BotUsername        string
+	SupportBotUsername string
+	SupportBotEnabled  bool
 	// Timezone — часовой пояс сервиса: по нему бот здоровается («доброй
 	// ночи» в три часа ночи по вашему времени). Пусто — время сервера.
 	Timezone string
@@ -333,6 +336,7 @@ func Load(overlay map[string]string) (*Settings, error) {
 
 	settings := &Settings{
 		TelegramToken:       telegramToken,
+		SupportBotToken:     env.optional("SUPPORT_BOT_TOKEN"),
 		DatabaseURL:         databaseURL,
 		APIBaseURL:          strings.TrimRight(apiBaseURL, "/"),
 		APIToken:            apiToken,
@@ -363,6 +367,8 @@ func Load(overlay map[string]string) (*Settings, error) {
 		RecurringEnabled:   env.boolean("PAYMENTS_RECURRING_ENABLED", false),
 		RecurringProviders: env.list("PAYMENTS_RECURRING_PROVIDERS"),
 		BotUsername:        strings.TrimPrefix(env.optional("BOT_USERNAME"), "@"),
+		SupportBotUsername: strings.TrimPrefix(env.optional("SUPPORT_BOT_USERNAME"), "@"),
+		SupportBotEnabled:  env.boolean("SUPPORT_BOT_ENABLED", false),
 		Timezone:           env.optional("TIMEZONE"),
 		GoogleClientID:     env.optional("GOOGLE_CLIENT_ID"),
 		GoogleSecret:       env.optional("GOOGLE_CLIENT_SECRET"),
