@@ -105,6 +105,13 @@ func newBot(api *telego.Bot, db *storage.DB, cfg *config.Settings, pay *payments
 
 func (b *Bot) isSupportBot() bool { return b.role == supportRole }
 
+func (b *Bot) attachmentBot() string {
+	if b.isSupportBot() {
+		return string(supportRole)
+	}
+	return string(commerceRole)
+}
+
 // textsPtr — встроенные тексты на случай неудачного чтения файла.
 func textsPtr() *texts.Texts {
 	values := texts.Default()

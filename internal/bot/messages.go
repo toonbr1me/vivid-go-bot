@@ -435,7 +435,7 @@ func (b *Bot) handleTicketInput(ctx context.Context, chatID telego.ChatID, tgID 
 		open = &ticket
 	}
 	if open != nil {
-		if _, err := b.db.AddOwnerTicketMessage(ctx, open.ID, subject.ID, &tgID, text, fileID, fileType); err != nil {
+		if _, err := b.db.AddOwnerTicketMessageFromBot(ctx, open.ID, subject.ID, &tgID, text, fileID, fileType, b.attachmentBot()); err != nil {
 			b.send(ctx, chatID, b.texts.Ticket.SendFailed, keyboard(b.backRow()))
 			return
 		}

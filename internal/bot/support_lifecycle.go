@@ -152,6 +152,20 @@ func (b *Bot) ticketAttachment(ctx context.Context, queryID string, chatID teleg
 			if m.ID != id || m.FileID == nil || m.FileType == nil {
 				continue
 			}
+			if m.FileBot != b.attachmentBot() {
+				target := b.cfg.Current().BotUsername
+				label := "Открыть бот сервиса"
+				if m.FileBot == string(supportRole) {
+					target = b.cfg.Current().SupportBotUsername
+					label = "Открыть бот поддержки"
+				}
+				if target != "" {
+					b.send(ctx, chatID, "Это вложение было отправлено в другом боте. Откройте его там:",
+						keyboard([]telego.InlineKeyboardButton{urlButton(label, "https://t.me/"+target)}))
+				}
+				b.answer(ctx, queryID, "Вложение открывается в боте, в котором его отправили.", true)
+				return
+			}
 			if *m.FileType == "photo" {
 				_, err = b.api.SendPhoto(ctx, &telego.SendPhotoParams{ChatID: chatID, Photo: telego.InputFile{FileID: *m.FileID}})
 			} else {
