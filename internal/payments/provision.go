@@ -44,7 +44,7 @@ func (s *Service) GrantTrial(ctx context.Context, subject domain.Subject, userna
 	order, err := s.db.CreateTrialOrder(ctx, subject, kind, domain.Order{
 		OrderID: orderID, Provider: "trial", TelegramID: subject.TelegramID,
 		AccountID: &subject.ID, Username: ptrOrNil(username), PlanID: plan.ID,
-		Kind: domain.KindSubscription, Currency: s.cfg.Currency, Status: domain.OrderPaid,
+		Kind: domain.KindSubscription, Currency: s.cfg.Current().Currency, Status: domain.OrderPaid,
 		PaymentMethod: ptrOrNil("trial"), PlanDays: intPtr(plan.Days),
 	})
 	if errors.Is(err, storage.ErrTrialUsed) {
@@ -157,6 +157,7 @@ func (s *Service) ensureUserExpireAt(ctx context.Context, telegramID *int64, use
 			TrafficLimitBytes: profile.TrafficLimitBytes,
 			ExternalSquadUUID: attempt.squad,
 			InternalSquads:    profile.InternalSquadUUIDs,
+			HWIDDeviceLimit:   profile.DeviceLimit,
 		})
 		if err != nil {
 			lastErr = err
@@ -242,6 +243,17 @@ func (s *Service) provisionSubscription(ctx context.Context, order domain.Order)
 		return domain.ProvisionResult{}, err
 	}
 	profile := s.paidProfile()
+	if order.PlanProfile != nil {
+		if order.PlanProfile.TrafficLimitBytes != nil {
+			profile.TrafficLimitBytes = order.PlanProfile.TrafficLimitBytes
+		}
+		if order.PlanProfile.InternalSquads != nil {
+			profile.InternalSquadUUIDs = order.PlanProfile.InternalSquads
+		}
+		if order.PlanProfile.ExternalSquadUUID != nil {
+			profile.ExternalSquadUUID = *order.PlanProfile.ExternalSquadUUID
+		}
+	}
 	upgrade := false
 	if order.Provider == "trial" {
 		profile = s.trialProfile(plan.TrialKind)
@@ -259,11 +271,18 @@ func (s *Service) provisionSubscription(ctx context.Context, order domain.Order)
 			profile.TrafficLimitBytes = new(int64)
 		}
 	}
+	if s.cfg.Current().DeviceLimitEnabled {
+		managed, e := s.ManagedDeviceLimit(ctx, subject.ID)
+		if e != nil {
+			return domain.ProvisionResult{}, e
+		}
+		profile.DeviceLimit = &managed
+	}
 	expireAt, err := s.ensureUserExpireAt(ctx, order.TelegramID, username, target, profile)
 	if err != nil {
 		return domain.ProvisionResult{}, err
 	}
-	if upgrade && s.cfg.TrialResetOnPaid {
+	if upgrade && s.cfg.Current().TrialResetOnPaid {
 		if err := s.resetTrialTraffic(ctx, journal, subject, username); err != nil {
 			return domain.ProvisionResult{}, err
 		}
@@ -279,7 +298,7 @@ func (s *Service) provisionSubscription(ctx context.Context, order domain.Order)
 		return domain.ProvisionResult{}, err
 	}
 	var deviceLimit *int
-	if s.cfg.DeviceLimitEnabled {
+	if s.cfg.Current().DeviceLimitEnabled {
 		if user, err := s.panelUser(ctx, order.TelegramID, username); err == nil {
 			if limit, err := s.SyncDeviceLimit(ctx, subject.ID, *user, false); err == nil {
 				deviceLimit = &limit
@@ -290,7 +309,7 @@ func (s *Service) provisionSubscription(ctx context.Context, order domain.Order)
 	// взаимные приглашения иначе образовали бы цикл блокировок.
 	unlock()
 	var reward referralReward
-	if order.Provider != "trial" && order.PlanID != "gift" {
+	if order.Provider != "trial" && order.PlanID != "gift" && order.Provider != "gift_claim" {
 		reward, err = s.rewardReferrer(ctx, journal, order, subject)
 		if err != nil {
 			return domain.ProvisionResult{}, err
@@ -313,7 +332,7 @@ func (s *Service) provisionSubscription(ctx context.Context, order domain.Order)
 		IsRenewal:          order.RenewGrantID != nil,
 	}
 	if user, err := s.panelUser(ctx, order.TelegramID, username); err == nil {
-		if url := remnawave.SubscriptionURL(s.cfg.APIBaseURL, *user); url != "" {
+		if url := remnawave.SubscriptionURL(s.cfg.Current().APIBaseURL, *user); url != "" {
 			result.SubscriptionURL = &url
 		}
 		result.DevicesRenewed = len(order.DeviceRenewals)
@@ -595,7 +614,7 @@ func (s *Service) rewardReferrer(
 			return nil, err
 		}
 		if mode == "" {
-			mode = s.cfg.ReferralMode
+			mode = s.cfg.Current().ReferralMode
 		}
 		target := referralTarget{SubjectID: referrer.ID, TelegramID: referrer.TelegramID}
 		if mode == "days" || mode == "both" {
@@ -606,10 +625,10 @@ func (s *Service) rewardReferrer(
 				target.Days = 3
 			}
 		}
-		if (mode == "balance" || mode == "both") && s.cfg.RefBalancePercent > 0 {
+		if (mode == "balance" || mode == "both") && s.cfg.Current().RefBalancePercent > 0 {
 			base := order.Amount - order.RenewalAmount
 			if base > 0 {
-				target.Amount = domain.Money(int64(base) * int64(s.cfg.RefBalancePercent) / 100)
+				target.Amount = domain.Money(int64(base) * int64(s.cfg.Current().RefBalancePercent) / 100)
 			}
 		}
 		if target.Days > 0 && referrer.TelegramID != nil {

@@ -15,7 +15,7 @@ func (b *Bot) profileCard(ctx context.Context, id int64) (cardState, bool) {
 	if err != nil {
 		return cardState{}, false
 	}
-	p := cardPage{Title: "Аккаунт", Tab: "more", Kicker: "Баланс", Value: priceText(balance, b.cfg.Currency), Note: "Покупки, обращения и настройки"}
+	p := cardPage{Title: "Аккаунт", Tab: "more", Kicker: "Баланс", Value: priceText(balance, b.cfg.Current().Currency), Note: "Покупки, обращения и настройки"}
 	actions := []telego.InlineKeyboardButton{button("История покупок", "nav:history"), button("История обращений", "support:list"), button("Промокод", "nav:promo"), button("Уведомления", "nav:settings")}
 	if a, err := b.db.LatestRecurringForSubject(ctx, subject.ID); err == nil {
 		p.Body = fmt.Sprintf("Автопродление · %s\n%s каждые %d %s\n%s", a.ProviderName(), priceText(a.Amount, a.Currency), a.Days, daysWord(a.Days), a.StatusText())
@@ -53,7 +53,7 @@ func (b *Bot) buyCard(ctx context.Context, id int64) (cardState, bool) {
 		if q.Rejection != "" {
 			continue
 		}
-		actions = append(actions, button(fmt.Sprintf("%s · %s · %d устройств", q.Plan.Title, priceText(q.Amount, b.cfg.Currency), q.Plan.Devices), "plan:"+q.Plan.ID))
+		actions = append(actions, button(fmt.Sprintf("%s · %s · %d устройств", q.Plan.Title, priceText(q.Amount, b.cfg.Current().Currency), q.Plan.Devices), "plan:"+q.Plan.ID))
 	}
 	actions = append(actions, button("Есть промокод", "nav:promo"))
 	return cardUtility(cardWithButtons(cardPage{Title: "Подписка", Tab: "subscription", Value: "Выберите срок", Note: "Оплаченный срок сохранится. Итог и способы оплаты — на следующем шаге.", Layout: "plans"}, actions), "nav:subscription", false), true

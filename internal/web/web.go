@@ -69,6 +69,7 @@ func New(db *storage.DB, pay *payments.Service, cfg *config.Settings, logger *sl
 		hub:     newLiveHub(),
 		started: time.Now(),
 	}
+	cfg.EnableRuntime()
 	s.routes()
 	return s, nil
 }
@@ -85,7 +86,7 @@ func (s *Server) Handler() http.Handler {
 
 // Run поднимает сервер и корректно останавливает его по отмене контекста.
 func (s *Server) Run(ctx context.Context) error {
-	addr := fmt.Sprintf("%s:%d", s.cfg.WebhookHost, s.cfg.WebhookPort)
+	addr := fmt.Sprintf("%s:%d", s.cfg.Current().WebhookHost, s.cfg.Current().WebhookPort)
 	server := &http.Server{
 		Addr:              addr,
 		Handler:           s.Handler(),
@@ -123,11 +124,19 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /pay/fail", s.payFail)
 
 	s.mux.HandleFunc("GET /login", s.loginPage)
+	s.mux.HandleFunc("GET /app", s.miniAppPage)
+	s.mux.HandleFunc("POST /auth/telegram", func(w http.ResponseWriter, r *http.Request) {
+		r.Body = http.MaxBytesReader(w, r.Body, 16<<10)
+		s.csrf(s.miniAppAuth)(w, r)
+	})
 	s.mux.HandleFunc("POST /auth/code", s.csrf(s.loginByCode))
 	s.mux.HandleFunc("GET /auth/google", s.googleLogin)
 	s.mux.HandleFunc("GET /auth/google/callback", s.googleCallback)
 	s.mux.HandleFunc("POST /logout", s.csrf(s.logout))
 
+	s.mux.HandleFunc("GET /gifts", s.giftsPage)
+	s.mux.HandleFunc("POST /gifts", s.csrf(s.giftsPage))
+	s.mux.HandleFunc("GET /history", s.historyPage)
 	s.mux.HandleFunc("GET /account", s.accountPage)
 	s.mux.HandleFunc("POST /account/promo", s.csrf(s.accountPromo))
 	s.mux.HandleFunc("POST /account/referral-mode", s.csrf(s.accountReferralMode))
@@ -158,6 +167,20 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /partner/claim", s.csrf(s.partnerClaim))
 
 	// Админка: тот же вход через Google, но доступ — только сотрудникам.
+	s.mux.HandleFunc("GET /admin/settings", s.adminSettings)
+	s.mux.HandleFunc("POST /admin/settings", s.csrf(s.adminSettings))
+	s.mux.HandleFunc("GET /admin/plans", s.adminPlans)
+	s.mux.HandleFunc("POST /admin/plans", s.csrf(s.adminPlans))
+	s.mux.HandleFunc("GET /admin/staff", s.adminStaff)
+	s.mux.HandleFunc("POST /admin/staff", s.csrf(s.adminStaff))
+	s.mux.HandleFunc("GET /admin/withdrawals", s.adminWithdrawals)
+	s.mux.HandleFunc("POST /admin/withdrawals", s.csrf(s.adminWithdrawals))
+	s.mux.HandleFunc("POST /support/tickets/{id}/staff", s.csrf(s.staffTicketAction))
+	s.mux.HandleFunc("GET /admin/customers/{id}", s.adminCustomer)
+	s.mux.HandleFunc("GET /admin/campaigns", s.adminCampaigns)
+	s.mux.HandleFunc("POST /admin/campaigns", s.csrf(s.adminCampaigns))
+	s.mux.HandleFunc("GET /admin/campaigns/{id}", s.adminCampaign)
+	s.mux.HandleFunc("POST /admin/campaigns/{id}", s.csrf(s.adminCampaign))
 	s.mux.HandleFunc("GET /admin", s.adminHome)
 	s.mux.HandleFunc("GET /admin/promos", s.adminPromosPage)
 	s.mux.HandleFunc("POST /admin/promos", s.csrf(s.adminPromoCreate))
@@ -168,6 +191,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /admin/partners/{id}", s.adminPartnerPage)
 	s.mux.HandleFunc("POST /admin/partners/{id}", s.csrf(s.adminPartnerUpdate))
 	s.mux.HandleFunc("POST /admin/partners/{id}/invite", s.csrf(s.adminPartnerInvite))
+	s.mux.HandleFunc("GET /admin/tickets/updates", s.staffQueueStream)
 	s.mux.HandleFunc("GET /admin/tickets", s.adminTicketsPage)
 	s.mux.HandleFunc("GET /admin/audit", s.adminAuditPage)
 	s.mux.HandleFunc("GET /admin/orders", s.adminOrdersPage)
@@ -177,6 +201,11 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /admin/appearance", s.csrf(s.adminAppearanceSave))
 	s.mux.HandleFunc("GET /static/bot-widget-runtime.js", s.widgetRuntime)
 
+	s.mux.HandleFunc("GET /readyz", s.ready)
+	s.mux.HandleFunc("GET /metrics", s.metrics)
+	s.mux.HandleFunc("GET /admin/operations", s.adminOperations)
+	s.mux.HandleFunc("GET /admin/refunds", s.adminRefunds)
+	s.mux.HandleFunc("POST /admin/refunds", s.csrf(s.adminRefunds))
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		_, _ = fmt.Fprintf(w, "ok %s", time.Since(s.started).Truncate(time.Second))
@@ -228,13 +257,17 @@ func (s *Server) withSecurityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
 		h.Set("X-Content-Type-Options", "nosniff")
-		h.Set("X-Frame-Options", "SAMEORIGIN")
+		ancestors := "'self' https://web.telegram.org https://*.web.telegram.org"
+		if strings.HasPrefix(r.URL.Path, "/admin") || strings.HasPrefix(r.URL.Path, "/partner") {
+			ancestors = "'self'"
+			h.Set("X-Frame-Options", "SAMEORIGIN")
+		}
 		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
 		h.Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
 		h.Set("Content-Security-Policy",
 			"default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "+
-				"font-src 'self' https://fonts.gstatic.com; script-src 'self'; form-action 'self'; "+
-				"frame-ancestors 'self'; base-uri 'self'")
+				"font-src 'self' https://fonts.gstatic.com; script-src 'self' https://telegram.org; form-action 'self'; "+
+				"frame-ancestors "+ancestors+"; base-uri 'self'")
 		next.ServeHTTP(w, r)
 	})
 }
@@ -295,10 +328,11 @@ func (s *Server) withRecovery(next http.Handler) http.Handler {
 // ---------------------------------------------------------------------------
 
 const (
-	sessionCookie = "vivid_session"
-	csrfCookie    = "vivid_csrf"
-	flashCookie   = "vivid_flash"
-	refCookie     = "vivid_ref"
+	sessionCookie        = "vivid_session"
+	miniAppSessionCookie = "vivid_miniapp_session"
+	csrfCookie           = "vivid_csrf"
+	flashCookie          = "vivid_flash"
+	refCookie            = "vivid_ref"
 )
 
 func (s *Server) csrf(next http.HandlerFunc) http.HandlerFunc {
@@ -322,14 +356,16 @@ func (s *Server) csrfToken(w http.ResponseWriter, r *http.Request) string {
 		return cookie.Value
 	}
 	token := randomToken(24)
+	sameSite, miniApp := s.miniAppCookieMode(r)
 	http.SetCookie(w, &http.Cookie{
-		Name:     csrfCookie,
-		Value:    token,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   s.isSecure(r),
-		SameSite: http.SameSiteLaxMode,
-		MaxAge:   24 * 60 * 60,
+		Name:        csrfCookie,
+		Value:       token,
+		Path:        "/",
+		HttpOnly:    true,
+		Secure:      s.isSecure(r),
+		SameSite:    sameSite,
+		Partitioned: miniApp,
+		MaxAge:      24 * 60 * 60,
 	})
 	return token
 }
@@ -337,14 +373,16 @@ func (s *Server) csrfToken(w http.ResponseWriter, r *http.Request) string {
 // flashRedirect показывает одноразовое сообщение после POST и уводит на GET,
 // чтобы обновление страницы не повторяло действие.
 func (s *Server) flashRedirect(w http.ResponseWriter, r *http.Request, path, kind, text string) {
+	sameSite, partitioned := s.miniAppCookieMode(r)
 	http.SetCookie(w, &http.Cookie{
-		Name:     flashCookie,
-		Value:    url.QueryEscape(kind + "|" + text),
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   s.isSecure(r),
-		SameSite: http.SameSiteLaxMode,
-		MaxAge:   60,
+		Name:        flashCookie,
+		Value:       url.QueryEscape(kind + "|" + text),
+		Path:        "/",
+		HttpOnly:    true,
+		Secure:      s.isSecure(r),
+		SameSite:    sameSite,
+		Partitioned: partitioned,
+		MaxAge:      60,
 	})
 	http.Redirect(w, r, path, http.StatusSeeOther)
 }
@@ -359,9 +397,10 @@ func (s *Server) takeFlash(w http.ResponseWriter, r *http.Request) *flashMessage
 	if err != nil || cookie.Value == "" {
 		return nil
 	}
+	sameSite, partitioned := s.miniAppCookieMode(r)
 	http.SetCookie(w, &http.Cookie{
 		Name: flashCookie, Value: "", Path: "/", MaxAge: -1,
-		HttpOnly: true, Secure: s.isSecure(r), SameSite: http.SameSiteLaxMode,
+		HttpOnly: true, Secure: s.isSecure(r), SameSite: sameSite, Partitioned: partitioned,
 	})
 	decoded, err := url.QueryUnescape(cookie.Value)
 	if err != nil {
@@ -388,11 +427,11 @@ func (s *Server) isSecure(r *http.Request) bool {
 // siteURL — адрес сайта без хвостового слэша. Для писем и ссылок берём
 // SITE_BASE_URL, а если он не задан — адрес запроса.
 func (s *Server) siteURL(r *http.Request) string {
-	if s.cfg.SiteBaseURL != "" {
-		return s.cfg.SiteBaseURL
+	if s.cfg.Current().SiteBaseURL != "" {
+		return s.cfg.Current().SiteBaseURL
 	}
-	if s.cfg.PublicBaseURL != "" {
-		return s.cfg.PublicBaseURL
+	if s.cfg.Current().PublicBaseURL != "" {
+		return s.cfg.Current().PublicBaseURL
 	}
 	scheme := "http"
 	if s.isSecure(r) {
@@ -402,10 +441,10 @@ func (s *Server) siteURL(r *http.Request) string {
 }
 
 func (s *Server) botURL() string {
-	if s.cfg.BotUsername == "" {
+	if s.cfg.Current().BotUsername == "" {
 		return ""
 	}
-	return "https://t.me/" + s.cfg.BotUsername
+	return "https://t.me/" + s.cfg.Current().BotUsername
 }
 
 // localPath пускает только относительные адреса: адрес возврата после входа

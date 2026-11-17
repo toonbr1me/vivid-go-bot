@@ -12,7 +12,7 @@ type promoPlanKey struct{}
 
 func (b *Bot) checkoutRecurring(ctx context.Context, id int64, plan string) bool {
 	p, on, err := b.db.CheckoutPreference(ctx, id)
-	return err == nil && p == plan && on && b.cfg.RecurringEnabled
+	return err == nil && p == plan && on && b.cfg.Current().RecurringEnabled
 }
 
 func (b *Bot) checkoutCard(ctx context.Context, id int64, planID string) (cardState, error) {
@@ -40,7 +40,7 @@ func (b *Bot) checkoutCard(ctx context.Context, id int64, planID string) (cardSt
 		}
 	}
 	recurring := b.checkoutRecurring(ctx, id, planID)
-	p := cardPage{Title: "Оформление подписки", Tab: "subscription", Kicker: plan.Title, Value: priceText(amount, b.cfg.Currency), Layout: "checkout", Note: fmt.Sprintf("%d %s · %d устройств", plan.Days, daysWord(plan.Days), plan.Devices)}
+	p := cardPage{Title: "Оформление подписки", Tab: "subscription", Kicker: plan.Title, Value: priceText(amount, b.cfg.Current().Currency), Layout: "checkout", Note: fmt.Sprintf("%d %s · %d устройств", plan.Days, daysWord(plan.Days), plan.Devices)}
 	if bonusDays > 0 {
 		p.Note += fmt.Sprintf(" · +%d бонусных дней к этой покупке", bonusDays)
 	}
@@ -60,10 +60,10 @@ func (b *Bot) checkoutCard(ctx context.Context, id int64, planID string) (cardSt
 		state.Actions = append(state.Actions, a)
 		state.Pages[0].Buttons = append(state.Pages[0].Buttons, cardButton{Text: cardLabel(a.Text), Index: i, Style: style, Detail: detail, Checked: checked})
 	}
-	if b.cfg.RecurringEnabled {
+	if b.cfg.Current().RecurringEnabled {
 		detail := "Выключено · разовая оплата"
 		if recurring {
-			detail = fmt.Sprintf("%s каждые %d дней · отмена в аккаунте", priceText(amount, b.cfg.Currency), plan.Days)
+			detail = fmt.Sprintf("%s каждые %d дней · отмена в аккаунте", priceText(amount, b.cfg.Current().Currency), plan.Days)
 		}
 		add(button("Продлевать автоматически?", "recurring:toggle:"+planID), "checkbox", detail, &recurring)
 	}

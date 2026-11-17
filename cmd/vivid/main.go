@@ -72,6 +72,7 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("настройки: %w", err)
 	}
+	cfg.EnableRuntime()
 	if cfg.Timezone != "" {
 		location, err := time.LoadLocation(cfg.Timezone)
 		if err != nil {

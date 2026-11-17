@@ -1,10 +1,14 @@
-﻿# vivid-go-bot
+# vivid-go-bot
+
+Новые рабочие сценарии: [поддержка, каталог, подарки, история,
+поведенческие рассылки и эксплуатация](docs/product-operations.md).
 
 Оформление лендинга и кабинета: [руководство по темам](docs/themes.md),
 готовый пример — [`web/themes/starter`](web/themes/starter/theme.json).
 Обработка оплат: [гарантии и ограничения](docs/reliability.md).
 Карточки и режим бота: [интерфейс](docs/bot-interface.md), [HTML-шаблоны](web/bot/html/README.md).
 Автопродление: [настройка и протоколы](docs/recurring-payments.md).
+Telegram Mini App: [вход и автоматическое обновление кнопки](docs/telegram-miniapp.md).
 Проверки: [запуск и покрытые сценарии](docs/testing.md).
 
 Telegram-бот и публичный сайт сервиса подписок на Go. Это переписывание

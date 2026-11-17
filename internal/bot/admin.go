@@ -42,17 +42,17 @@ func (b *Bot) adminScreen(ctx context.Context, actor ...int64) (string, *telego.
 			button("📋 Обращения", "admin:tickets"),
 		},
 		b.backRow())
-	if len(actor) > 0 && b.db.Permission(ctx, actor[0], "stats.view", b.cfg.AdminIDs) {
+	if len(actor) > 0 && b.db.Permission(ctx, actor[0], "stats.view", b.cfg.Current().AdminIDs) {
 		lines = append(lines, "🔹 /stats — статистика")
 		kb.InlineKeyboard = append(kb.InlineKeyboard, []telego.InlineKeyboardButton{button("📊 Статистика", "admin:stats")})
 	}
-	if len(actor) > 0 && b.db.Permission(ctx, actor[0], "subscription.grant", b.cfg.AdminIDs) {
+	if len(actor) > 0 && b.db.Permission(ctx, actor[0], "subscription.grant", b.cfg.Current().AdminIDs) {
 		lines = append(lines, "🔹 /grant <id> <дни> — выдать подписку")
 	}
-	if len(actor) > 0 && b.db.Permission(ctx, actor[0], "orders.view", b.cfg.AdminIDs) {
+	if len(actor) > 0 && b.db.Permission(ctx, actor[0], "orders.view", b.cfg.Current().AdminIDs) {
 		kb.InlineKeyboard = append([][]telego.InlineKeyboardButton{{button("Оплачены, ждут доступа", "ops:list")}}, kb.InlineKeyboard...)
 	}
-	if len(actor) > 0 && b.db.Permission(ctx, actor[0], "broadcast.send", b.cfg.AdminIDs) {
+	if len(actor) > 0 && b.db.Permission(ctx, actor[0], "broadcast.send", b.cfg.Current().AdminIDs) {
 		kb.InlineKeyboard = append(kb.InlineKeyboard, []telego.InlineKeyboardButton{button("Рассылка", "ann:home")})
 	}
 	if site := b.siteURL(); site != "" {
@@ -80,7 +80,7 @@ func (b *Bot) adminCallback(ctx context.Context, queryID string, chatID telego.C
 	var kb *telego.InlineKeyboardMarkup
 	switch action {
 	case "stats":
-		if !b.db.Permission(ctx, tgID, "stats.view", b.cfg.AdminIDs) {
+		if !b.db.Permission(ctx, tgID, "stats.view", b.cfg.Current().AdminIDs) {
 			b.answer(ctx, queryID, "Недостаточно прав", true)
 			return
 		}
@@ -110,7 +110,7 @@ func (b *Bot) statsScreen(ctx context.Context) (string, *telego.InlineKeyboardMa
 		fmt.Sprintf("📦 Подписок выдано: <b>%d</b>", summary.Subscriptions),
 		fmt.Sprintf("✅ Активных сегодня: <b>%d</b>", summary.ActiveToday),
 		fmt.Sprintf("💰 Оплаченных заказов: <b>%d</b>", summary.PaidOrders),
-		fmt.Sprintf("📈 Оборот: <b>%s</b>", priceText(summary.Revenue, b.cfg.Currency)),
+		fmt.Sprintf("📈 Оборот: <b>%s</b>", priceText(summary.Revenue, b.cfg.Current().Currency)),
 		fmt.Sprintf("🎁 Пробных периодов: <b>%d</b>", summary.Trials),
 		fmt.Sprintf("✉️ Открытых обращений: <b>%d</b>", summary.OpenTickets),
 	}
@@ -136,7 +136,7 @@ func (b *Bot) adminTicketsScreen(ctx context.Context, tgID int64, requested ...i
 	if len(tickets) == 0 {
 		lines = append(lines, "Открытых обращений нет.")
 	}
-	var rows [][]telego.InlineKeyboardButton
+	rows := [][]telego.InlineKeyboardButton{{button("Свободные", "queue:free:0"), button("Мои", "queue:mine:0")}, {button("Ждут ответа", "queue:waiting:0"), button("Закрытые", "queue:closed:0")}}
 	for _, ticket := range tickets {
 		assignee := "свободно"
 		if ticket.AssignedTo != nil {
@@ -160,7 +160,7 @@ func (b *Bot) adminTicketsScreen(ctx context.Context, tgID int64, requested ...i
 
 // handleStats печатает сводку.
 func (b *Bot) handleStats(ctx *telegohandler.Context, message telego.Message) error {
-	if message.Chat.ID != message.From.ID || !b.db.Permission(ctx, message.From.ID, "stats.view", b.cfg.AdminIDs) {
+	if message.Chat.ID != message.From.ID || !b.db.Permission(ctx, message.From.ID, "stats.view", b.cfg.Current().AdminIDs) {
 		b.send(ctx, telego.ChatID{ID: message.Chat.ID}, "🔐 Команда доступна только сотрудникам.", nil)
 		return nil
 	}
@@ -184,7 +184,7 @@ func (b *Bot) handleTickets(ctx *telegohandler.Context, message telego.Message) 
 func (b *Bot) handleGrant(ctx *telegohandler.Context, message telego.Message) error {
 	tgID := message.From.ID
 	chatID := telego.ChatID{ID: message.Chat.ID}
-	if !b.db.Permission(ctx, tgID, "subscription.grant", b.cfg.AdminIDs) {
+	if !b.db.Permission(ctx, tgID, "subscription.grant", b.cfg.Current().AdminIDs) {
 		b.send(ctx, chatID, "🔐 Недостаточно прав.", nil)
 		return nil
 	}
@@ -233,7 +233,7 @@ func (b *Bot) handleGrant(ctx *telegohandler.Context, message telego.Message) er
 func (b *Bot) handleReply(ctx *telegohandler.Context, message telego.Message) error {
 	tgID := message.From.ID
 	chatID := telego.ChatID{ID: message.Chat.ID}
-	if !b.db.Permission(ctx, tgID, "support.answer", b.cfg.AdminIDs) {
+	if !b.db.Permission(ctx, tgID, "support.answer", b.cfg.Current().AdminIDs) {
 		b.send(ctx, chatID, "🔐 Недостаточно прав.", nil)
 		return nil
 	}
@@ -252,15 +252,7 @@ func (b *Bot) handleReply(ctx *telegohandler.Context, message telego.Message) er
 		b.send(ctx, chatID, "Обращение не найдено.", nil)
 		return nil
 	}
-	subjectID := int64(0)
-	if ticket.SubjectID != nil {
-		subjectID = *ticket.SubjectID
-	} else if ticket.TelegramID != nil {
-		if subject, err := b.subject(ctx, *ticket.TelegramID); err == nil {
-			subjectID = subject.ID
-		}
-	}
-	if _, err := b.db.AddTicketMessage(ctx, ticketID, subjectID, &tgID, fields[2], true, "", ""); err != nil {
+	if err := b.db.StaffTicketReply(ctx, ticketID, tgID, fields[2], "", ""); err != nil {
 		b.send(ctx, chatID, "⚠️ Не удалось отправить ответ: "+err.Error(), nil)
 		return nil
 	}
@@ -276,7 +268,7 @@ func (b *Bot) handleReply(ctx *telegohandler.Context, message telego.Message) er
 func (b *Bot) handleCloseTicketCommand(ctx *telegohandler.Context, message telego.Message) error {
 	tgID := message.From.ID
 	chatID := telego.ChatID{ID: message.Chat.ID}
-	if !b.db.Permission(ctx, tgID, "support.answer", b.cfg.AdminIDs) {
+	if !b.db.Permission(ctx, tgID, "support.answer", b.cfg.Current().AdminIDs) {
 		b.send(ctx, chatID, "🔐 Недостаточно прав.", nil)
 		return nil
 	}
@@ -295,7 +287,8 @@ func (b *Bot) handleCloseTicketCommand(ctx *telegohandler.Context, message teleg
 		b.send(ctx, chatID, "Обращение не найдено.", nil)
 		return nil
 	}
-	closed, err := b.db.CloseTicket(ctx, ticketID)
+	err = b.db.StaffTicketAction(ctx, ticketID, tgID, "close", "", 0)
+	closed := err == nil
 	if err != nil {
 		b.send(ctx, chatID, "⚠️ Не удалось закрыть: "+err.Error(), nil)
 		return nil

@@ -28,6 +28,8 @@ var pageFiles = []string{
 	"landing.html",
 	"buy.html",
 	"login.html",
+	"miniapp.html",
+	"miniapp_payment.html",
 	"account.html",
 	"connect.html",
 	"support.html",
@@ -35,7 +37,7 @@ var pageFiles = []string{
 	"documents.html",
 	"pay_result.html",
 	"notice.html",
-	"admin.html",
+	"admin.html", "admin_campaigns.html", "admin_campaign.html",
 	"admin_promos.html",
 	"admin_partners.html",
 	"admin_partner.html",
@@ -44,7 +46,8 @@ var pageFiles = []string{
 	"admin_orders.html",
 	"admin_screens.html",
 	"admin_appearance.html",
-	"partner.html",
+	"admin_refunds.html", "admin_operations.html", "admin_settings.html", "admin_plans.html", "admin_staff.html", "admin_withdrawals.html", "admin_customer.html",
+	"partner.html", "gifts.html", "history.html",
 }
 
 // feature и faqItem — блоки, которые владелец меняет в theme.json.
@@ -479,17 +482,24 @@ func (s *Server) renderPage(w http.ResponseWriter, r *http.Request, page string,
 	if settings.Description != "" {
 		meta.Description = settings.Description
 	}
+	currentTheme := s.render.theme
+	if s.cfg.Current() != s.cfg && s.cfg.Current().BrandName != "" {
+		currentTheme.Brand = s.cfg.Current().BrandName
+	}
+	if s.cfg.Current() != s.cfg {
+		currentTheme.SupportEmail = s.cfg.Current().SupportEmail
+	}
 	year := time.Now().Year()
 	if meta.Title == "" {
-		meta.Title = s.render.theme.Brand
+		meta.Title = currentTheme.Brand
 	} else {
-		meta.Title = meta.Title + " — " + s.render.theme.Brand
+		meta.Title = meta.Title + " — " + currentTheme.Brand
 	}
 	if meta.Description == "" {
 		meta.Description = s.render.theme.Description
 	}
 	pageData := pageData{
-		Site:    s.render.theme,
+		Site:    currentTheme,
 		Meta:    meta,
 		Path:    r.URL.Path,
 		Year:    year,
@@ -539,19 +549,24 @@ func markdownHTML(text string) template.HTML {
 
 func templateFuncs() template.FuncMap {
 	return template.FuncMap{
-		"progress":   func(o domain.Order) domain.OrderProgress { return o.Progress(time.Now()) },
-		"money":      moneyText,
-		"date":       dateText,
-		"datetime":   datetimeText,
-		"bytes":      bytesText,
-		"pct":        percent,
-		"daysWord":   daysWord,
-		"status":     orderStatus,
-		"tone":       orderStatusTone,
-		"kind":       orderKind,
-		"paragraphs": paragraphs,
-		"markdown":   markdownHTML,
-		"add":        func(a, b int) int { return a + b },
+		"join": func(v []string) string { return strings.Join(v, ",") },
+		"scopeLabel": func(s string) string {
+			return map[string]string{"free": "Свободные", "mine": "Мои", "waiting": "Ждут ответа", "open": "Открытые", "closed": "Закрытые"}[s]
+		},
+		"campaignAudience": campaignAudienceLabel,
+		"progress":         func(o domain.Order) domain.OrderProgress { return o.Progress(time.Now()) },
+		"money":            moneyText,
+		"date":             dateText,
+		"datetime":         datetimeText,
+		"bytes":            bytesText,
+		"pct":              percent,
+		"daysWord":         daysWord,
+		"status":           orderStatus,
+		"tone":             orderStatusTone,
+		"kind":             orderKind,
+		"paragraphs":       paragraphs,
+		"markdown":         markdownHTML,
+		"add":              func(a, b int) int { return a + b },
 		"str": func(value *string) string {
 			if value == nil {
 				return ""

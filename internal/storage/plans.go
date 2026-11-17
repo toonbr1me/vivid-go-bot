@@ -12,7 +12,7 @@ import (
 // PaidPlans читает каталог платных тарифов.
 func (db *DB) PaidPlans(ctx context.Context) ([]domain.Plan, error) {
 	rows, err := db.Pool.Query(ctx, `
-		SELECT plan_id, title, days, price_rub, devices, sort_order, is_active
+		SELECT plan_id, title, days, price_rub, devices, sort_order, is_active,traffic_limit_bytes,internal_squads,external_squad_uuid,gift_enabled
 		FROM plans ORDER BY sort_order, plan_id`)
 	if err != nil {
 		return nil, err
@@ -24,7 +24,7 @@ func (db *DB) PaidPlans(ctx context.Context) ([]domain.Plan, error) {
 		var priceRub int64
 		if err := rows.Scan(
 			&plan.ID, &plan.Title, &plan.Days, &priceRub,
-			&plan.Devices, &plan.SortOrder, &plan.IsActive,
+			&plan.Devices, &plan.SortOrder, &plan.IsActive, &plan.TrafficLimitBytes, &plan.InternalSquads, &plan.ExternalSquadUUID, &plan.GiftEnabled,
 		); err != nil {
 			return nil, err
 		}
@@ -37,13 +37,13 @@ func (db *DB) PaidPlans(ctx context.Context) ([]domain.Plan, error) {
 // SavePlan создаёт или обновляет тариф в каталоге.
 func (db *DB) SavePlan(ctx context.Context, plan domain.Plan) error {
 	_, err := db.Pool.Exec(ctx, `
-		INSERT INTO plans (plan_id, title, days, price_rub, devices, sort_order, is_active, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, now())
+		INSERT INTO plans (plan_id, title, days, price_rub, devices, sort_order, is_active,traffic_limit_bytes,internal_squads,external_squad_uuid,gift_enabled, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7,$8,$9,$10,$11, now())
 		ON CONFLICT (plan_id) DO UPDATE
 		   SET title = EXCLUDED.title, days = EXCLUDED.days, price_rub = EXCLUDED.price_rub,
 		       devices = EXCLUDED.devices, sort_order = EXCLUDED.sort_order,
-		       is_active = EXCLUDED.is_active, updated_at = now()`,
-		plan.ID, plan.Title, plan.Days, plan.Price.Rubles(), plan.Devices, plan.SortOrder, plan.IsActive)
+		       is_active = EXCLUDED.is_active,traffic_limit_bytes=excluded.traffic_limit_bytes,internal_squads=excluded.internal_squads,external_squad_uuid=excluded.external_squad_uuid,gift_enabled=excluded.gift_enabled, updated_at = now()`,
+		plan.ID, plan.Title, plan.Days, plan.Price.Rubles(), plan.Devices, plan.SortOrder, plan.IsActive, plan.TrafficLimitBytes, plan.InternalSquads, plan.ExternalSquadUUID, plan.GiftEnabled)
 	return err
 }
 

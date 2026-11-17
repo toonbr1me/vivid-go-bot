@@ -1,0 +1,13 @@
+{{define "content"}}<div class="col">
+<p class="eyebrow page-eyebrow">Личный кабинет</p><h1>Войти в берлогу</h1>
+<p class="lead">Ваша подписка, устройства, история заказов и переписка с поддержкой.</p>
+<section class="card">
+ <form method="post" action="/auth/code" class="stack">
+  <input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="next" value="{{.Data.Next}}">
+  <label for="code">Код из Telegram-бота</label><input id="code" name="code" value="{{.Data.Code}}" placeholder="Вставьте код" autocomplete="one-time-code" spellcheck="false" required>
+  <button class="btn btn-wide" type="submit">Войти по коду</button>
+ </form>
+ {{if .Data.GoogleEnabled}}<div class="divider">или</div><a class="btn btn-ghost btn-wide" href="/auth/google?next={{.Data.Next}}">Войти через Google</a>{{if .Data.GoogleError}}<p class="form-error">{{.Data.GoogleError}}</p>{{end}}{{end}}
+ <p class="muted small">Для входа используются технические <a href="/cookies">cookies</a>. При выборе Google получаем разрешённые имя, e-mail и идентификатор профиля. <a href="/privacy">Как обрабатываются данные</a>.</p>
+ <div class="auth-hint"><h2>Где взять код</h2><ol><li>{{if .BotURL}}Откройте <a href="{{.BotURL}}">бота Берлоги</a>{{else}}Откройте бота{{end}}.</li><li>Отправьте <code>/weblogin</code>.</li><li>Перейдите по ссылке из ответа или введите код здесь.</li></ol><p class="muted small">Код одноразовый и действует 30 минут.</p></div>
+</section></div>{{end}}

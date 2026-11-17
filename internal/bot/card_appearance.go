@@ -50,7 +50,7 @@ func PreviewAssets(theme appearance.Theme) (WidgetPreviewAssets, error) {
 }
 
 func (b *Bot) widgetAppearance(ctx context.Context) (string, string, error) {
-	theme, err := appearance.Load(b.cfg.WebDir)
+	theme, err := appearance.Load(b.cfg.Current().WebDir)
 	if err != nil {
 		return "", "", err
 	}
@@ -66,14 +66,14 @@ func (b *Bot) widgetAppearance(ctx context.Context) (string, string, error) {
 			}
 		}
 	}
-	if b.cfg.BotHTMLTheme == "telegram" {
+	if b.cfg.Current().BotHTMLTheme == "telegram" {
 		theme.Accent = "telegram"
 	}
 	mascotURL := ""
 	if site := b.siteURL(); strings.HasPrefix(site, "https://") {
 		mascotURL = site + "/static/bot-mascot/vi-peek.webp"
 	}
-	html, err := widgetTemplate(b.cfg.WebDir, b.cfg.BotHTMLTemplate, theme, mascotURL)
+	html, err := widgetTemplate(b.cfg.Current().WebDir, b.cfg.Current().BotHTMLTemplate, theme, mascotURL)
 	if err != nil {
 		return "", "", err
 	}

@@ -70,7 +70,7 @@ func New(db *storage.DB, client *llm.Client, cfg *config.Settings, facts FactsPr
 
 // Enabled — помощник настроен и включён.
 func (a *Assistant) Enabled() bool {
-	return a != nil && a.llm != nil && a.llm.Enabled() && a.cfg != nil && a.cfg.LLMEnabled
+	return a != nil && a.llm != nil && a.llm.Enabled() && a.cfg != nil && a.cfg.Current().LLMEnabled
 }
 
 // HandoffText — что видит человек, когда вопрос ушёл сотруднику.
@@ -153,7 +153,7 @@ func (a *Assistant) Handle(ctx context.Context) (int, error) {
 	if question.FromAdmin {
 		return 0, nil
 	}
-	if ticket.AIReplies >= a.cfg.LLMMaxReplies {
+	if ticket.AIReplies >= a.cfg.Current().LLMMaxReplies {
 		// Ответили столько, сколько разрешено: дальше — человек.
 		if _, err := a.db.HandoffAITicket(ctx, ticket.ID, ""); err != nil {
 			return 0, err
@@ -261,7 +261,7 @@ func (a *Assistant) CloseIdle(ctx context.Context) (int, error) {
 
 // shareAllows — доля обращений, на которые помощник отвечает сам.
 func (a *Assistant) shareAllows() bool {
-	share := a.cfg.LLMShare
+	share := a.cfg.Current().LLMShare
 	if share >= 100 {
 		return true
 	}
@@ -338,7 +338,7 @@ func (a *Assistant) answer(ctx context.Context, ticket *storage.AITicket, messag
 
 // systemPrompt — правила работы помощника.
 func (a *Assistant) systemPrompt() string {
-	brand := a.cfg.BrandName
+	brand := a.cfg.Current().BrandName
 	if brand == "" {
 		brand = "сервиса"
 	}

@@ -10,6 +10,7 @@ import (
 	"github.com/mymmrac/telego"
 
 	"github.com/toonbr1me/vivid-go-bot/internal/domain"
+	"github.com/toonbr1me/vivid-go-bot/internal/storage"
 )
 
 // mainScreen — точка входа. Статус подписки берём из панели, но сбой не
@@ -51,9 +52,9 @@ func (b *Bot) mainScreen(ctx context.Context, tgID int64) (string, *telego.Inlin
 	if greeting := b.greeting(); greeting != "" {
 		text = greeting + "\n\n" + text
 	}
-	if status == "NONE" && trialAvailable && b.cfg.TrialBotDays > 0 {
+	if status == "NONE" && trialAvailable && b.cfg.Current().TrialBotDays > 0 {
 		text += b.text(b.texts.Main.TrialHint, map[string]any{
-			"Days": b.cfg.TrialBotDays, "DaysWord": daysWord(b.cfg.TrialBotDays),
+			"Days": b.cfg.Current().TrialBotDays, "DaysWord": daysWord(b.cfg.Current().TrialBotDays),
 		})
 	}
 	kb := b.mainKeyboard(status, trialAvailable)
@@ -160,18 +161,18 @@ func (b *Bot) subscriptionScreen(ctx context.Context, tgID int64) (string, *tele
 
 func (b *Bot) noSubscriptionScreen() (string, *telego.InlineKeyboardMarkup) {
 	text := b.texts.Subscription.Empty
-	if b.cfg.TrialBotDays > 0 {
+	if b.cfg.Current().TrialBotDays > 0 {
 		text += b.text(b.texts.Subscription.EmptyTrial, map[string]any{
-			"Days": b.cfg.TrialBotDays, "DaysWord": daysWord(b.cfg.TrialBotDays),
+			"Days": b.cfg.Current().TrialBotDays, "DaysWord": daysWord(b.cfg.Current().TrialBotDays),
 		})
 	} else {
 		text += b.texts.Subscription.EmptyBuy
 	}
 	var rows [][]telego.InlineKeyboardButton
-	if b.cfg.TrialBotDays > 0 {
+	if b.cfg.Current().TrialBotDays > 0 {
 		rows = append(rows, []telego.InlineKeyboardButton{
 			button(b.text(b.texts.Buttons.TrialDays, map[string]any{
-				"Days": b.cfg.TrialBotDays, "DaysWord": daysWord(b.cfg.TrialBotDays),
+				"Days": b.cfg.Current().TrialBotDays, "DaysWord": daysWord(b.cfg.Current().TrialBotDays),
 			}), "nav:trial"),
 		})
 	}
@@ -203,9 +204,9 @@ func (b *Bot) buyScreen(ctx context.Context, tgID int64) (string, *telego.Inline
 	}
 	for _, quote := range quotes {
 		line := fmt.Sprintf("%s · <b>%s</b> · %d %s", quote.Plan.Title,
-			priceText(quote.Amount, b.cfg.Currency), quote.Plan.Days, daysWord(quote.Plan.Days))
+			priceText(quote.Amount, b.cfg.Current().Currency), quote.Plan.Days, daysWord(quote.Plan.Days))
 		if quote.Amount < quote.Price {
-			line += "  <s>" + priceText(quote.Price, b.cfg.Currency) + "</s>"
+			line += "  <s>" + priceText(quote.Price, b.cfg.Current().Currency) + "</s>"
 		}
 		if best[quote.Plan.ID] {
 			line += "  🔥"
@@ -223,7 +224,7 @@ func (b *Bot) buyScreen(ctx context.Context, tgID int64) (string, *telego.Inline
 		if quote.Rejection != "" {
 			continue
 		}
-		label := quote.Plan.Title + " · " + priceText(quote.Amount, b.cfg.Currency)
+		label := quote.Plan.Title + " · " + priceText(quote.Amount, b.cfg.Current().Currency)
 		pair = append(pair, button(label, "plan:"+quote.Plan.ID))
 		if len(pair) == 2 {
 			rows = append(rows, pair)
@@ -260,9 +261,9 @@ func (b *Bot) planScreen(ctx context.Context, tgID int64, planID string) (string
 	if plan.Devices > 0 {
 		lines = append(lines, b.text(b.texts.Plan.Devices, map[string]any{"Devices": plan.Devices}))
 	}
-	lines = append(lines, b.text(b.texts.Plan.Price, map[string]any{"Price": priceText(amount, b.cfg.Currency)}))
+	lines = append(lines, b.text(b.texts.Plan.Price, map[string]any{"Price": priceText(amount, b.cfg.Current().Currency)}))
 	if amount < plan.Price {
-		lines = append(lines, b.text(b.texts.Plan.OldPrice, map[string]any{"Price": priceText(plan.Price, b.cfg.Currency)}))
+		lines = append(lines, b.text(b.texts.Plan.OldPrice, map[string]any{"Price": priceText(plan.Price, b.cfg.Current().Currency)}))
 	}
 	lines = append(lines, "", b.texts.Plan.ChoosePay)
 
@@ -285,18 +286,18 @@ func (b *Bot) planScreen(ctx context.Context, tgID int64, planID string) (string
 	if balance > 0 && balance >= amount && !b.checkoutRecurring(ctx, tgID, planID) {
 		rows = append(rows, []telego.InlineKeyboardButton{
 			button(b.text(b.texts.Buttons.PayWithBalance, map[string]any{
-				"Balance": priceText(balance, b.cfg.Currency),
+				"Balance": priceText(balance, b.cfg.Current().Currency),
 			}), "payb:"+planID),
 		})
 	}
 	if len(rows) == 0 && balance < amount {
 		lines = append(lines, "", b.texts.Plan.NoProviders)
 	}
-	if b.cfg.RecurringEnabled {
+	if b.cfg.Current().RecurringEnabled {
 		label := "☐ Продлевать автоматически?"
 		if b.checkoutRecurring(ctx, tgID, planID) {
 			label = "☑ Продлевать автоматически?"
-			lines = append(lines, fmt.Sprintf("Автоплатёж: %s каждые %d дней. Отключить можно в аккаунте.", priceText(amount, b.cfg.Currency), plan.Days))
+			lines = append(lines, fmt.Sprintf("Автоплатёж: %s каждые %d дней. Отключить можно в аккаунте.", priceText(amount, b.cfg.Current().Currency), plan.Days))
 		}
 		rows = append([][]telego.InlineKeyboardButton{{button(label, "recurring:toggle:"+planID)}}, rows...)
 	}
@@ -329,7 +330,7 @@ func planList(quotes []domain.PlanQuote) []domain.Plan {
 // devicesScreen сводит лимит из базы, подключённые устройства из панели и
 // докупленные слоты.
 func (b *Bot) devicesScreen(ctx context.Context, tgID int64) (string, *telego.InlineKeyboardMarkup) {
-	if !b.cfg.DeviceLimitEnabled {
+	if !b.cfg.Current().DeviceLimitEnabled {
 		return b.texts.Devices.Disabled, keyboard(b.backRow())
 	}
 	subject, err := b.subject(ctx, tgID)
@@ -408,7 +409,7 @@ func (b *Bot) devicesScreen(ctx context.Context, tgID int64) (string, *telego.In
 			if slot.Renewable {
 				rows = append(rows, []telego.InlineKeyboardButton{
 					button(b.text(b.texts.Buttons.RenewSlot, map[string]any{
-						"Slot": firstRunes(slot.Title, 22), "Price": priceText(slot.Price, b.cfg.Currency),
+						"Slot": firstRunes(slot.Title, 22), "Price": priceText(slot.Price, b.cfg.Current().Currency),
 					}), "dev:renew:"+slot.OrderID),
 				})
 			}
@@ -422,10 +423,10 @@ func (b *Bot) devicesScreen(ctx context.Context, tgID int64) (string, *telego.In
 			if quote.Pack.Devices > 0 {
 				title = fmt.Sprintf("+%d %s", quote.Pack.Devices, devicesWord(quote.Pack.Devices))
 			}
-			lines = append(lines, "• "+escapeHTML(title)+" · "+priceText(quote.Amount, b.cfg.Currency))
+			lines = append(lines, "• "+escapeHTML(title)+" · "+priceText(quote.Amount, b.cfg.Current().Currency))
 			rows = append(rows, []telego.InlineKeyboardButton{
 				button(b.text(b.texts.Buttons.BuySlot, map[string]any{
-					"Slot": title, "Price": priceText(quote.Amount, b.cfg.Currency),
+					"Slot": title, "Price": priceText(quote.Amount, b.cfg.Current().Currency),
 				}), "dev:buy:"+quote.Pack.ID),
 			})
 		}
@@ -444,7 +445,7 @@ func (b *Bot) profileScreen(ctx context.Context, tgID int64) (string, *telego.In
 	promo := b.currentPromo(tgID)
 
 	lines := []string{b.texts.Profile.Title, ""}
-	lines = append(lines, b.text(b.texts.Profile.Balance, map[string]any{"Balance": priceText(balance, b.cfg.Currency)}))
+	lines = append(lines, b.text(b.texts.Profile.Balance, map[string]any{"Balance": priceText(balance, b.cfg.Current().Currency)}))
 	if promo != "" {
 		lines = append(lines, b.text(b.texts.Profile.Promo, map[string]any{"Promo": escapeHTML(promo)}))
 	} else {
@@ -478,9 +479,14 @@ func (b *Bot) profileScreen(ctx context.Context, tgID int64) (string, *telego.In
 }
 
 // historyScreen — последние покупки.
-func (b *Bot) historyScreen(ctx context.Context, tgID int64) (string, *telego.InlineKeyboardMarkup) {
+func (b *Bot) historyScreen(ctx context.Context, tgID int64, requested ...int) (string, *telego.InlineKeyboardMarkup) {
 	subject, _ := b.subject(ctx, tgID)
-	orders, err := b.pay.OrderHistory(ctx, subject, 10)
+	page := 0
+	if len(requested) > 0 {
+		page = requested[0]
+	}
+	result, err := b.db.SearchOrders(ctx, storage.OrderFilter{SubjectID: &subject.ID, Page: page, Size: 10})
+	orders := result.Orders
 	if err != nil {
 		return b.texts.History.Failed, keyboard(b.backRow())
 	}
@@ -507,6 +513,10 @@ func (b *Bot) historyScreen(ctx context.Context, tgID int64) (string, *telego.In
 		lines = append(lines, line)
 		rows = append(rows, []telego.InlineKeyboardButton{button("Заказ · "+shortID(order.OrderID), "check:"+order.OrderID)})
 	}
+	if result.Pages > 1 {
+		rows = append(rows, []telego.InlineKeyboardButton{button("←", fmt.Sprintf("history:%d", max(0, result.Page-1))), button(fmt.Sprintf("%d / %d", result.Page+1, result.Pages), fmt.Sprintf("history:%d", result.Page)), button("→", fmt.Sprintf("history:%d", min(result.Pages-1, result.Page+1)))})
+	}
+	rows = append(rows, []telego.InlineKeyboardButton{button("Подарки", "gift:home")})
 	rows = append(rows, []telego.InlineKeyboardButton{
 		button("← "+b.texts.Buttons.Profile, "nav:profile"),
 		button("🏠 Меню", "nav:main"),
@@ -573,7 +583,7 @@ func (b *Bot) referralScreen(ctx context.Context, tgID int64) (string, *telego.I
 	}
 	mode, _ := b.db.ReferralMode(ctx, subject.ID)
 	if mode == "" {
-		mode = b.cfg.ReferralMode
+		mode = b.cfg.Current().ReferralMode
 	}
 	if mode == "" {
 		mode = "days"
@@ -586,16 +596,16 @@ func (b *Bot) referralScreen(ctx context.Context, tgID int64) (string, *telego.I
 		b.text(b.texts.Referral.Rewards, map[string]any{"Rewards": stats.RewardCount}),
 		b.text(b.texts.Referral.EarnedDays, map[string]any{"Days": stats.EarnedDays}),
 		"",
-		b.text(b.texts.Referral.Balance, map[string]any{"Balance": priceText(stats.Balance, b.cfg.Currency)}),
+		b.text(b.texts.Referral.Balance, map[string]any{"Balance": priceText(stats.Balance, b.cfg.Current().Currency)}),
 		"",
 		b.text(b.texts.Referral.Mode, map[string]any{"Mode": referralModeLabel(mode)}),
 	}
 	switch mode {
 	case "balance":
-		lines = append(lines, "За каждую покупку друга — "+fmt.Sprint(b.cfg.RefBalancePercent)+
+		lines = append(lines, "За каждую покупку друга — "+fmt.Sprint(b.cfg.Current().RefBalancePercent)+
 			"% от суммы на ваш баланс.")
 	case "both":
-		lines = append(lines, "За каждую покупку друга — "+fmt.Sprint(b.cfg.RefBalancePercent)+
+		lines = append(lines, "За каждую покупку друга — "+fmt.Sprint(b.cfg.Current().RefBalancePercent)+
 			"% на баланс, первые две покупки — ещё и днями подписки.")
 	default:
 		lines = append(lines, "За первого оплатившего друга — 7 дней, за второго — 3 дня.")
@@ -639,21 +649,21 @@ func (b *Bot) supportScreen(ctx context.Context, tgID int64) (string, *telego.In
 }
 
 func (b *Bot) infoScreen(ctx context.Context, tgID int64) (string, *telego.InlineKeyboardMarkup) {
-	brand := b.cfg.BrandName
+	brand := b.cfg.Current().BrandName
 	lines := []string{b.texts.Info.Title, ""}
 	lines = append(lines, b.text(b.texts.Info.Lead, map[string]any{"Brand": escapeHTML(brand)}))
 	lines = append(lines, "", b.texts.Info.Documents, b.texts.Info.DocumentsH)
-	if b.cfg.LegalEntity != "" {
-		lines = append(lines, "", b.text(b.texts.Info.Executor, map[string]any{"Entity": escapeHTML(b.cfg.LegalEntity)}))
+	if b.cfg.Current().LegalEntity != "" {
+		lines = append(lines, "", b.text(b.texts.Info.Executor, map[string]any{"Entity": escapeHTML(b.cfg.Current().LegalEntity)}))
 	}
 	lines = append(lines, "", b.texts.Info.Payment, b.texts.Info.PaymentH)
 	lines = append(lines, "", b.texts.Info.Refund, b.texts.Info.RefundH)
 	lines = append(lines, "", b.texts.Info.Contacts, b.texts.Info.ContactsH)
-	if b.cfg.SupportEmail != "" {
-		lines = append(lines, b.text(b.texts.Info.Mail, map[string]any{"Email": escapeHTML(b.cfg.SupportEmail)}))
+	if b.cfg.Current().SupportEmail != "" {
+		lines = append(lines, b.text(b.texts.Info.Mail, map[string]any{"Email": escapeHTML(b.cfg.Current().SupportEmail)}))
 	}
-	if b.cfg.SupportUser != "" {
-		lines = append(lines, b.text(b.texts.Info.Telegram, map[string]any{"Username": escapeHTML(b.cfg.SupportUser)}))
+	if b.cfg.Current().SupportUser != "" {
+		lines = append(lines, b.text(b.texts.Info.Telegram, map[string]any{"Username": escapeHTML(b.cfg.Current().SupportUser)}))
 	}
 	_ = tgID
 	return strings.Join(lines, "\n"), b.infoKeyboard()
@@ -695,7 +705,7 @@ func (b *Bot) moreScreen(ctx context.Context, tgID int64) (string, *telego.Inlin
 
 func (b *Bot) connectScreen(ctx context.Context, tgID int64) (string, *telego.InlineKeyboardMarkup) {
 	text := b.text(b.texts.Connect.Title, nil) + "\n\n" + b.texts.Connect.Body
-	if b.cfg.ConnectGuideURL != "" {
+	if b.cfg.Current().ConnectGuideURL != "" {
 		text += "\n\n" + b.texts.Connect.Guide
 	}
 	return text, b.connectKeyboard()

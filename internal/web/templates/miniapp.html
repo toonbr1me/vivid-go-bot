@@ -1,0 +1,13 @@
+{{define "content"}}
+<section class="card stack" aria-labelledby="app-title">
+  <h1 id="app-title">Открываем кабинет</h1>
+  <p id="miniapp-status" role="status">Проверяем вход через Telegram…</p>
+  <form id="miniapp-auth" method="post" action="/auth/telegram" class="stack">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <input type="hidden" name="next" value="{{.Data.Next}}">
+    <button class="btn btn-primary" type="submit">Повторить вход</button>
+  </form>
+  <p><a href="/login?next={{.Data.Next}}">Войти по коду из бота</a></p>
+  <noscript>Для входа через Telegram включите JavaScript или используйте код из бота.</noscript>
+</section>
+{{end}}

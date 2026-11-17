@@ -207,6 +207,14 @@ func (db *DB) SaveDeviceLimitSyncState(ctx context.Context, subjectID int64, pan
 
 // SubjectDeviceLimit собирает итоговый лимит из базы и докупленных пакетов.
 func (db *DB) SubjectDeviceLimit(ctx context.Context, subjectID int64, base int) (int, error) {
+	var soldBase *int
+	if err := db.Pool.QueryRow(ctx, `SELECT max(COALESCE((plan_profile->>'BaseDevices')::int,$2)) FROM orders WHERE (account_id=$1 OR telegram_id=(SELECT telegram_id FROM accounts WHERE id=$1)) AND kind='subscription' AND provider<>'trial' AND status IN ('paid','provisioned') AND (status='paid' OR expire_at>now())`, subjectID, base).Scan(&soldBase); err != nil {
+		return 0, err
+	}
+	if soldBase != nil {
+		base = *soldBase
+	}
+
 	extra, err := db.ExtraDeviceSlots(ctx, subjectID)
 	if err != nil {
 		return base, err

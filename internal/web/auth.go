@@ -46,6 +46,9 @@ func hashToken(token string) string {
 
 func (s *Server) sessionSubject(r *http.Request) (*domain.Subject, error) {
 	cookie, err := r.Cookie(sessionCookie)
+	if miniCookie, miniErr := r.Cookie(miniAppSessionCookie); miniErr == nil && miniCookie.Value != "" {
+		cookie, err = miniCookie, nil
+	}
 	if err != nil || cookie.Value == "" {
 		return nil, nil
 	}
@@ -64,19 +67,28 @@ func (s *Server) startSession(w http.ResponseWriter, r *http.Request, subjectID 
 	if err := s.db.CreateWebSession(r.Context(), hashToken(token), subjectID, sessionTTL); err != nil {
 		return err
 	}
+	name, sameSite, partitioned := sessionCookie, http.SameSiteLaxMode, false
+	if r.URL.Path == "/auth/telegram" && s.isSecure(r) {
+		name, sameSite, partitioned = miniAppSessionCookie, http.SameSiteNoneMode, true
+	}
 	http.SetCookie(w, &http.Cookie{
-		Name:     sessionCookie,
-		Value:    token,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   s.isSecure(r),
-		SameSite: http.SameSiteLaxMode,
-		Expires:  time.Now().Add(sessionTTL),
+		Name:        name,
+		Value:       token,
+		Path:        "/",
+		HttpOnly:    true,
+		Secure:      s.isSecure(r),
+		SameSite:    sameSite,
+		Partitioned: partitioned,
+		Expires:     time.Now().Add(sessionTTL),
 	})
 	return nil
 }
 
 func (s *Server) clearSession(w http.ResponseWriter, r *http.Request) {
+	if cookie, err := r.Cookie(miniAppSessionCookie); err == nil && cookie.Value != "" {
+		_ = s.db.DeleteWebSession(r.Context(), hashToken(cookie.Value))
+	}
+	http.SetCookie(w, &http.Cookie{Name: miniAppSessionCookie, Path: "/", MaxAge: -1, HttpOnly: true, Secure: true, SameSite: http.SameSiteNoneMode, Partitioned: true})
 	if cookie, err := r.Cookie(sessionCookie); err == nil && cookie.Value != "" {
 		_ = s.db.DeleteWebSession(r.Context(), hashToken(cookie.Value))
 	}
@@ -117,7 +129,7 @@ func (s *Server) loginPage(w http.ResponseWriter, r *http.Request) {
 	data := loginData{
 		Next:          localPath(r.URL.Query().Get("next"), "/account"),
 		Code:          strings.TrimSpace(r.URL.Query().Get("code")),
-		GoogleEnabled: s.cfg.GoogleClientID != "" && s.cfg.GoogleSecret != "",
+		GoogleEnabled: s.cfg.Current().GoogleClientID != "" && s.cfg.Current().GoogleSecret != "",
 	}
 	if r.URL.Query().Get("error") == "google" {
 		data.GoogleError = "Не удалось войти через Google. Попробуйте ещё раз или используйте код из бота."
@@ -228,7 +240,7 @@ func (o *oauthStates) take(state string) (oauthPending, bool) {
 }
 
 func (s *Server) googleEnabled() bool {
-	return s.cfg.GoogleClientID != "" && s.cfg.GoogleSecret != ""
+	return s.cfg.Current().GoogleClientID != "" && s.cfg.Current().GoogleSecret != ""
 }
 
 func (s *Server) googleRedirectURL(r *http.Request) string {
@@ -248,7 +260,7 @@ func (s *Server) googleLogin(w http.ResponseWriter, r *http.Request) {
 	s.oauth.put(state, oauthPending{verifier: verifier, next: next, at: time.Now()})
 
 	params := url.Values{}
-	params.Set("client_id", s.cfg.GoogleClientID)
+	params.Set("client_id", s.cfg.Current().GoogleClientID)
 	params.Set("redirect_uri", s.googleRedirectURL(r))
 	params.Set("response_type", "code")
 	params.Set("scope", "openid email profile")
@@ -320,8 +332,8 @@ type googleIdentity struct {
 func (s *Server) exchangeGoogle(ctx context.Context, code, verifier, redirectURL string) (googleIdentity, error) {
 	form := url.Values{}
 	form.Set("code", code)
-	form.Set("client_id", s.cfg.GoogleClientID)
-	form.Set("client_secret", s.cfg.GoogleSecret)
+	form.Set("client_id", s.cfg.Current().GoogleClientID)
+	form.Set("client_secret", s.cfg.Current().GoogleSecret)
 	form.Set("redirect_uri", redirectURL)
 	form.Set("grant_type", "authorization_code")
 	form.Set("code_verifier", verifier)

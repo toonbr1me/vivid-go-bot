@@ -54,13 +54,13 @@ func (s *Server) landing(w http.ResponseWriter, r *http.Request) {
 			Plan:    plan,
 			Monthly: domain.Money(monthlyPrice(plan)),
 			Best:    best[plan.ID],
-			Devices: domain.PlanDevicesTotal(plan, s.cfg.DeviceLimitBase),
+			Devices: domain.PlanDevicesTotal(plan, s.cfg.Current().DeviceLimitBase),
 		})
 	}
 
 	data := landingData{
 		Plans:          cards,
-		TrialDays:      s.cfg.TrialWebDays,
+		TrialDays:      s.cfg.Current().TrialWebDays,
 		LoggedIn:       s.subjectFrom(r) != nil,
 		StarterPrice:   starter,
 		PaymentOptions: len(s.pay.PaymentOptions(true)),
@@ -125,7 +125,7 @@ func (s *Server) buyPage(w http.ResponseWriter, r *http.Request) {
 		Selected:  r.URL.Query().Get("plan"),
 		Promo:     promo,
 		LoggedIn:  subject != nil,
-		TrialDays: s.cfg.TrialWebDays,
+		TrialDays: s.cfg.Current().TrialWebDays,
 	}
 	registry := s.pay.Registry()
 	for _, quote := range quotes {
@@ -238,7 +238,7 @@ func (s *Server) trialSubmit(w http.ResponseWriter, r *http.Request) {
 func (s *Server) finishCheckout(w http.ResponseWriter, r *http.Request, checkout domain.Checkout) {
 	switch {
 	case checkout.URL != "":
-		http.Redirect(w, r, checkout.URL, http.StatusSeeOther)
+		s.redirectPayment(w, r, checkout)
 	case checkout.Trial:
 		s.flashRedirect(w, r, "/account", "ok", "Пробный доступ выдан. Подключайтесь.")
 	case checkout.Free:

@@ -11,6 +11,7 @@ import (
 	"github.com/toonbr1me/vivid-go-bot/internal/appearance"
 	"github.com/toonbr1me/vivid-go-bot/internal/bot"
 	"github.com/toonbr1me/vivid-go-bot/internal/domain"
+	"github.com/toonbr1me/vivid-go-bot/internal/storage"
 )
 
 type experienceData struct {
@@ -22,7 +23,7 @@ type experienceData struct {
 }
 
 func (s *Server) experienceData(r *http.Request) (experienceData, error) {
-	theme, err := appearance.Load(s.cfg.WebDir)
+	theme, err := appearance.Load(s.cfg.Current().WebDir)
 	if err != nil {
 		return experienceData{}, err
 	}
@@ -123,6 +124,7 @@ func (s *Server) widgetRuntime(w http.ResponseWriter, r *http.Request) {
 }
 
 type adminOrdersData struct {
+	Search    storage.OrderPage
 	Orders    []domain.Order
 	Issues    []domain.RecurringAgreement
 	Attention bool
@@ -137,21 +139,25 @@ func (s *Server) adminOrdersPage(w http.ResponseWriter, r *http.Request) {
 		s.renderError(w, r, 403, "Недостаточно прав", "Заказы доступны владельцу сервиса.")
 		return
 	}
-	orders, err := s.db.RecentOrders(r.Context(), 150)
-	attention := r.URL.Query().Get("attention") == "1"
-	if attention {
-		orders, err = s.db.AttentionOrders(r.Context(), 150)
-	}
+	filter, err := parseOrderFilter(r)
 	if err != nil {
-		s.renderError(w, r, 500, "Не удалось получить заказы", "Попробуйте позже.")
+		s.renderError(w, r, 400, "Фильтр", err.Error())
 		return
 	}
+	search, err := s.db.SearchOrders(r.Context(), filter)
+	if err != nil {
+		s.operationError(w, r, err)
+		return
+	}
+	orders := search.Orders
+	attention := filter.Attention
+
 	issues, err := s.db.RecurringIssues(r.Context(), 100)
 	if err != nil {
 		s.renderError(w, r, 500, "Не удалось загрузить автопродления", "Попробуйте позже.")
 		return
 	}
-	s.renderPage(w, r, "admin_orders.html", 200, pageMeta{Title: "Заказы"}, adminOrdersData{Orders: orders, Issues: issues, Attention: attention})
+	s.renderPage(w, r, "admin_orders.html", 200, pageMeta{Title: "Заказы"}, adminOrdersData{Search: search, Orders: orders, Issues: issues, Attention: attention})
 }
 
 func (s *Server) adminOrderRetry(w http.ResponseWriter, r *http.Request) {

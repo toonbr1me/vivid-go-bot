@@ -8,6 +8,7 @@ import (
 )
 
 type ticketListPosition struct {
+	scope string
 	page  int
 	staff bool
 }
@@ -18,7 +19,7 @@ func (b *Bot) rememberTicketList(id int64, page int, staff bool) {
 	if b.ticketLists == nil {
 		b.ticketLists = map[int64]ticketListPosition{}
 	}
-	b.ticketLists[id] = ticketListPosition{page, staff}
+	b.ticketLists[id] = ticketListPosition{page: page, staff: staff}
 }
 
 func (b *Bot) ticketListBack(id int64, staff bool) string {
@@ -30,6 +31,9 @@ func (b *Bot) ticketListBack(id int64, staff bool) string {
 		prefix = "admin:tickets"
 	}
 	if ok && position.staff == staff {
+		if staff && position.scope != "" {
+			return fmt.Sprintf("queue:%s:%d", position.scope, position.page)
+		}
 		return fmt.Sprintf("%s:%d", prefix, position.page)
 	}
 	return prefix

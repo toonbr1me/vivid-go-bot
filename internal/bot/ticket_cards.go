@@ -44,10 +44,17 @@ func (b *Bot) loadTicketConversation(ctx context.Context, id, ticketID int64) (t
 		}
 		if staff {
 			actions = append(actions, button("Закрыть обращение", "ticket:close:"+strconv.FormatInt(ticketID, 10)))
-			if b.db.Permission(ctx, id, "support.compensate", b.cfg.AdminIDs) {
+			if b.db.Permission(ctx, id, "support.compensate", b.cfg.Current().AdminIDs) {
 				if _, e := b.db.TicketCompensation(ctx, ticketID); errors.Is(e, storage.ErrNotFound) {
 					actions = append(actions, button("Компенсация · 3 дня", "ticket:compensate:"+strconv.FormatInt(ticketID, 10)))
 				}
+			}
+		}
+	}
+	if staff && !owner {
+		for _, a := range []struct{ action, label string }{{"take", "Взять в работу"}, {"transfer", "Передать"}, {"snooze", "Отложить на 24 часа"}, {"note", "Внутренняя заметка"}, {"reopen", "Открыть заново"}} {
+			if (ticket.Status == "open") != (a.action == "reopen") {
+				actions = append(actions, button(a.label, fmt.Sprintf("staffticket:%s:%d", a.action, ticketID)))
 			}
 		}
 	}

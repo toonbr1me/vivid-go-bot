@@ -66,7 +66,7 @@ func cardWithButtons(page cardPage, actions []telego.InlineKeyboardButton) cardS
 }
 
 func (b *Bot) deviceCard(ctx context.Context, id int64) cardState {
-	if !b.cfg.DeviceLimitEnabled {
+	if !b.cfg.Current().DeviceLimitEnabled {
 		return textCard("Устройства\nУправление устройствами отключено.", keyboard(b.backRow()))
 	}
 	subject, err := b.subject(ctx, id)
@@ -147,7 +147,7 @@ func (b *Bot) cardAction(ctx *telegohandler.Context, q telego.WidgetQuery, actio
 		}
 		rows := [][]telego.InlineKeyboardButton{}
 		for _, quote := range quotes {
-			rows = append(rows, []telego.InlineKeyboardButton{button(fmt.Sprintf("+%d · %s", quote.Pack.Devices, priceText(quote.Amount, b.cfg.Currency)), "dev:buy:"+quote.Pack.ID)})
+			rows = append(rows, []telego.InlineKeyboardButton{button(fmt.Sprintf("+%d · %s", quote.Pack.Devices, priceText(quote.Amount, b.cfg.Current().Currency)), "dev:buy:"+quote.Pack.ID)})
 		}
 		slots, _ := b.pay.DeviceSlots(ctx, subject.ID, access.ExpireAt)
 		for _, slot := range slots {
@@ -267,7 +267,7 @@ func (b *Bot) compactClassic(ctx context.Context, id int64, name string) (string
 		}
 		rows = append(rows, []telego.InlineKeyboardButton{{Text: label, CallbackData: "nav:buy", Style: "success"}})
 	}
-	if !access.Active && b.cfg.TrialBotDays > 0 && b.trialAvailable(ctx, subject) {
+	if !access.Active && b.cfg.Current().TrialBotDays > 0 && b.trialAvailable(ctx, subject) {
 		rows = append(rows, []telego.InlineKeyboardButton{button("Попробовать бесплатно", "nav:trial")})
 	}
 	rows = append(rows, []telego.InlineKeyboardButton{button("Моя подписка", "nav:subscription"), button("Устройства", "nav:devices")}, []telego.InlineKeyboardButton{button("Помощь", "nav:support"), button("Ещё", "nav:more")})

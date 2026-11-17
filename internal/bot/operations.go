@@ -10,7 +10,7 @@ import (
 )
 
 func (b *Bot) operationsCallback(ctx context.Context, queryID string, chatID telego.ChatID, messageID int, id int64, action, orderID string) {
-	if chatID.ID != id || !b.db.Permission(ctx, id, "orders.view", b.cfg.AdminIDs) {
+	if chatID.ID != id || !b.db.Permission(ctx, id, "orders.view", b.cfg.Current().AdminIDs) {
 		b.answer(ctx, queryID, "Недостаточно прав", true)
 		return
 	}
@@ -51,7 +51,7 @@ func (b *Bot) operationsCallback(ctx context.Context, queryID string, chatID tel
 		return
 	}
 	if action == "retry" {
-		if !b.db.Permission(ctx, id, "orders.retry", b.cfg.AdminIDs) || order.Status != domain.OrderPaid {
+		if !b.db.Permission(ctx, id, "orders.retry", b.cfg.Current().AdminIDs) || order.Status != domain.OrderPaid {
 			b.upsert(ctx, chatID, messageID, "Повтор разрешён только для оплаченного, ещё не выданного заказа.", keyboard(back))
 			return
 		}

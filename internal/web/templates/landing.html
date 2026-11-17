@@ -70,8 +70,8 @@
       <p class="muted small">{{money .Monthly}} в месяц</p>
       <ul class="plan-list">
         <li>{{.Devices}} устройств одновременно</li>
-        <li>Безлимитный трафик</li>
-        <li>Все локации и протоколы</li>
+        <li>{{if .Plan.TrafficLimitBytes}}{{if eq (i64 .Plan.TrafficLimitBytes) 0}}Безлимитный трафик{{else}}{{bytes .Plan.TrafficLimitBytes}} трафика{{end}}{{else}}Трафик по условиям сервиса{{end}}</li>
+        <li>Локации по условиям тарифа</li>
         <li>Помощь в подключении</li>
       </ul>
       <a class="btn btn-primary btn-block" href="/buy?plan={{.Plan.ID}}">Выбрать</a>

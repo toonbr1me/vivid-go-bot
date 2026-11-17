@@ -1,0 +1,7 @@
+{{define "layout"}}<!doctype html>
+<html lang="ru"><head>{{template "berloga/head" .}}{{block "head" .}}{{end}}</head>
+<body class="berloga" data-page="{{.View}}">
+{{template "berloga/header" .}}
+<main><div class="wrap">{{template "flash" .}}{{template "content" .}}</div></main>
+{{template "berloga/footer" .}}{{block "scripts" .}}{{end}}
+</body></html>{{end}}

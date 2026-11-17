@@ -25,7 +25,7 @@ func (b *Bot) subscriptionCard(ctx context.Context, id int64) (cardState, bool) 
 		return cardState{}, false
 	}
 	access, accessErr := b.accessFor(ctx, subject)
-	page := cardPage{Title: b.cfg.BrandName, Tab: "subscription", Status: "Нет подписки", Value: "Ваш доступ", Note: "Выберите подписку для подключения", Updated: b.cardUpdated(), Hero: true, Used: len(access.Devices), Limit: access.DeviceLimit}
+	page := cardPage{Title: b.cfg.Current().BrandName, Tab: "subscription", Status: "Нет подписки", Value: "Ваш доступ", Note: "Выберите подписку для подключения", Updated: b.cardUpdated(), Hero: true, Used: len(access.Devices), Limit: access.DeviceLimit}
 	if page.Title == "" {
 		page.Title = "Подписка"
 	}
@@ -65,7 +65,7 @@ func (b *Bot) subscriptionCard(ctx context.Context, id int64) (cardState, bool) 
 		page.Stats = append(page.Stats, cardStat{Label: label, Value: traffic})
 	}
 	var actions []telego.InlineKeyboardButton
-	if !access.Active && b.cfg.TrialBotDays > 0 && b.trialAvailable(ctx, subject) && accessErr == nil {
+	if !access.Active && b.cfg.Current().TrialBotDays > 0 && b.trialAvailable(ctx, subject) && accessErr == nil {
 		actions = append(actions, button("Попробовать бесплатно", "nav:trial"))
 	}
 	if access.Active && access.URL != "" {
@@ -159,8 +159,8 @@ func (b *Bot) importCard(ctx context.Context, id int64, key string) (cardState, 
 		if telegramURL(access.URL) {
 			actions = append(actions, urlButton("Открыть страницу подписки", access.URL))
 		}
-		if telegramURL(b.cfg.ConnectGuideURL) {
-			actions = append(actions, urlButton("Подробная инструкция", b.cfg.ConnectGuideURL))
+		if telegramURL(b.cfg.Current().ConnectGuideURL) {
+			actions = append(actions, urlButton("Подробная инструкция", b.cfg.Current().ConnectGuideURL))
 		}
 		actions = append(actions, button("Проверить готовность", "nav:diagnostics"))
 	} else {

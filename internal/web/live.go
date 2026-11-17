@@ -112,7 +112,7 @@ func (s *Server) startListener(ctx context.Context) {
 }
 
 func (s *Server) listenOnce(ctx context.Context) error {
-	conn, err := pgx.Connect(ctx, s.cfg.DatabaseURL)
+	conn, err := pgx.Connect(ctx, s.cfg.Current().DatabaseURL)
 	if err != nil {
 		return err
 	}
@@ -168,6 +168,9 @@ func (s *Server) ticketStream(w http.ResponseWriter, r *http.Request) {
 	defer s.hub.unsubscribe(ticketID, updates)
 
 	send := func() bool {
+		if !ticketOwned(ticket, subject) && s.staffAccess(ctx, subject).Role == "" {
+			return false
+		}
 		payload, err := s.ticketPayload(ctx, ticketID)
 		if err != nil {
 			return false

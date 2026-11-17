@@ -5,15 +5,19 @@ import "sort"
 // Plan — тариф подписки. Trial-тарифы живут здесь же, но с нулевой ценой:
 // их источник — настройки, а платные приходят из таблицы plans.
 type Plan struct {
-	ID        string `json:"id"`
-	Title     string `json:"title"`
-	Days      int    `json:"days"`
-	Price     Money  `json:"price"`
-	IsTrial   bool   `json:"is_trial"`
-	TrialKind string `json:"trial_kind,omitempty"`
-	IsActive  bool   `json:"is_active"`
-	SortOrder int    `json:"sort_order"`
-	Devices   int    `json:"devices"`
+	TrafficLimitBytes *int64
+	InternalSquads    []string
+	ExternalSquadUUID *string
+	GiftEnabled       bool
+	ID                string `json:"id"`
+	Title             string `json:"title"`
+	Days              int    `json:"days"`
+	Price             Money  `json:"price"`
+	IsTrial           bool   `json:"is_trial"`
+	TrialKind         string `json:"trial_kind,omitempty"`
+	IsActive          bool   `json:"is_active"`
+	SortOrder         int    `json:"sort_order"`
+	Devices           int    `json:"devices"`
 }
 
 // DevicePack — пакет дополнительных слотов устройств.

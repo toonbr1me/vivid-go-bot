@@ -43,7 +43,7 @@ func (s *Server) staffAccess(ctx context.Context, subject *domain.Subject) admin
 	if subject == nil || subject.TelegramID == nil {
 		return session
 	}
-	if s.cfg.AdminIDs[*subject.TelegramID] {
+	if s.cfg.Current().AdminIDs[*subject.TelegramID] {
 		session.Role = adminRoleOwner
 		session.Owner = true
 		return session
@@ -106,6 +106,10 @@ func (s *Server) adminHome(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if !session.Can("stats.view") {
+		http.Redirect(w, r, "/admin/tickets", http.StatusSeeOther)
+		return
+	}
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 	defer cancel()
 
@@ -149,7 +153,12 @@ type adminPromos struct {
 
 // adminPromosPage — список промокодов.
 func (s *Server) adminPromosPage(w http.ResponseWriter, r *http.Request) {
-	if _, ok := s.adminAccess(w, r); !ok {
+	session, ok := s.adminAccess(w, r)
+	if !ok {
+		return
+	}
+	if !session.Can("promo.manage") {
+		s.renderError(w, r, 403, "Нет доступа", "Недостаточно прав.")
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
@@ -285,7 +294,12 @@ type adminPartners struct {
 
 // adminPartnersPage — список партнёров.
 func (s *Server) adminPartnersPage(w http.ResponseWriter, r *http.Request) {
-	if _, ok := s.adminAccess(w, r); !ok {
+	session, ok := s.adminAccess(w, r)
+	if !ok {
+		return
+	}
+	if !session.Can("partners.manage") {
+		s.renderError(w, r, 403, "Нет доступа", "Недостаточно прав.")
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
@@ -331,7 +345,12 @@ func (s *Server) adminPartnerCreate(w http.ResponseWriter, r *http.Request) {
 
 // adminPartnerPage — карточка партнёра.
 func (s *Server) adminPartnerPage(w http.ResponseWriter, r *http.Request) {
-	if _, ok := s.adminAccess(w, r); !ok {
+	session, ok := s.adminAccess(w, r)
+	if !ok {
+		return
+	}
+	if !session.Can("partners.manage") {
+		s.renderError(w, r, 403, "Нет доступа", "Недостаточно прав.")
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
@@ -440,6 +459,7 @@ func (s *Server) adminPartnerInvite(w http.ResponseWriter, r *http.Request) {
 
 type adminTickets struct {
 	Tickets []storage.Ticket
+	Queue   storage.StaffQueue
 }
 
 // adminTicketsPage — очередь обращений.
@@ -459,10 +479,13 @@ func (s *Server) adminTicketsPage(w http.ResponseWriter, r *http.Request) {
 	if session.Subject.TelegramID != nil {
 		staffID = *session.Subject.TelegramID
 	}
-	data := adminTickets{}
-	if tickets, err := s.db.QueueTickets(ctx, staffID, 50); err == nil {
-		data.Tickets = tickets
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	queue, err := s.db.StaffQueue(ctx, staffID, r.URL.Query().Get("scope"), page)
+	if err != nil {
+		s.operationError(w, r, err)
+		return
 	}
+	data := adminTickets{Queue: queue}
 	s.renderPage(w, r, "admin_tickets.html", http.StatusOK, pageMeta{Title: "Обращения"}, data)
 }
 

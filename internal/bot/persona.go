@@ -33,10 +33,10 @@ func (b *Bot) greeting() string {
 // timezone — часовой пояс сервиса. Если он не задан или неизвестен, берётся
 // время сервера.
 func (b *Bot) timezone() *time.Location {
-	if b.cfg == nil || b.cfg.Timezone == "" {
+	if b.cfg == nil || b.cfg.Current().Timezone == "" {
 		return time.Local
 	}
-	location, err := time.LoadLocation(b.cfg.Timezone)
+	location, err := time.LoadLocation(b.cfg.Current().Timezone)
 	if err != nil {
 		return time.Local
 	}

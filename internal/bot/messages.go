@@ -37,9 +37,13 @@ func (b *Bot) handleStart(ctx *telegohandler.Context, message telego.Message) er
 		b.showSupportHome(ctx, telego.ChatID{ID: message.Chat.ID}, tgID)
 		return nil
 	}
+	if code, ok := deepLinkArg(message.Text, "gift_"); ok && message.Chat.ID == tgID {
+		b.claimGift(ctx, telego.ChatID{ID: tgID}, tgID, code)
+		return nil
+	}
 	b.claimReferral(ctx, tgID, message.Text)
 	chatID := telego.ChatID{ID: message.Chat.ID}
-	if chatID.ID == tgID && b.cfg.BotStyle == "" {
+	if chatID.ID == tgID && b.cfg.Current().BotStyle == "" {
 		if err := b.showViewSelector(ctx, tgID); err != nil {
 			slog.Warn("выбор вида бота", "err", err)
 		}
@@ -135,7 +139,7 @@ func (b *Bot) attachWebAccount(ctx context.Context, chatID telego.ChatID, tgID i
 
 	site := b.siteURL()
 	if site == "" {
-		site = b.cfg.PublicBaseURL
+		site = b.cfg.Current().PublicBaseURL
 	}
 	var kb *telego.InlineKeyboardMarkup
 	if site != "" {
@@ -205,11 +209,11 @@ func (b *Bot) handleReferralCommand(ctx *telegohandler.Context, message telego.M
 }
 
 func (b *Bot) handleSupportCommand(ctx *telegohandler.Context, message telego.Message) error {
-	if !b.isSupportBot() && b.cfg.SupportBotEnabled && b.cfg.SupportBotUsername != "" {
+	if !b.isSupportBot() && b.cfg.Current().SupportBotEnabled && b.cfg.Current().SupportBotUsername != "" {
 		b.clearInput(message.From.ID)
 		b.send(ctx, telego.ChatID{ID: message.Chat.ID},
 			"<b>Поддержка</b>\n\nДля обращений используйте отдельный бот: там сохраняется история, фотографии и ответы сотрудников.",
-			keyboard([]telego.InlineKeyboardButton{urlButton("Открыть поддержку", "https://t.me/"+b.cfg.SupportBotUsername)}))
+			keyboard([]telego.InlineKeyboardButton{urlButton("Открыть поддержку", "https://t.me/"+b.cfg.Current().SupportBotUsername)}))
 		return nil
 	}
 	b.clearInput(message.From.ID)
@@ -270,8 +274,18 @@ func (b *Bot) handleText(ctx *telegohandler.Context, message telego.Message) err
 	text := strings.TrimSpace(message.Text)
 
 	switch kind {
+	case "staff_note":
+		if b.db.Permission(ctx, tgID, "tickets.note", b.cfg.Current().AdminIDs) {
+			id, _ := strconv.ParseInt(ref, 10, 64)
+			if err := b.db.StaffTicketAction(ctx, id, tgID, "note", text, 0); err != nil {
+				b.send(ctx, chatID, escapeHTML(err.Error()), keyboard(b.backRow()))
+				return nil
+			}
+			b.clearInput(tgID)
+			b.showSavedTicket(ctx, tgID, id)
+		}
 	case inputBroadcast:
-		b.handleBroadcastInput(ctx, chatID, tgID, ref, text)
+		b.handleBroadcastInput(ctx, chatID, tgID, ref, broadcastMarkdown(message.Text, message.Entities))
 	case inputPromo:
 		b.clearInput(tgID)
 		ctx = ctx.WithContext(context.WithValue(ctx, promoPlanKey{}, ref))
@@ -462,7 +476,7 @@ func (b *Bot) notifyStaff(ctx context.Context, ticket storage.Ticket, text strin
 	kb := keyboard([]telego.InlineKeyboardButton{
 		button("Открыть", "ticket:"+strconv.FormatInt(ticket.ID, 10)),
 	})
-	for adminID := range b.cfg.AdminIDs {
+	for adminID := range b.cfg.Current().AdminIDs {
 		b.send(ctx, telego.ChatID{ID: adminID}, note, kb)
 	}
 }
@@ -487,16 +501,8 @@ func (b *Bot) handleTicketReply(ctx context.Context, chatID telego.ChatID, tgID 
 		b.send(ctx, chatID, "Обращение закрыто. Переписка сохранена в истории.", keyboard([]telego.InlineKeyboardButton{button("Открыть историю", "ticket:"+rawID)}))
 		return
 	}
-	subjectID := int64(0)
-	if ticket.SubjectID != nil {
-		subjectID = *ticket.SubjectID
-	} else if ticket.TelegramID != nil {
-		if subject, err := b.subject(ctx, *ticket.TelegramID); err == nil {
-			subjectID = subject.ID
-		}
-	}
 	fileID, fileType := supportAttachment(ctx)
-	if _, err := b.db.AddTicketMessage(ctx, ticketID, subjectID, &tgID, text, true, fileID, fileType); err != nil {
+	if err := b.db.StaffTicketReply(ctx, ticketID, tgID, text, fileID, fileType); err != nil {
 		b.send(ctx, chatID, b.texts.Ticket.AnswerFail, keyboard(b.backRow()))
 		return
 	}

@@ -42,11 +42,11 @@ func (f *Facts) ServiceFacts(ctx context.Context) (string, error) {
 	}
 
 	trial := make([]string, 0, 2)
-	if f.svc.cfg.TrialBotDays > 0 {
-		trial = append(trial, fmt.Sprintf("в боте — %d %s", f.svc.cfg.TrialBotDays, daysWord(f.svc.cfg.TrialBotDays)))
+	if f.svc.cfg.Current().TrialBotDays > 0 {
+		trial = append(trial, fmt.Sprintf("в боте — %d %s", f.svc.cfg.Current().TrialBotDays, daysWord(f.svc.cfg.Current().TrialBotDays)))
 	}
-	if f.svc.cfg.TrialWebDays > 0 && f.svc.cfg.SiteEnabled {
-		trial = append(trial, fmt.Sprintf("на сайте — %d %s", f.svc.cfg.TrialWebDays, daysWord(f.svc.cfg.TrialWebDays)))
+	if f.svc.cfg.Current().TrialWebDays > 0 && f.svc.cfg.Current().SiteEnabled {
+		trial = append(trial, fmt.Sprintf("на сайте — %d %s", f.svc.cfg.Current().TrialWebDays, daysWord(f.svc.cfg.Current().TrialWebDays)))
 	}
 	if len(trial) > 0 {
 		lines = append(lines, "Пробный период: "+strings.Join(trial, ", ")+".")
@@ -65,13 +65,13 @@ func (f *Facts) ServiceFacts(ctx context.Context) (string, error) {
 		}
 		lines = append(lines, "Способы оплаты: "+strings.Join(methods, ", ")+".")
 	}
-	if f.svc.cfg.DeviceLimitEnabled {
+	if f.svc.cfg.Current().DeviceLimitEnabled {
 		lines = append(lines, fmt.Sprintf("В тариф входит %d устройств; дополнительные слоты докупаются на срок подписки.",
-			f.svc.cfg.DeviceLimitBase))
+			f.svc.cfg.Current().DeviceLimitBase))
 	}
-	if f.svc.cfg.RefBalancePercent > 0 {
+	if f.svc.cfg.Current().RefBalancePercent > 0 {
 		lines = append(lines, fmt.Sprintf("За приглашённых начисляется %d%% от их заказа на внутренний баланс.",
-			f.svc.cfg.RefBalancePercent))
+			f.svc.cfg.Current().RefBalancePercent))
 	}
 	return strings.Join(lines, "\n"), nil
 }

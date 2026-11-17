@@ -13,6 +13,7 @@ import (
 )
 
 type Broadcast struct {
+	Skipped                                 int
 	ID                                      string
 	ActorID                                 int64
 	Audience, Text, PromoCode, Status       string
@@ -33,9 +34,18 @@ func operationToken() string {
 }
 
 const audienceBase = `SELECT a.telegram_id FROM accounts a WHERE a.telegram_id>0 AND a.merged_into IS NULL AND
- ($1='all' OR (EXISTS(SELECT 1 FROM orders o WHERE (o.account_id=a.id OR o.telegram_id=a.telegram_id) AND o.status='provisioned' AND o.expire_at>now()))=($1='active')) ORDER BY a.id`
+ (CASE $1
+ WHEN 'all' THEN true
+ WHEN 'active' THEN EXISTS(SELECT 1 FROM orders o WHERE (o.account_id=a.id OR o.telegram_id=a.telegram_id) AND o.kind='subscription' AND o.status='provisioned' AND o.expire_at>now())
+ WHEN 'inactive' THEN NOT EXISTS(SELECT 1 FROM orders o WHERE (o.account_id=a.id OR o.telegram_id=a.telegram_id) AND o.kind='subscription' AND o.status='provisioned' AND o.expire_at>now())
+ WHEN 'trial_only' THEN EXISTS(SELECT 1 FROM orders o WHERE (o.account_id=a.id OR o.telegram_id=a.telegram_id) AND o.provider='trial' AND o.status='provisioned') AND NOT EXISTS(SELECT 1 FROM orders o WHERE (o.account_id=a.id OR o.telegram_id=a.telegram_id) AND o.amount>0 AND o.status IN ('paid','provisioned'))
+ WHEN 'abandoned' THEN EXISTS(SELECT 1 FROM orders o WHERE (o.account_id=a.id OR o.telegram_id=a.telegram_id) AND o.status='pending' AND o.created_at<now()-interval '1 hour' AND o.created_at>now()-interval '30 days' AND NOT EXISTS(SELECT 1 FROM orders paid WHERE (paid.account_id=a.id OR paid.telegram_id=a.telegram_id) AND paid.status IN ('paid','provisioned') AND paid.created_at>o.created_at))
+ WHEN 'expired' THEN (SELECT max(o.expire_at) FROM orders o WHERE (o.account_id=a.id OR o.telegram_id=a.telegram_id) AND o.kind='subscription' AND o.status='provisioned') BETWEEN now()-interval '30 days' AND now()-interval '3 days' AND NOT EXISTS(SELECT 1 FROM orders paid WHERE (paid.account_id=a.id OR paid.telegram_id=a.telegram_id) AND paid.kind='subscription' AND paid.status='paid') AND NOT EXISTS(SELECT 1 FROM recurring_agreements recurring WHERE recurring.subject_id=a.id AND recurring.enabled)
+ WHEN 'not_connected' THEN a.connection_known AND a.connection_checked_at>now()-interval '24 hours' AND a.first_connected_at IS NULL AND EXISTS(SELECT 1 FROM orders o WHERE (o.account_id=a.id OR o.telegram_id=a.telegram_id) AND o.kind='subscription' AND o.status='provisioned' AND o.expire_at>now())
+ ELSE false END)
+ AND ($1 IN ('all','active','inactive') OR COALESCE((SELECT activity_notifications FROM notification_settings n WHERE n.telegram_id=a.telegram_id),true)) ORDER BY a.id`
 
-func validAudience(s string) bool { return s == "all" || s == "active" || s == "inactive" }
+func validAudience(s string) bool { return ValidAudience(s) }
 func (db *DB) CreateBroadcast(ctx context.Context, actor int64, audience, text, promo string) (Broadcast, error) {
 	if !validAudience(audience) || strings.TrimSpace(text) == "" || len(utf16.Encode([]rune(text))) > 3000 {
 		return Broadcast{}, fmt.Errorf("invalid broadcast")
@@ -59,8 +69,8 @@ func (db *DB) CreateBroadcast(ctx context.Context, actor int64, audience, text, 
 }
 func (db *DB) Broadcast(ctx context.Context, id string, actor int64) (b Broadcast, err error) {
 	err = db.Pool.QueryRow(ctx, `SELECT b.id,b.actor_id,b.audience,b.message,b.promo_code,b.status,count(d.telegram_id),
- count(*) FILTER(WHERE d.status='sent'),count(*) FILTER(WHERE d.status='failed'),count(*) FILTER(WHERE d.status='uncertain'),count(*) FILTER(WHERE d.status IN('pending','sending'))
- FROM broadcasts b LEFT JOIN broadcast_deliveries d ON d.broadcast_id=b.id WHERE b.id=$1 AND b.actor_id=$2 GROUP BY b.id`, id, actor).Scan(&b.ID, &b.ActorID, &b.Audience, &b.Text, &b.PromoCode, &b.Status, &b.Total, &b.Sent, &b.Failed, &b.Uncertain, &b.Pending)
+ count(*) FILTER(WHERE d.status='sent'),count(*) FILTER(WHERE d.status='failed'),count(*) FILTER(WHERE d.status='uncertain'),count(*) FILTER(WHERE d.status IN('pending','sending')),count(*) FILTER(WHERE d.status='skipped')
+ FROM broadcasts b LEFT JOIN broadcast_deliveries d ON d.broadcast_id=b.id WHERE b.id=$1 AND b.actor_id=$2 GROUP BY b.id`, id, actor).Scan(&b.ID, &b.ActorID, &b.Audience, &b.Text, &b.PromoCode, &b.Status, &b.Total, &b.Sent, &b.Failed, &b.Uncertain, &b.Pending, &b.Skipped)
 	if errors.Is(err, pgx.ErrNoRows) {
 		err = ErrNotFound
 	}
@@ -111,7 +121,7 @@ func (db *DB) ClaimBroadcast(ctx context.Context) (d BroadcastDelivery, err erro
 	return d, tx.Commit(ctx)
 }
 func (db *DB) FinishBroadcastDelivery(ctx context.Context, d BroadcastDelivery, status string, retry time.Duration) error {
-	if status != "sent" && status != "failed" && status != "uncertain" && status != "pending" {
+	if status != "sent" && status != "failed" && status != "uncertain" && status != "pending" && status != "skipped" {
 		return fmt.Errorf("invalid delivery state")
 	}
 	tx, err := db.Pool.Begin(ctx)

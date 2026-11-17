@@ -1,0 +1,16 @@
+{{define "berloga/legal"}}
+<article class="card document">
+ <h1>{{.Document.title}}</h1>
+ <p class="muted small">Редакция от {{.Document.updated}}</p>
+ <p>{{.Document.intro}}</p>
+ <nav aria-label="Разделы документа"><ul>{{range .Document.sections}}<li><a href="#{{.id}}">{{.title}}</a></li>{{end}}</ul></nav>
+ {{range .Document.sections}}
+ <section id="{{.id}}"><h2>{{.title}}</h2>
+ {{range .paragraphs}}<p>{{.}}</p>{{end}}
+ {{if .bullets}}<ul>{{range .bullets}}<li>{{.}}</li>{{end}}</ul>{{end}}
+ {{if .cookies}}<div class="table-wrap"><table><thead><tr><th>Cookie</th><th>Назначение</th><th>Срок действия</th></tr></thead><tbody>{{range .cookies}}<tr><td><code>{{.name}}</code></td><td>{{.purpose}}</td><td>{{.duration}}</td></tr>{{end}}</tbody></table></div>{{end}}
+ {{if .links}}<ul>{{range .links}}<li><a href="{{.href}}" rel="noopener">{{.label}}</a></li>{{end}}</ul>{{end}}
+ </section>{{end}}
+ <p><a href="/terms">Соглашение</a> · <a href="/privacy">Конфиденциальность</a> · <a href="/cookies">Cookies</a> · <a href="/support">Связаться с Администрацией</a></p>
+</article>
+{{end}}

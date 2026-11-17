@@ -124,6 +124,8 @@ func (s *Server) supportSubmit(w http.ResponseWriter, r *http.Request) {
 }
 
 type ticketData struct {
+	Notes         []storage.Message
+	StaffMembers  []storage.StaffMember
 	Ticket        storage.Ticket
 	Messages      []storage.Message
 	Open          bool
@@ -162,12 +164,27 @@ func (s *Server) ticketPage(w http.ResponseWriter, r *http.Request) {
 		_ = s.db.MarkTicketRead(ctx, ticket.ID, subject.ID, ticket.LastStaffMessageID)
 	}
 	canCompensate := false
-	if subject.TelegramID != nil && s.db.Permission(ctx, *subject.TelegramID, "support.compensate", s.cfg.AdminIDs) {
+	if subject.TelegramID != nil && s.db.Permission(ctx, *subject.TelegramID, "support.compensate", s.cfg.Current().AdminIDs) {
 		_, e := s.db.TicketCompensation(ctx, ticketID)
 		canCompensate = errors.Is(e, storage.ErrNotFound)
 	}
+	var notes []storage.Message
+	var members []storage.StaffMember
+	if staff {
+		history, e := s.db.StaffTicketHistory(ctx, ticketID)
+		if e != nil {
+			s.operationError(w, r, e)
+			return
+		}
+		for _, m := range history {
+			if m.Internal {
+				notes = append(notes, m)
+			}
+		}
+		members, _ = s.db.Staff(ctx)
+	}
 	s.renderPage(w, r, "ticket.html", http.StatusOK, pageMeta{Title: "Обращение #" + strconv.FormatInt(ticket.ID, 10)},
-		ticketData{Ticket: ticket, Messages: messages, Open: ticket.Status == "open", Staff: staff, CanCompensate: canCompensate})
+		ticketData{Notes: notes, StaffMembers: members, Ticket: ticket, Messages: messages, Open: ticket.Status == "open", Staff: staff, CanCompensate: canCompensate})
 }
 
 func (s *Server) ticketReply(w http.ResponseWriter, r *http.Request) {
@@ -209,7 +226,7 @@ func (s *Server) ticketReply(w http.ResponseWriter, r *http.Request) {
 	if !staff {
 		_, err = s.db.AddOwnerTicketMessage(ctx, ticketID, subject.ID, subject.TelegramID, text, "", "")
 	} else {
-		_, err = s.db.AddTicketMessage(ctx, ticketID, subject.ID, subject.TelegramID, text, true, "", "")
+		err = s.db.StaffTicketAction(ctx, ticketID, *subject.TelegramID, "reply", text, 0)
 	}
 	if err != nil {
 		s.log.Error("поддержка: ответ", "err", err)
@@ -239,7 +256,7 @@ func (s *Server) ticketReply(w http.ResponseWriter, r *http.Request) {
 
 // ticketMode — кто отвечает на новое обращение: сотрудник или помощник.
 func (s *Server) ticketMode() string {
-	if s.cfg != nil && s.cfg.AssistantEnabled() {
+	if s.cfg != nil && s.cfg.Current().AssistantEnabled() {
 		return storage.SupportModeAssistant
 	}
 	return storage.SupportModeHuman
@@ -252,7 +269,7 @@ func (s *Server) notifyStaff(text string) {
 	if s.notify == nil {
 		return
 	}
-	for adminID := range s.cfg.AdminIDs {
+	for adminID := range s.cfg.Current().AdminIDs {
 		id := adminID
 		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)

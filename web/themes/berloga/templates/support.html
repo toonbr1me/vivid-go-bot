@@ -1,0 +1,76 @@
+{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>Поддержка</h1>
+    <p class="muted">Отвечает команда сервиса. Обычно в течение дня, часто быстрее.</p>
+  </div>
+</div>
+
+<p class="muted small">Обрабатываем контакт, переписку и отправленные вложения для ответа. На часть вопросов отвечает помощник Groq: ему могут передаваться сообщения и сведения о подписке и заказах. Для ответа сотрудника начните сообщение словами «нужен человек». Не отправляйте пароли и реквизиты карты. <a href="/privacy#ai">Подробнее об обработке данных</a>.</p>
+<section class="support-layout">
+  <article class="card">
+    <h2>{{if .Data.LoggedIn}}Новое обращение{{else}}Написать нам{{end}}</h2>
+    {{if .Data.LoggedIn}}
+    <p class="muted small">Обращение привяжется к вашему аккаунту. Ответ появится здесь и в боте, если Telegram привязан.</p>
+    <form method="post" action="/support" class="stack">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      {{if .Data.Order}}<p>Заказ: <code>{{.Data.Order}}</code></p><input type="hidden" name="order" value="{{.Data.Order}}">{{end}}
+      <label for="device">Устройство и система (необязательно)</label><input id="device" name="device" maxlength="100" placeholder="Например, iPhone / iOS">
+      <label for="app">Приложение (необязательно)</label><input id="app" name="app" maxlength="100" placeholder="Happ, Incy, Clash Mi, FlClashX">
+      <label for="message">Что случилось</label>
+      <textarea id="message" name="message" rows="6" maxlength="4000" placeholder="Опишите проблему: что делали, что видите, когда началось" required></textarea>
+      <button class="btn btn-primary" type="submit">Отправить</button>
+    </form>
+    {{else}}
+    <p class="muted small">Без входа мы ответим на указанный контакт. Если у вас есть аккаунт, <a href="/login?next=%2Fsupport">войдите</a> — так обращение попадёт в историю.</p>
+    <form method="post" action="/support" class="stack">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <label for="name">Имя</label>
+      <input id="name" name="name" maxlength="200" autocomplete="name" placeholder="Как к вам обращаться">
+      <label for="contact">Почта или Telegram</label>
+      <input id="contact" name="contact" maxlength="200" required placeholder="you@example.com или @username">
+      <label for="message">Сообщение</label>
+      <textarea id="message" name="message" rows="6" maxlength="4000" required placeholder="Опишите ситуацию"></textarea>
+      <button class="btn btn-primary" type="submit">Отправить</button>
+    </form>
+    {{end}}
+  </article>
+
+  <aside class="stack">
+    {{if .Data.LoggedIn}}
+    <article class="card">
+      <h2>Ваши обращения</h2>
+      {{if .Data.Tickets}}
+        {{range .Data.Tickets}}
+        <a class="ticket-row" href="/support/tickets/{{.ID}}">
+          <span><strong>#{{.ID}}</strong> {{.Subject}}{{if .Unread}} · Новый ответ{{end}}</span>
+          <span class="chip {{if eq .Status "open"}}chip-warn{{else}}chip-ok{{end}}">{{if eq .Status "open"}}Открыто{{else}}Закрыто{{end}}</span>
+        </a>
+        {{end}}
+      {{else}}
+        <p class="muted small">Обращений пока нет.</p>
+      {{end}}
+    </article>
+    {{end}}
+
+    <article class="card">
+      <h2>Другие каналы</h2>
+      <ul class="plain-list">
+        {{if .BotURL}}<li><a href="{{.BotURL}}" target="_blank" rel="noopener">Бот в Telegram</a><span class="muted small"> — быстрее всего</span></li>{{end}}
+        {{if .Data.Email}}<li><a href="mailto:{{.Data.Email}}">{{.Data.Email}}</a></li>{{end}}
+        {{if .Site.SupportUsername}}<li><a href="https://t.me/{{.Site.SupportUsername}}" target="_blank" rel="noopener">@{{.Site.SupportUsername}}</a></li>{{end}}
+      </ul>
+      <p class="muted small">Не присылайте данные карты и пароли. Для проверки платежа достаточно номера заказа.</p>
+    </article>
+
+    <article class="card">
+      <h2>Перед обращением</h2>
+      <ul class="check-list">
+        <li>Проверьте статус заказа в <a href="/account">кабинете</a> — возможно, доступ уже выдан.</li>
+        <li>Обновите подписку в приложении.</li>
+        <li>Посмотрите <a href="/connect">инструкцию по подключению</a>.</li>
+      </ul>
+    </article>
+  </aside>
+</section>
+{{end}}

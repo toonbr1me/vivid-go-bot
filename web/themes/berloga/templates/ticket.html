@@ -1,0 +1,42 @@
+{{define "content"}}{{if .Data.Staff}}<section class="card"><h2>Работа с обращением</h2><p>{{.Data.Ticket.WorkState}} · {{if .Data.Ticket.AssignedTo}}Сотрудник {{i64 .Data.Ticket.AssignedTo}}{{else}}Свободно{{end}}</p><form method="post" action="/support/tickets/{{.Data.Ticket.ID}}/staff" class="stack"><input type="hidden" name="csrf" value="{{.CSRF}}">{{if .Data.Open}}<button class="btn" name="action" value="take">Взять в работу</button><button class="btn" name="action" value="snooze">Отложить на 24 часа</button><button class="btn" name="action" value="close">Закрыть обращение</button><label>Передать сотруднику<select name="target">{{range .Data.StaffMembers}}<option value="{{.TelegramID}}">{{.DisplayName}} · {{.TelegramID}}</option>{{end}}</select></label><button class="btn" name="action" value="transfer">Передать</button>{{else}}<button class="btn" name="action" value="reopen">Открыть заново</button>{{end}}</form><h3>Внутренние заметки</h3>{{range .Data.Notes}}<blockquote>{{markdown .Text}}<small>{{datetime .CreatedAt}}</small></blockquote>{{else}}<p>Заметок нет.</p>{{end}}{{if .Data.Open}}<form method="post" action="/support/tickets/{{.Data.Ticket.ID}}/staff" class="stack"><input type="hidden" name="csrf" value="{{.CSRF}}"><textarea name="message" maxlength="4000" required placeholder="Заметка видна только сотрудникам"></textarea><button name="action" value="note" class="btn">Добавить внутреннюю заметку</button></form>{{end}}</section>{{end}}
+<div class="col">
+<div class="page-head">
+  <div>
+    <h1>Обращение #{{.Data.Ticket.ID}}</h1>
+    <p class="muted">{{.Data.Ticket.Subject}} · создано {{.Data.Ticket.CreatedAt.Format "02.01.2006 15:04"}}</p>
+  </div>
+  {{if .Data.Staff}}<a class="btn btn-ghost" href="/admin/tickets">В очередь</a>{{else}}<a class="btn btn-ghost" href="/support">К поддержке</a>{{end}}
+</div>
+
+<section class="card">
+  {{if .Data.Staff}}<dl class="facts"><div><dt>Клиент</dt><dd>{{if .Data.Ticket.TelegramID}}Telegram {{i64 .Data.Ticket.TelegramID}}{{else}}Веб-аккаунт{{end}}</dd></div><div><dt>Состояние</dt><dd>{{if .Data.Open}}Открыто{{else}}Закрыто{{end}}</dd></div></dl>{{end}}
+  {{if and .Data.Open .Data.CanCompensate}}<form method="post" action="/support/tickets/{{.Data.Ticket.ID}}/compensate"><input type="hidden" name="csrf" value="{{.CSRF}}"><button type="submit" class="btn btn-ghost">Компенсация · 3 дня</button><p class="muted small">Одна компенсация на обращение. Повторное нажатие продолжит ту же выдачу.</p></form>{{end}}
+  {{if .Data.Ticket.Context}}<p class="muted">{{.Data.Ticket.Context}}</p>{{end}}
+  <h2>История переписки</h2>
+  <div class="chat" id="chat" data-ticket="{{.Data.Ticket.ID}}" data-csrf="{{.CSRF}}" data-staff="{{.Data.Staff}}">
+    {{range .Data.Messages}}
+    <div class="message{{if .FromAdmin}} message-support{{end}}" data-id="{{.ID}}">
+      <div class="message-head">
+        <strong>{{if .Assistant}}Помощник{{else if .FromAdmin}}Поддержка{{else if $.Data.Staff}}Клиент{{else}}Вы{{end}}</strong>
+        <span class="muted small">{{.CreatedAt.Format "02.01.2006 15:04"}}</span>
+      </div>
+      <div class="message-text">{{markdown .Text}}</div>
+      {{if .FileID}}<a class="btn btn-ghost btn-sm" href="/support/tickets/{{$.Data.Ticket.ID}}/files/{{.ID}}">Скачать вложение</a>{{end}}
+    </div>
+    {{else}}
+    <p class="muted" id="chat-empty">Сообщений пока нет.</p>
+    {{end}}
+  </div>
+
+  {{if .Data.Open}}<form id="ticket-compose" method="post" action="/support/tickets/{{.Data.Ticket.ID}}" class="stack">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <label for="message">{{if .Data.Staff}}Ответ клиенту{{else}}Добавить сообщение{{end}}</label>
+    <textarea id="message" name="message" rows="4" maxlength="4000" required placeholder="Напишите ответ"></textarea>
+    <button class="btn btn-primary" type="submit">Отправить</button>
+  </form>
+  {{if not .Data.Staff}}<form id="ticket-resolve" method="post" action="/support/tickets/{{.Data.Ticket.ID}}/resolve"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="btn btn-ghost" type="submit">Проблема решена</button></form>{{end}}
+  {{else}}<p>Обращение закрыто. Переписка сохранена.</p><a class="btn btn-ghost" href="/support">Создать новое обращение</a>{{end}}
+</section>
+<script src="/static/berloga/ticket-live.js" defer></script>
+</div>
+{{end}}

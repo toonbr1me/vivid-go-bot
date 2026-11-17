@@ -1,0 +1,234 @@
+{
+  "date": "2026-11-16",
+  "commit": "2621b19",
+  "production_cutover": false,
+  "theme": "embedded original Vivid",
+  "scope": "real Go HTTP/payment/storage on copied Python DB; acquiring and panel emulated",
+  "migration": {
+    "tables": 52,
+    "orders": 2476,
+    "trials": 1024,
+    "balances": 28,
+    "tickets": 97,
+    "changed_original_tables": [
+      "orders",
+      "support_messages"
+    ]
+  },
+  "invariants": {
+    "orders": {
+      "original_columns": 44,
+      "changed_columns": [
+        "account_id"
+      ]
+    },
+    "support_messages": {
+      "original_columns": 13,
+      "changed_columns": [
+        "subject_id"
+      ]
+    },
+    "user_balance": {
+      "original_columns": 3,
+      "changed_columns": []
+    },
+    "promo_activations": {
+      "original_columns": 5,
+      "changed_columns": []
+    },
+    "original_statuses": [
+      {
+        "status": "declined",
+        "orders": 375,
+        "issued": 0,
+        "has_expiry": 0
+      },
+      {
+        "status": "manual_granted",
+        "orders": 418,
+        "issued": 418,
+        "has_expiry": 418
+      },
+      {
+        "status": "paid",
+        "orders": 646,
+        "issued": 646,
+        "has_expiry": 541
+      },
+      {
+        "status": "pending",
+        "orders": 13,
+        "issued": 0,
+        "has_expiry": 0
+      },
+      {
+        "status": "trial_granted",
+        "orders": 1024,
+        "issued": 1024,
+        "has_expiry": 1024
+      }
+    ],
+    "normalization_dry_run": "BEGIN\nUPDATE 2088\nUPDATE 375\n{\"paid_waiting\" : 0, \"issued\" : 2088, \"active_issued\" : 268}\nROLLBACK"
+  },
+  "journeys": [
+    {
+      "origin_server": "alex-nether",
+      "target_server": "yotta-ger",
+      "phase": "purchase",
+      "results": [
+        {
+          "check": "HTTP checkout on copied Python catalog",
+          "status": "pending",
+          "amount_minor": 30000,
+          "plan": "30d"
+        },
+        {
+          "check": "double checkout reuses invoice",
+          "pass": true
+        },
+        {
+          "check": "forged callback rejected",
+          "http": 400
+        },
+        {
+          "check": "wrong amount cannot grant access",
+          "http": 200
+        },
+        {
+          "check": "wrong currency cannot grant access",
+          "http": 200
+        },
+        {
+          "check": "payment callback grants access",
+          "status": "provisioned",
+          "panel_creates": 1,
+          "expiry_writes": 1
+        },
+        {
+          "check": "five repeated concurrent callbacks do not extend twice",
+          "pass": true
+        },
+        {
+          "check": "panel outage preserves paid order",
+          "status": "paid",
+          "provisioned": false
+        }
+      ]
+    },
+    {
+      "origin_server": "alex-nether",
+      "target_server": "yotta-ger",
+      "phase": "recover",
+      "results": [
+        {
+          "check": "paid order survives process restart and grants once",
+          "status": "provisioned",
+          "added_days": 30.0
+        },
+        {
+          "check": "post-restart duplicate callback adds no time",
+          "pass": true
+        },
+        {
+          "check": "lost webhook recovered using real Platega CheckPayment adapter and mock API",
+          "status": "provisioned"
+        },
+        {
+          "check": "renewals keep same panel profile",
+          "panel_creates": 1,
+          "expiry_writes": 3
+        }
+      ]
+    },
+    {
+      "origin_server": "alex-nether",
+      "target_server": "yotta-ger",
+      "phase": "negative",
+      "results": [
+        {
+          "check": "authenticated CONFIRMED missing amount and currency",
+          "http": 200,
+          "observed_status": "provisioned",
+          "validation_gap": true
+        },
+        {
+          "check": "authenticated CONFIRMED mismatching invoice transaction ID",
+          "http": 200,
+          "observed_status": "provisioned",
+          "validation_gap": true
+        }
+      ]
+    }
+  ],
+  "cleanup": {
+    "yotta": {
+      "original_orders": [
+        {
+          "status": "declined",
+          "kind": "devices",
+          "orders": 53,
+          "nonzero_amount": 53,
+          "active_with_expiry": 0
+        },
+        {
+          "status": "declined",
+          "kind": "subscription",
+          "orders": 322,
+          "nonzero_amount": 322,
+          "active_with_expiry": 0
+        },
+        {
+          "status": "manual_granted",
+          "kind": "subscription",
+          "orders": 418,
+          "nonzero_amount": 0,
+          "active_with_expiry": 10
+        },
+        {
+          "status": "paid",
+          "kind": "devices",
+          "orders": 105,
+          "nonzero_amount": 105,
+          "active_with_expiry": 0
+        },
+        {
+          "status": "paid",
+          "kind": "subscription",
+          "orders": 541,
+          "nonzero_amount": 386,
+          "active_with_expiry": 243
+        },
+        {
+          "status": "pending",
+          "kind": "subscription",
+          "orders": 13,
+          "nonzero_amount": 13,
+          "active_with_expiry": 0
+        },
+        {
+          "status": "trial_granted",
+          "kind": "subscription",
+          "orders": 1024,
+          "nonzero_amount": 0,
+          "active_with_expiry": 15
+        }
+      ],
+      "legacy_pending": {
+        "orders": 13,
+        "with_link": 13,
+        "with_link_id": 13,
+        "with_expiry": 0,
+        "expired": 0
+      },
+      "temporary_firewall_rule_removed": true,
+      "harness_stopped": true,
+      "rehearsal_db_stopped": true,
+      "development_health": 200,
+      "yotta_services": "vivid-go-development-app-1 Up About an hour (healthy)\nvivid-go-development-db-1 Up About an hour (healthy)\nvivid-go-development-subpage-1 Up About an hour (healthy)\nremnanode Up About an hour\nnode-exporter Up About an hour\n"
+    },
+    "alex": {
+      "rehearsal_port_inaccessible": true,
+      "services": "remnawave-subscription-page Up 17 hours (healthy)\nremnabot-app-1 Up 17 hours (healthy)\nnode-exporter Up 4 weeks\nremnabot-db-1 Up 4 weeks (healthy)\nremnawave-nginx Up 4 weeks\n"
+    }
+  }
+}

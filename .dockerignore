@@ -14,3 +14,7 @@ dist
 web/theme.json
 *.exe
 *.test
+**/backups
+**/db.env
+**/app.env
+*.dump

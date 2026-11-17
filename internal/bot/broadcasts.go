@@ -13,6 +13,7 @@ import (
 	"github.com/mymmrac/telego/telegoapi"
 	"github.com/mymmrac/telego/telegohandler"
 	"github.com/toonbr1me/vivid-go-bot/internal/domain"
+	"github.com/toonbr1me/vivid-go-bot/internal/mdhtml"
 	"github.com/toonbr1me/vivid-go-bot/internal/storage"
 )
 
@@ -49,18 +50,18 @@ func (b *Bot) handleAnnounce(ctx *telegohandler.Context, m telego.Message) error
 }
 
 func (b *Bot) broadcastCallback(ctx context.Context, q string, chat telego.ChatID, mid int, actor int64, action, ref string) {
-	if chat.ID != actor || !b.db.Permission(ctx, actor, "broadcast.send", b.cfg.AdminIDs) {
+	if chat.ID != actor || !b.db.Permission(ctx, actor, "broadcast.send", b.cfg.Current().AdminIDs) {
 		b.answer(ctx, q, "Недостаточно прав", true)
 		return
 	}
 	switch action {
 	case "audience":
-		if ref != "all" && ref != "active" && ref != "inactive" {
+		if !storage.ValidAudience(ref) {
 			b.answer(ctx, q, "Неизвестная аудитория", true)
 			return
 		}
 		b.setInput(actor, inputBroadcast, ref)
-		b.upsert(ctx, chat, mid, "<b>Текст рассылки</b>\nПришлите обычный текст до 3000 символов. Для кнопки промокода добавьте promo=КОД.\nПосле этого появится предпросмотр с числом получателей.", keyboard([]telego.InlineKeyboardButton{button("Отмена", "ann:home")}))
+		b.upsert(ctx, chat, mid, "<b>Текст рассылки</b>\nПришлите текст до 3000 символов. Форматирование Telegram сохранится в rich-сообщении. Для кнопки промокода добавьте promo=КОД.\nПосле этого появится предпросмотр с числом получателей.", keyboard([]telego.InlineKeyboardButton{button("Отмена", "ann:home")}))
 	case "send", "cancel", "status":
 		if action == "send" {
 			if _, err := b.db.ConfirmBroadcast(ctx, ref, actor); err != nil {
@@ -77,6 +78,10 @@ func (b *Bot) broadcastCallback(ctx context.Context, q string, chat telego.ChatI
 	default:
 		b.clearInput(actor)
 		rows := [][]telego.InlineKeyboardButton{{button("Все", "ann:audience:all"), button("С подпиской", "ann:audience:active")}, {button("Без подписки", "ann:audience:inactive")}}
+		rows = append(rows, []telego.InlineKeyboardButton{button("Пробовали без покупки", "ann:audience:trial_only"), button("Бросили оплату", "ann:audience:abandoned")}, []telego.InlineKeyboardButton{button("Подписка истекла", "ann:audience:expired"), button("Не подключились", "ann:audience:not_connected")})
+		if b.siteURL() != "" {
+			rows = append(rows, []telego.InlineKeyboardButton{urlButton("Поведенческие кампании на сайте", b.siteURL()+"/admin/campaigns")})
+		}
 		recent, err := b.db.RecentBroadcasts(ctx, actor)
 		if err != nil {
 			b.answer(ctx, q, "Не удалось загрузить рассылки", true)
@@ -92,7 +97,7 @@ func (b *Bot) broadcastCallback(ctx context.Context, q string, chat telego.ChatI
 }
 
 func (b *Bot) handleBroadcastInput(ctx context.Context, chat telego.ChatID, actor int64, audience, raw string) {
-	if chat.ID != actor || !b.db.Permission(ctx, actor, "broadcast.send", b.cfg.AdminIDs) {
+	if chat.ID != actor || !b.db.Permission(ctx, actor, "broadcast.send", b.cfg.Current().AdminIDs) {
 		b.clearInput(actor)
 		return
 	}
@@ -138,7 +143,7 @@ func (b *Bot) showBroadcast(ctx context.Context, chat telego.ChatID, mid int, ac
 		b.upsert(ctx, chat, mid, "Рассылка не найдена.", keyboard([]telego.InlineKeyboardButton{button("Рассылки", "ann:home")}))
 		return
 	}
-	text := fmt.Sprintf("<b>%s</b> · получателей: %d\n\n%s", broadcastStatus(x.Status), x.Total, escapeHTML(x.Text))
+	text := fmt.Sprintf("<b>%s</b> · получателей: %d\n\n%s", broadcastStatus(x.Status), x.Total, mdhtml.Rich(x.Text))
 	if x.PromoCode != "" {
 		text += "\n\nКнопка: Применить " + escapeHTML(x.PromoCode)
 	}
@@ -151,6 +156,7 @@ func (b *Bot) showBroadcast(ctx context.Context, chat telego.ChatID, mid int, ac
 		rows = append(rows, []telego.InlineKeyboardButton{button("Отменить черновик", "ann:cancel:"+id)})
 	} else {
 		text += fmt.Sprintf("\n\nДоставлено: %d · ошибок: %d · без подтверждения: %d · ожидают: %d", x.Sent, x.Failed, x.Uncertain, x.Pending)
+		text += fmt.Sprintf(" · пропущено: %d", x.Skipped)
 		rows = append(rows, []telego.InlineKeyboardButton{button("Обновить", "ann:status:"+id)})
 	}
 	rows = append(rows, []telego.InlineKeyboardButton{button("Рассылки", "ann:home")})
@@ -187,18 +193,54 @@ func (b *Bot) ProcessBroadcasts(ctx context.Context, limit int) error {
 		if err != nil {
 			return err
 		}
-		if !b.db.Permission(ctx, d.ActorID, "broadcast.send", b.cfg.AdminIDs) {
+		if !b.db.Permission(ctx, d.ActorID, "broadcast.send", b.cfg.Current().AdminIDs) {
 			if err = b.db.BlockBroadcast(ctx, d.BroadcastID); err != nil {
 				return err
 			}
 			continue
 		}
-		params := &telego.SendMessageParams{ChatID: telego.ChatID{ID: d.TelegramID}, Text: d.Text}
+		now := time.Now()
+		if zone := b.cfg.Current().Timezone; zone != "" {
+			location, e := time.LoadLocation(zone)
+			if e != nil {
+				if finishErr := b.db.FinishBroadcastDelivery(ctx, d, "pending", time.Minute); finishErr != nil {
+					return finishErr
+				}
+				return e
+			}
+			now = now.In(location)
+		}
+		allowed, wait, err := b.db.BroadcastDeliveryReady(ctx, d, now)
+		if err != nil {
+			if e := b.db.FinishBroadcastDelivery(ctx, d, "pending", time.Minute); e != nil {
+				return e
+			}
+			return err
+		}
+		if wait > 0 {
+			if err = b.db.FinishBroadcastDelivery(ctx, d, "pending", wait); err != nil {
+				return err
+			}
+			continue
+		}
+		if !allowed {
+			if err = b.db.FinishBroadcastDelivery(ctx, d, "skipped", 0); err != nil {
+				return err
+			}
+			continue
+		}
+		var markup *telego.InlineKeyboardMarkup
 		if d.PromoCode != "" {
-			params.ReplyMarkup = keyboard([]telego.InlineKeyboardButton{button("Применить "+d.PromoCode, "promo:use:"+d.PromoCode)})
+			markup = keyboard([]telego.InlineKeyboardButton{button("Применить "+d.PromoCode, "promo:use:"+d.PromoCode)})
 		}
 		sendCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
-		_, err = b.api.SendMessage(sendCtx, params)
+		if delivered, sendErr := b.deliverRich(sendCtx, telego.ChatID{ID: d.TelegramID}, 0, mdhtml.Rich(d.Text), markup); delivered {
+			err = sendErr
+		} else if sendErr != nil {
+			err = sendErr
+		} else {
+			_, err = b.api.SendMessage(sendCtx, &telego.SendMessageParams{ChatID: telego.ChatID{ID: d.TelegramID}, Text: mdhtml.RichPlain(d.Text), ReplyMarkup: markup})
+		}
 		cancel()
 		status, retry := deliveryResult(err)
 		if err = b.db.FinishBroadcastDelivery(ctx, d, status, retry); err != nil {

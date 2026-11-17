@@ -13,8 +13,8 @@ import (
 )
 
 func (b *Bot) viewMode(ctx context.Context, id int64) string {
-	if b.cfg != nil && b.cfg.BotStyle != "" {
-		if b.cfg.BotStyle == "html" && id > 0 {
+	if b.cfg != nil && b.cfg.Current().BotStyle != "" {
+		if b.cfg.Current().BotStyle == "html" && id > 0 {
 			return "cards"
 		}
 		return "classic"
@@ -41,7 +41,7 @@ func (b *Bot) handleViewCommand(ctx *telegohandler.Context, m telego.Message) er
 }
 
 func (b *Bot) showViewSelector(ctx context.Context, id int64) error {
-	if b.cfg != nil && b.cfg.BotStyle != "" {
+	if b.cfg != nil && b.cfg.Current().BotStyle != "" {
 		b.showCommandScreen(ctx, telego.ChatID{ID: id}, "main", id)
 		return nil
 	}

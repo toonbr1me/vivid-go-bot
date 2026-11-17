@@ -1,0 +1,4 @@
+{{define "content"}}
+{{$name := "terms"}}{{if eq .Path "/privacy"}}{{$name = "privacy"}}{{end}}
+{{template "berloga/legal" (dict "Document" (index .Site.Data.legal $name))}}
+{{end}}

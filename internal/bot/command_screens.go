@@ -16,7 +16,7 @@ func forceNewCard(ctx context.Context) bool { value, _ := ctx.Value(newCardKey{}
 // Commands recreate the configured interface at the bottom of a clean chat.
 // The previous screen is removed only after the replacement is persisted.
 func (b *Bot) showCommandScreen(ctx context.Context, chatID telego.ChatID, name string, id int64) {
-	if b.cfg.BotCleanChat {
+	if b.cfg.Current().BotCleanChat {
 		ctx = context.WithValue(ctx, newCardKey{}, true)
 	}
 	if b.db == nil || chatID.ID != id || b.viewMode(ctx, id) != "cards" {
@@ -32,11 +32,11 @@ func (b *Bot) showCommandScreen(ctx context.Context, chatID telego.ChatID, name 
 	}
 	defer unlock()
 	previousID, previous, _ := b.db.BotCard(ctx, id)
-	if b.cfg.BotCleanChat {
+	if b.cfg.Current().BotCleanChat {
 		ctx = context.WithValue(ctx, newCardKey{}, true)
 	}
 	b.showScreen(ctx, chatID, 0, name, id)
-	if b.cfg.BotCleanChat {
+	if b.cfg.Current().BotCleanChat {
 		return
 	}
 	currentID, current, err := b.db.BotCard(ctx, id)

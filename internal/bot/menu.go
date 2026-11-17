@@ -118,7 +118,7 @@ func (b *Bot) menuButton(id, state string, conditions menuConditions) (telego.In
 	case definition.URL != "":
 		return urlButton(label, definition.URL), true
 	case definition.WebApp != "":
-		return urlButton(label, definition.WebApp), true
+		return telego.InlineKeyboardButton{Text: label, WebApp: &telego.WebAppInfo{URL: definition.WebApp}}, true
 	case definition.Action != "":
 		return button(label, definition.Action), true
 	default:

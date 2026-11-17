@@ -43,7 +43,7 @@ func (b *Bot) partnersScreen(ctx context.Context, tgID int64) (string, *telego.I
 		}
 		lines = append(lines, fmt.Sprintf("%s <b>%s</b> — кодов: %d, клиентов: %d, начислено: %s",
 			mark, escapeHTML(partner.Name), partner.CodesCount, partner.ClientsCount,
-			priceText(partner.Rewarded, b.cfg.Currency)))
+			priceText(partner.Rewarded, b.cfg.Current().Currency)))
 		rows = append(rows, []telego.InlineKeyboardButton{
 			button(escapeHTML(firstRunes(partner.Name, 20)), "pw:p:"+strconv.FormatInt(partner.ID, 10)),
 		})
@@ -91,7 +91,7 @@ func (b *Bot) partnerCard(ctx context.Context, partnerID int64) (string, *telego
 	if len(rewards) > 0 {
 		lines = append(lines, "", "Начисления:")
 		for _, reward := range rewards {
-			lines = append(lines, "• "+priceText(reward.Amount, b.cfg.Currency)+" — "+reward.Status)
+			lines = append(lines, "• "+priceText(reward.Amount, b.cfg.Current().Currency)+" — "+reward.Status)
 		}
 	}
 	rows := [][]telego.InlineKeyboardButton{
@@ -136,7 +136,7 @@ func (b *Bot) handlePartnerCallback(ctx context.Context, queryID string, chatID 
 			b.answer(ctx, queryID, "Не удалось создать приглашение", true)
 			return
 		}
-		link := b.cfg.SiteBaseURL + "/partner/claim?token=" + code
+		link := b.cfg.Current().SiteBaseURL + "/partner/claim?token=" + code
 		b.upsert(ctx, chatID, messageID,
 			"🎫 Ссылка-приглашение (действует неделю):\n<code>"+escapeHTML(link)+"</code>",
 			keyboard([]telego.InlineKeyboardButton{button("← Партнёр", "pw:p:"+rest)}))

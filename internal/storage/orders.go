@@ -23,7 +23,7 @@ const orderColumns = `
 	round(device_renewal_amount * 100)::bigint,
 	created_at, updated_at, paid_at, provisioned_at, expire_at,
 	fulfillment_version, fulfillment_attempts, fulfillment_error,
-	notifications_completed_at,recurring_agreement_id`
+	notifications_completed_at,recurring_agreement_id,plan_profile`
 
 func moneyArg(value domain.Money) string { return value.String() }
 
@@ -42,7 +42,7 @@ func scanOrder(row pgx.Row) (domain.Order, error) {
 		&order.DeviceExpiresAt, &order.RenewGrantID, &renewalAmount,
 		&order.CreatedAt, &order.UpdatedAt, &order.PaidAt, &order.ProvisionedAt,
 		&order.ExpireAt, &order.FulfillmentVer, &order.FulfillmentTries,
-		&order.FulfillmentError, &order.NotificationDone, &order.RecurringAgreementID,
+		&order.FulfillmentError, &order.NotificationDone, &order.RecurringAgreementID, &order.PlanProfile,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.Order{}, ErrNotFound
@@ -59,7 +59,7 @@ func scanOrder(row pgx.Row) (domain.Order, error) {
 
 // CreateOrder сохраняет новый заказ и возвращает его с присвоенным id.
 func (db *DB) CreateOrder(ctx context.Context, order domain.Order) (domain.Order, error) {
-	if order.PromoCode == nil || *order.PromoCode == "" {
+	if order.Kind != domain.KindGift && (order.PromoCode == nil || *order.PromoCode == "") {
 		return createOrder(ctx, db.Pool, order)
 	}
 	tx, err := db.Pool.Begin(ctx)
@@ -88,11 +88,11 @@ func createOrder(ctx context.Context, q Querier, order domain.Order) (domain.Ord
 			payment_url, payment_expires_at, promo_code, plan_days, promo_bonus_days,
 			referrer_id, partner_id, reward_type, reward_value, reward_scope,
 			device_count, device_days, device_expires_at, renew_grant_id,
-			device_renewal_amount, fulfillment_version, recurring_agreement_id
+			device_renewal_amount, fulfillment_version, recurring_agreement_id,plan_profile
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
 			$13, $14, $15, $16, $17, $18, $19, $20, $21, $22,
-			$23, $24, $25, $26, $27, 1, $28
+			$23, $24, $25, $26, $27, 1, $28,$29
 		)
 		RETURNING `+orderColumns,
 		order.OrderID, order.Provider, order.TelegramID, order.AccountID,
@@ -102,11 +102,20 @@ func createOrder(ctx context.Context, q Querier, order domain.Order) (domain.Ord
 		order.PromoCode, order.PlanDays, order.PromoBonusDays, order.ReferrerID,
 		order.PartnerID, order.RewardType, moneyArg(order.RewardValue), order.RewardScope,
 		order.DeviceCount, order.DeviceDays, order.DeviceExpiresAt, order.RenewGrantID,
-		moneyArg(order.RenewalAmount), order.RecurringAgreementID,
+		moneyArg(order.RenewalAmount), order.RecurringAgreementID, order.PlanProfile,
 	)
 	created, err := scanOrder(row)
 	if err != nil {
 		return domain.Order{}, err
+	}
+	if created.Kind == domain.KindGift {
+		if created.AccountID == nil || created.PlanDays == nil || created.DeviceCount == nil {
+			return domain.Order{}, errors.New("у подарка нет покупателя или условий")
+		}
+		_, err = q.Exec(ctx, `INSERT INTO subscription_gifts(id,buyer_id,purchase_order_id,plan_id,days,devices,profile) VALUES($1,$2,$3,$4,$5,$6,$7)`, operationToken(), *created.AccountID, created.OrderID, created.PlanID, *created.PlanDays, *created.DeviceCount, created.PlanProfile)
+		if err != nil {
+			return domain.Order{}, err
+		}
 	}
 	return created, nil
 }

@@ -45,7 +45,7 @@ type DevicePurchase struct {
 // DeviceQuotes считает пакеты для действующей подписки. Пусто — либо срок
 // меньше суток, либо продавать нечего.
 func (s *Service) DeviceQuotes(ctx context.Context, expiresAt *time.Time, now time.Time) ([]domain.DeviceQuote, error) {
-	if !s.cfg.DeviceLimitEnabled || expiresAt == nil {
+	if !s.cfg.Current().DeviceLimitEnabled || expiresAt == nil {
 		return nil, nil
 	}
 	if now.IsZero() {
@@ -92,8 +92,8 @@ func (s *Service) quoteDevicePack(
 	}
 	rubles := math.Ceil(float64(pack.Price) / 100 * seconds / (30 * 86400))
 	amount := domain.Money(int64(rubles) * 100)
-	if amount < s.cfg.MinPaymentAmount {
-		amount = s.cfg.MinPaymentAmount
+	if amount < s.cfg.Current().MinPaymentAmount {
+		amount = s.cfg.Current().MinPaymentAmount
 	}
 	return domain.DeviceQuote{
 		Pack:       pack,
@@ -166,7 +166,7 @@ func (s *Service) DeviceSlots(ctx context.Context, subjectID int64, subscription
 
 // CheckoutDevices создаёт счёт на пакет устройств или на продление слота.
 func (s *Service) CheckoutDevices(ctx context.Context, purchase DevicePurchase) (domain.Checkout, error) {
-	if !s.cfg.DeviceLimitEnabled {
+	if !s.cfg.Current().DeviceLimitEnabled {
 		return domain.Checkout{}, ErrDevicesDisabled
 	}
 	subject, err := s.subject(ctx, purchase.TelegramID, purchase.AccountID)
@@ -249,7 +249,7 @@ func (s *Service) CheckoutDevices(ctx context.Context, purchase DevicePurchase) 
 	}
 
 	orderID := s.newOrderID(purchase.TelegramID, purchase.AccountID)
-	ttlMinutes := s.cfg.LinkTTLMinutes
+	ttlMinutes := s.cfg.Current().LinkTTLMinutes
 	if remaining := int(quote.ExpiresAt.Sub(now).Minutes()); remaining < ttlMinutes {
 		ttlMinutes = remaining
 	}
@@ -260,7 +260,7 @@ func (s *Service) CheckoutDevices(ctx context.Context, purchase DevicePurchase) 
 	request := CreateRequest{
 		OrderID:     orderID,
 		Amount:      quote.Amount,
-		Currency:    s.cfg.Currency,
+		Currency:    s.cfg.Current().Currency,
 		Description: "Дополнительные устройства, " + pack.Title,
 		ExpiresIn:   time.Duration(ttlMinutes) * time.Minute,
 		SuccessURL:  successURL,
@@ -283,7 +283,7 @@ func (s *Service) CheckoutDevices(ctx context.Context, purchase DevicePurchase) 
 		Kind:             domain.KindDevices,
 		Amount:           quote.Amount,
 		OriginalAmount:   quote.Amount,
-		Currency:         s.cfg.Currency,
+		Currency:         s.cfg.Current().Currency,
 		PaymentMethod:    ptrOrNil(method),
 		Status:           domain.OrderPending,
 		PaymentExpiresAt: expires,
@@ -438,7 +438,7 @@ func (s *Service) provisionDeviceRenewal(ctx context.Context, order domain.Order
 // пользователя ещё нет; слоты копятся, лимит применится при первой покупке
 // подписки, и терять из-за этого оплаченное нельзя.
 func (s *Service) syncLimitForOrder(ctx context.Context, subject domain.Subject, order domain.Order) (*int, error) {
-	if !s.cfg.DeviceLimitEnabled {
+	if !s.cfg.Current().DeviceLimitEnabled {
 		return nil, nil
 	}
 	username := deref(order.Username)
@@ -460,10 +460,10 @@ func (s *Service) syncLimitForOrder(ctx context.Context, subject domain.Subject,
 // Это не то же самое, что действующий лимит: администратор мог поднять его
 // вручную прямо в панели.
 func (s *Service) ManagedDeviceLimit(ctx context.Context, subjectID int64) (int, error) {
-	if !s.cfg.DeviceLimitEnabled {
+	if !s.cfg.Current().DeviceLimitEnabled {
 		return 0, nil
 	}
-	return s.db.SubjectDeviceLimit(ctx, subjectID, s.cfg.DeviceLimitBase)
+	return s.db.SubjectDeviceLimit(ctx, subjectID, s.cfg.Current().DeviceLimitBase)
 }
 
 // SyncDeviceLimit выставляет в панели расчётный лимит и возвращает
@@ -476,7 +476,7 @@ func (s *Service) ManagedDeviceLimit(ctx context.Context, subjectID int64) (int,
 // allowLower=true (сметатель) — понижает лишь значение, которое бот сам
 // последний раз записал: ручную правку даже внутри диапазона не трогаем.
 func (s *Service) SyncDeviceLimit(ctx context.Context, subjectID int64, user remnawave.User, allowLower bool) (int, error) {
-	if !s.cfg.DeviceLimitEnabled || user.ID == 0 {
+	if !s.cfg.Current().DeviceLimitEnabled || user.ID == 0 {
 		return 0, nil
 	}
 	managed, err := s.ManagedDeviceLimit(ctx, subjectID)
@@ -516,7 +516,7 @@ func (s *Service) SyncDeviceLimit(ctx context.Context, subjectID int64, user rem
 // SyncDeviceLimitForSubject находит пользователя панели по субъекту и
 // выставляет ему лимит. nil — пользователя там нет.
 func (s *Service) SyncDeviceLimitForSubject(ctx context.Context, subjectID int64) (*int, error) {
-	if !s.cfg.DeviceLimitEnabled {
+	if !s.cfg.Current().DeviceLimitEnabled {
 		return nil, nil
 	}
 	subject, err := s.db.SubjectByID(ctx, subjectID)

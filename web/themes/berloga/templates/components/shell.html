@@ -1,0 +1,45 @@
+{{define "berloga/head"}}
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<script src="https://telegram.org/js/telegram-web-app.js?65"></script><script src="/static/miniapp.js?v=1" defer></script>
+<meta name="color-scheme" content="dark"><meta name="theme-color" content="#080504">
+<title>{{.Meta.Title}}</title><meta name="description" content="{{.Meta.Description}}">
+<link rel="icon" href="/static/berloga/logo-touch.png"><link rel="apple-touch-icon" href="/static/berloga/logo-touch.png">
+<link rel="preload" as="image" type="image/webp" href="/static/berloga/hero-bg.webp">
+{{range .Site.Stylesheets}}<link rel="stylesheet" href="{{.}}">{{end}}
+{{range .Page.Stylesheets}}<link rel="stylesheet" href="{{.}}">{{end}}
+{{end}}
+
+{{define "berloga/nav-links"}}{{range .Site.Navigation}}<a href="{{.Href}}"{{if eq $.Path .Href}} aria-current="page"{{end}}>{{.Label}}</a>{{end}}{{end}}
+
+{{define "berloga/header"}}
+<header class="topbar"><div class="wrap topbar-in">
+  <a class="brand" href="/" aria-label="Берлога — главная"><img class="brand-mark" src="/static/berloga/logo.png" alt="" width="76" height="76"><span class="brand-name">Берлога</span></a>
+  <nav class="topnav" aria-label="Основная навигация">{{template "berloga/nav-links" .}}</nav>
+  {{if .Subject}}<a class="btn btn-sm btn-ghost" href="{{if eq .Path "/account"}}/buy{{else}}/account{{end}}">{{if eq .Path "/account"}}Продлить{{else}}Кабинет{{end}}</a>{{else}}<a class="btn btn-sm btn-ghost" href="/login">Войти</a>{{end}}
+</div></header>
+<div class="wrap"><nav class="subnav" aria-label="Разделы сайта">{{template "berloga/nav-links" .}}</nav></div>
+{{if eq .Site.Data.environment "development"}}<div class="development-strip"><div class="wrap"><span>Development</span> Тестовый стенд · реальные списания отключены{{if .BotURL}} · <a href="{{.BotURL}}">тестовый бот</a>{{end}}</div></div>{{end}}
+{{end}}
+
+{{define "berloga/footer"}}
+<footer class="foot"><div class="wrap">
+ <ul class="foot-nav"><li><a href="/">Главная</a></li><li><a href="/buy">Тарифы</a></li><li><a href="/support">Поддержка</a></li><li><a href="/terms">Соглашение</a></li><li><a href="/privacy">Конфиденциальность</a></li><li><a href="/cookies">Cookies</a></li>{{if .BotURL}}<li><a href="{{.BotURL}}">Telegram</a></li>{{end}}</ul>
+ <p>{{if .Site.LegalEntity}}{{.Site.LegalEntity}}{{else}}Администрация сервиса «Берлога»{{end}}</p>
+ {{if .Site.SupportEmail}}<p><a href="mailto:{{.Site.SupportEmail}}">{{.Site.SupportEmail}}</a></p>{{end}}
+ <p>{{if eq .Site.Data.environment "development"}}Go development · отдельная тестовая база{{else}}© {{.Year}} Берлога{{end}}</p>
+</div></footer>
+{{range .Site.Scripts}}<script src="{{.}}" defer></script>{{end}}{{range .Page.Scripts}}<script src="{{.}}" defer></script>{{end}}
+{{end}}
+
+{{define "berloga/staff-nav"}}
+<nav class="staff-nav" aria-label="Управление сервисом">
+ <a href="/admin"{{if eq .View "admin"}} aria-current="page"{{end}}>Сводка</a>
+ {{if .Staff.Can "stats.view"}}{{if .Staff.Can "refund.manage"}}<a href="/admin/refunds">Возвраты</a>{{end}}<a href="/admin/operations">Состояние сервиса</a>{{end}}{{if .Staff.Can "broadcast.send"}}<a href="/admin/campaigns">Кампании</a>{{end}}<a href="/admin/tickets"{{if eq .View "admin_tickets"}} aria-current="page"{{end}}>Очередь</a>
+ {{if .Staff.Can "plans.manage"}}<a href="/admin/plans">Тарифы и устройства</a>{{end}}{{if .Staff.Can "settings.edit"}}<a href="/admin/settings">Настройки</a>{{end}}{{if .Staff.Can "staff.manage"}}<a href="/admin/staff">Сотрудники</a>{{end}}{{if .Staff.Can "withdrawal.approve"}}<a href="/admin/withdrawals">Выплаты</a>{{end}}{{if .Staff.Can "orders.view"}}<a href="/admin/orders"{{if eq .View "admin_orders"}} aria-current="page"{{end}}>Проблемные оплаты</a>{{end}}
+ {{if .Staff.Can "promo.manage"}}<a href="/admin/promos"{{if eq .View "admin_promos"}} aria-current="page"{{end}}>Промокоды</a>{{end}}
+ {{if .Staff.Can "partners.manage"}}<a href="/admin/partners"{{if eq .View "admin_partners"}} aria-current="page"{{end}}>Партнёры</a>{{end}}
+ {{if .Staff.Can "audit.view"}}<a href="/admin/audit"{{if eq .View "admin_audit"}} aria-current="page"{{end}}>Журнал</a>{{end}}
+ {{if .Staff.Can "settings.edit"}}<a href="/admin/appearance"{{if eq .View "admin_appearance"}} aria-current="page"{{end}}>Оформление бота</a>{{end}}
+ {{if .Staff.Can "settings.edit"}}<a href="/admin/screens"{{if eq .View "admin_screens"}} aria-current="page"{{end}}>Экраны</a>{{end}}
+</nav>
+{{end}}

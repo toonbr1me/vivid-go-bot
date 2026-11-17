@@ -163,7 +163,7 @@ func RoleCan(role, action string) bool {
 }
 func knownStaffAction(action string) bool {
 	switch action {
-	case "staff.manage", "settings.edit", "plans.edit", "plans.manage", "orders.view", "orders.retry", "stats.view", "promo.manage", "partners.manage", "withdrawal.approve", "subscription.grant", "audit.view", "broadcast.send", "polls.manage", "support.answer", "support.compensate", "tickets.view", "tickets.take", "tickets.close", "tickets.reply", "tickets.transfer", "tickets.note", "tickets.snooze":
+	case "refund.manage", "staff.manage", "settings.edit", "plans.edit", "plans.manage", "orders.view", "orders.retry", "stats.view", "promo.manage", "partners.manage", "withdrawal.approve", "subscription.grant", "audit.view", "broadcast.send", "polls.manage", "support.answer", "support.compensate", "tickets.view", "tickets.take", "tickets.close", "tickets.reply", "tickets.transfer", "tickets.note", "tickets.snooze":
 		return true
 	}
 	return false

@@ -2,6 +2,8 @@ package payments
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
@@ -25,15 +27,41 @@ func (s *Service) PurchaseWithBalance(ctx context.Context, purchase Purchase) (d
 	if plan.IsTrial || !plan.IsActive {
 		return domain.Checkout{}, ErrPlanUnavailable
 	}
+	if purchase.Gift && (!plan.GiftEnabled || purchase.Recurring || purchase.PromoCode != "") {
+		return domain.Checkout{}, ErrPlanUnavailable
+	}
+	kind := domain.KindSubscription
+	if purchase.Gift {
+		kind = domain.KindGift
+	}
 	subject, err := s.subject(ctx, purchase.TelegramID, purchase.AccountID)
 	if err != nil {
 		return domain.Checkout{}, err
+	}
+	giftOrderID := ""
+	if purchase.Gift && purchase.RequestID != "" {
+		if len(purchase.RequestID) < 16 || len(purchase.RequestID) > 128 {
+			return domain.Checkout{}, errors.New("неверный идентификатор покупки")
+		}
+		sum := sha256.Sum256([]byte(fmt.Sprintf("%d:%s", subject.ID, purchase.RequestID)))
+		giftOrderID = "gift-buy-" + hex.EncodeToString(sum[:16])
+		if existing, e := s.db.OrderByID(ctx, giftOrderID); e == nil {
+			if existing.AccountID == nil || *existing.AccountID != subject.ID || existing.Kind != domain.KindGift || existing.PlanID != plan.ID {
+				return domain.Checkout{}, ErrPlanUnavailable
+			}
+			return domain.Checkout{OrderID: existing.OrderID, Amount: existing.Amount, Free: true, Reused: true}, nil
+		} else if !errors.Is(e, storage.ErrNotFound) {
+			return domain.Checkout{}, e
+		}
 	}
 	outcome, err := s.applyPromo(ctx, subject.ID, plan, purchase.PromoCode)
 	if err != nil {
 		return domain.Checkout{}, err
 	}
 	orderID := s.newOrderID(purchase.TelegramID, purchase.AccountID)
+	if giftOrderID != "" {
+		orderID = giftOrderID
+	}
 	if outcome.Amount <= 0 {
 		return s.settleFreeOrder(ctx, orderID, subject, purchase, plan, outcome)
 	}
@@ -53,10 +81,11 @@ func (s *Service) PurchaseWithBalance(ctx context.Context, purchase Purchase) (d
 		AccountID:      accountIDPtr(subject, purchase),
 		Username:       ptrOrNil(purchase.Username),
 		PlanID:         plan.ID,
-		Kind:           domain.KindSubscription,
+		PlanProfile:    s.snapshotPlan(plan),
+		Kind:           kind,
 		Amount:         outcome.Amount,
 		OriginalAmount: outcome.OriginalAmount,
-		Currency:       s.cfg.Currency,
+		Currency:       s.cfg.Current().Currency,
 		PaymentMethod:  ptrOrNil("balance"),
 		Status:         domain.OrderPaid,
 		PromoCode:      ptrOrNil(outcome.Code),
@@ -67,7 +96,7 @@ func (s *Service) PurchaseWithBalance(ctx context.Context, purchase Purchase) (d
 		RewardType:     outcome.RewardType,
 		RewardValue:    outcome.RewardValue,
 		RewardScope:    outcome.RewardScope,
-		DeviceCount:    s.planExtraDevices(plan),
+		DeviceCount:    giftDevices(purchase.Gift, s.planExtraDevices(plan)),
 	})
 	if err != nil {
 		return domain.Checkout{}, err
@@ -75,7 +104,7 @@ func (s *Service) PurchaseWithBalance(ctx context.Context, purchase Purchase) (d
 	// Ошибку панели не показываем: деньги уже списаны, заказ оплачен, а
 	// фоновая задача доведёт выдачу. Второй раз брать с человека нельзя.
 	_, _ = s.Provision(ctx, created)
-	return domain.Checkout{OrderID: orderID, Amount: outcome.Amount, Free: true}, nil
+	return domain.Checkout{OrderID: orderID, Amount: created.Amount, Free: true}, nil
 }
 
 // GrantDays выдаёт дни доступа без оплаты и пишет служебный заказ: выданное
@@ -100,7 +129,7 @@ func (s *Service) GrantDays(ctx context.Context, subject domain.Subject, days in
 		PlanID:        "gift",
 		Kind:          domain.KindSubscription,
 		Amount:        0,
-		Currency:      s.cfg.Currency,
+		Currency:      s.cfg.Current().Currency,
 		PaymentMethod: ptrOrNil(provider),
 		Status:        domain.OrderPaid,
 		PlanDays:      intPtr(days),
@@ -149,4 +178,11 @@ func (s *Service) OrderHistory(ctx context.Context, subject domain.Subject, limi
 		return s.db.OrdersForTelegram(ctx, *subject.TelegramID, limit)
 	}
 	return s.db.OrdersForAccount(ctx, subject.ID, limit)
+}
+
+func giftDevices(gift bool, n *int) *int {
+	if gift && n == nil {
+		return new(int)
+	}
+	return n
 }

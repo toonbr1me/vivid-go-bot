@@ -24,7 +24,7 @@ func markDelivered(ctx context.Context) {
 // Callers processing support invoke this after the database write succeeds.
 func (b *Bot) cleanIncoming(ctx context.Context) {
 	m, ok := ctx.Value(incomingMessageKey{}).(telego.Message)
-	if !ok || b.cfg == nil || !b.cfg.BotCleanChat || m.From == nil || m.Chat.ID != m.From.ID {
+	if !ok || b.cfg == nil || !b.cfg.Current().BotCleanChat || m.From == nil || m.Chat.ID != m.From.ID {
 		return
 	}
 	if err := b.api.DeleteMessage(ctx, &telego.DeleteMessageParams{ChatID: telego.ChatID{ID: m.Chat.ID}, MessageID: m.MessageID}); err != nil {
@@ -40,7 +40,7 @@ func (b *Bot) cleanCommand(handler func(*telegohandler.Context, telego.Message) 
 		err := handler(ctx, m)
 		if err == nil && mark.success && strings.HasPrefix(m.Text, "/") {
 			b.cleanIncoming(ctx)
-			if b.cfg.BotCleanChat && b.db != nil && m.From != nil && m.Chat.ID == m.From.ID {
+			if b.cfg.Current().BotCleanChat && b.db != nil && m.From != nil && m.Chat.ID == m.From.ID {
 				b.retireOldInterface(ctx, m.From.ID)
 			}
 		}
@@ -75,7 +75,7 @@ func (b *Bot) retireOldInterface(ctx context.Context, id int64) {
 
 func (b *Bot) cleanNativeEnabled(ctx context.Context, id int64) bool {
 	keep, _ := ctx.Value(keepMessageKey{}).(bool)
-	return !keep && b.db != nil && b.cfg != nil && b.cfg.BotCleanChat && id > 0 && b.viewMode(ctx, id) != "cards"
+	return !keep && b.db != nil && b.cfg != nil && b.cfg.Current().BotCleanChat && id > 0 && b.viewMode(ctx, id) != "cards"
 }
 func (b *Bot) nativeTarget(ctx context.Context, id int64, message int) int {
 	if message == 0 && !forceNewCard(ctx) && b.cleanNativeEnabled(ctx, id) {

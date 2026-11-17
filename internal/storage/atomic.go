@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -76,6 +77,17 @@ func (db *DB) CreateBalanceOrder(ctx context.Context, subjectID int64, order dom
 		return domain.Order{}, err
 	}
 	defer tx.Rollback(ctx)
+	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, "balance-order:"+order.OrderID); err != nil {
+		return domain.Order{}, err
+	}
+	if existing, e := scanOrder(tx.QueryRow(ctx, `SELECT `+orderColumns+` FROM orders WHERE order_id=$1`, order.OrderID)); e == nil {
+		if order.Kind != domain.KindGift || !strings.HasPrefix(order.OrderID, "gift-buy-") || existing.Provider != "balance" || existing.AccountID == nil || *existing.AccountID != subjectID || existing.Kind != order.Kind || existing.PlanID != order.PlanID {
+			return domain.Order{}, errors.New("идентификатор занят другим заказом")
+		}
+		return existing, nil
+	} else if !errors.Is(e, ErrNotFound) {
+		return domain.Order{}, e
+	}
 	tag, err := tx.Exec(ctx, `UPDATE user_balance SET balance = balance - $2
 		WHERE subject_id = $1 AND balance >= $2`, subjectID, order.Amount.String())
 	if err != nil {

@@ -1,0 +1,72 @@
+services:
+  db:
+    image: postgres:17-alpine
+    env_file: db.env
+    volumes:
+      - verify_db:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/verification.sql:ro
+    healthcheck:
+      test: [CMD, pg_isready, -U, verify, -d, vivid_app]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  app:
+    image: vivid-verify-app:local
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    environment:
+      BOT_TOKEN: 123456789:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+      BOT_USERNAME: verification_bot
+      DATABASE_URL: postgres://verify:verification_only@db:5432/vivid_app?sslmode=disable
+      BRAND_NAME: Verification
+      ADMIN_IDS: '100'
+      WEBHOOK_HOST: 0.0.0.0
+      WEBHOOK_PORT: '8080'
+      SITE_ENABLED: 'true'
+      SITE_BASE_URL: http://localhost:38089
+      WEB_DIR: /app/web
+      BOT_STYLE: legacy
+      RICH_MESSAGES_ENABLED: 'false'
+      PAYMENT_PROVIDERS: ''
+      METRICS_TOKEN: verification_metrics_only
+    volumes:
+      - ../../web/themes/berloga:/app/web:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, 'http://127.0.0.1:8080/readyz']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  tests:
+    profiles: [test]
+    image: vivid-verify-tests:local
+    build:
+      context: ../..
+      dockerfile: deploy/verification/Dockerfile
+    environment:
+      TEST_DATABASE_URL: postgres://verify:verification_only@db:5432/vivid_test?sslmode=disable
+    depends_on:
+      db:
+        condition: service_healthy
+  smoke:
+    profiles: [test]
+    image: vivid-verify-tests:local
+    environment:
+      PGHOST: db
+      PGUSER: verify
+      PGPASSWORD: verification_only
+      PGDATABASE: vivid_app
+    volumes:
+      - ../../scripts/docker-smoke.py:/operations/docker-smoke.py:ro
+    command: [python3, /operations/docker-smoke.py]
+    depends_on:
+      app:
+        condition: service_healthy
+networks:
+  default:
+    internal: true
+volumes:
+  verify_db:

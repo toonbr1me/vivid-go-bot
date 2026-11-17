@@ -1,0 +1,181 @@
+{
+  "persona": {
+    "mascot": "🐻",
+    "greetings": {
+      "morning": "Доброе утро",
+      "day": "Привет",
+      "evening": "Добрый вечер",
+      "night": "Не спится"
+    }
+  },
+  "main": {
+    "title": "🐻 <b>{{.Brand}}</b>\n\n<b>Интернет с медвежьей силой</b>\n{{.Status}}\n\nВыберите, что нужно сделать.",
+    "lead": "<b>Интернет с медвежьей силой 💪</b><br>Убежище, где связь держится, когда снаружи всё режут.",
+    "status_none": "Берлога пока не занята.",
+    "status_active": "🟢 На связи до <b>{{.Date}}</b> · {{.Days}} {{.DaysWord}}",
+    "trial_hint": "\n\n🎁 {{.Days}} {{.DaysWord}} в укрытии — бесплатно."
+  },
+  "subscription": {
+    "title": "🐻 <b>Моя берлога</b>",
+    "active": "🟢 На связи",
+    "expired": "🔴 Связь оборвана",
+    "empty": "🐻 <b>Моя берлога</b>\n\nПока свободна. Начните с пробного доступа или выберите срок.",
+    "link_title": "🔗 <b>Точка входа</b>",
+    "link_hint": "Happ — подключение в один тап. Другое приложение — скопируйте ссылку."
+  },
+  "buy": {
+    "title": "💳 <b>Сроки укрытия</b>",
+    "choose": "Выберите срок. Перед оплатой будет видна итоговая сумма."
+  },
+  "buttons": {
+    "subscription": "🐻 Моя берлога",
+    "my_subscription": "🐻 Моя берлога",
+    "buy": "💳 Занять берлогу",
+    "choose_plan": "💳 Выбрать срок",
+    "renew": "🔄 Продлить срок",
+    "connect": "⚡ Подключить устройство",
+    "trial": "🎁 В укрытие бесплатно",
+    "trial_days": "🎁 {{.Days}} {{.DaysWord}} в укрытии — бесплатно",
+    "support": "✉️ Поддержка",
+    "profile": "👤 Мой аккаунт",
+    "devices": "📱 Устройства"
+  },
+  "rich": {
+    "subscription": "Берлога",
+    "status": "Связь",
+    "until": "Укрытие до",
+    "none": "Не занята",
+    "payment_label": "Оплата",
+    "payment_once": "Разовая",
+    "auto_renew_no": "Разовая оплата · без автосписаний",
+    "connect": "Точка входа",
+    "connect_hint": "Happ — в один тап. Другое приложение — скопируйте ссылку.",
+    "hint_none": "Выберите срок или начните с пробного доступа. Залезайте в берлогу — поможем подключиться.",
+    "hint_active": "Вы в берлоге. «Подключить устройство» — ссылка, QR-код и инструкция.",
+    "hint_expired": "Срок вышел. Продлите — прежняя ссылка снова заработает, перенастраивать ничего не нужно.",
+    "trial_hint": "🎁 {{.Days}} {{.DaysWord}} в укрытии бесплатно.",
+    "panel_down": "Не достучались до штаба — состояние подписки обновим чуть позже. Все разделы работают."
+  },
+  "support": {
+    "title": "✉️ <b>Поддержка Берлоги</b>",
+    "lead": "Что случилось? Опишите проблему — разберёмся. Переписка останется в истории обращений."
+  },
+  "connect": {
+    "title": "⚡ <b>Подключение</b>",
+    "body": "Выберите устройство и приложение. Рекомендуем Happ — быстрее всего встать на связь."
+  },
+  "menu": {
+    "layout": {
+      "active": [
+        [
+          "subscription"
+        ],
+        [
+          "connect",
+          "renew"
+        ],
+        [
+          "devices",
+          "support"
+        ],
+        [
+          "promo",
+          "profile"
+        ],
+        [
+          "referral",
+          "more"
+        ]
+      ],
+      "inactive": [
+        [
+          "trial"
+        ],
+        [
+          "buy"
+        ],
+        [
+          "subscription",
+          "connect"
+        ],
+        [
+          "promo",
+          "support"
+        ],
+        [
+          "profile",
+          "more"
+        ]
+      ],
+      "unknown": [
+        [
+          "subscription"
+        ],
+        [
+          "connect",
+          "support"
+        ],
+        [
+          "buy",
+          "trial"
+        ],
+        [
+          "devices",
+          "profile"
+        ],
+        [
+          "more"
+        ]
+      ]
+    },
+    "buttons": {
+      "subscription": {
+        "label": "🐻 Моя берлога",
+        "action": "nav:subscription",
+        "style": "primary"
+      },
+      "connect": {
+        "label": "⚡ Подключить",
+        "action": "nav:connect",
+        "style": "primary"
+      },
+      "renew": {
+        "label": "🔄 Продлить срок",
+        "action": "nav:buy",
+        "style": "success"
+      },
+      "trial": {
+        "label": "🎁 В укрытие бесплатно",
+        "action": "nav:trial",
+        "style": "success",
+        "require": [
+          "trial"
+        ]
+      },
+      "buy": {
+        "label": "💳 Сроки укрытия",
+        "action": "nav:buy",
+        "style": "success"
+      },
+      "devices": {
+        "label": "📱 Устройства",
+        "action": "nav:devices",
+        "require": [
+          "devices"
+        ]
+      },
+      "support": {
+        "label": "✉️ Поддержка",
+        "action": "nav:support"
+      },
+      "promo": {
+        "label": "🏷 Промокод",
+        "action": "nav:promo"
+      },
+      "profile": {
+        "label": "👤 Мой аккаунт",
+        "action": "nav:profile"
+      }
+    }
+  }
+}

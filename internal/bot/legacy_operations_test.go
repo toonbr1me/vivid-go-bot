@@ -48,6 +48,19 @@ func TestBroadcastTextAndDeliveryClassification(t *testing.T) {
 	}
 }
 
+func TestBroadcastMarkdownPreservesTelegramEntities(t *testing.T) {
+	text := "Bold 😀 link spoiler"
+	got := broadcastMarkdown(text, []telego.MessageEntity{
+		{Type: telego.EntityTypeBold, Offset: 0, Length: 4},
+		{Type: telego.EntityTypeTextLink, Offset: 8, Length: 4, URL: "https://example.test/?a=1&b=2"},
+		{Type: telego.EntityTypeSpoiler, Offset: 13, Length: 7},
+	})
+	want := "**Bold** 😀 [link](https://example.test/?a=1&b=2) ||spoiler||"
+	if got != want {
+		t.Fatalf("entities lost: got %q, want %q", got, want)
+	}
+}
+
 func TestLegacyBroadcastWizardAndRestartWorker(t *testing.T) {
 	db := testdb.Open(t)
 	ctx := context.Background()
