@@ -166,6 +166,29 @@ func (s *Source) optional(name string) string {
 	return value
 }
 
+// environmentOptional always bypasses app_settings. A second Telegram token
+// must never be editable from the database alongside ordinary UI settings.
+func (s *Source) environmentOptional(name string) string {
+	value, ok := os.LookupEnv(name)
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(value)
+}
+
+func (s *Source) environmentBoolean(name string, def bool) bool {
+	value := s.environmentOptional(name)
+	if value == "" {
+		return def
+	}
+	switch strings.ToLower(value) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
+
 func (s *Source) require(name string) (string, error) {
 	value, ok := s.raw(name)
 	if !ok {
@@ -336,7 +359,7 @@ func Load(overlay map[string]string) (*Settings, error) {
 
 	settings := &Settings{
 		TelegramToken:       telegramToken,
-		SupportBotToken:     env.optional("SUPPORT_BOT_TOKEN"),
+		SupportBotToken:     env.environmentOptional("SUPPORT_BOT_TOKEN"),
 		DatabaseURL:         databaseURL,
 		APIBaseURL:          strings.TrimRight(apiBaseURL, "/"),
 		APIToken:            apiToken,
@@ -367,8 +390,8 @@ func Load(overlay map[string]string) (*Settings, error) {
 		RecurringEnabled:   env.boolean("PAYMENTS_RECURRING_ENABLED", false),
 		RecurringProviders: env.list("PAYMENTS_RECURRING_PROVIDERS"),
 		BotUsername:        strings.TrimPrefix(env.optional("BOT_USERNAME"), "@"),
-		SupportBotUsername: strings.TrimPrefix(env.optional("SUPPORT_BOT_USERNAME"), "@"),
-		SupportBotEnabled:  env.boolean("SUPPORT_BOT_ENABLED", false),
+		SupportBotUsername: strings.TrimPrefix(env.environmentOptional("SUPPORT_BOT_USERNAME"), "@"),
+		SupportBotEnabled:  env.environmentBoolean("SUPPORT_BOT_ENABLED", false),
 		Timezone:           env.optional("TIMEZONE"),
 		GoogleClientID:     env.optional("GOOGLE_CLIENT_ID"),
 		GoogleSecret:       env.optional("GOOGLE_CLIENT_SECRET"),

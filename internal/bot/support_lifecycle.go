@@ -153,10 +153,10 @@ func (b *Bot) ticketAttachment(ctx context.Context, queryID string, chatID teleg
 				continue
 			}
 			if m.FileBot != b.attachmentBot() {
-				target := b.cfg.Current().BotUsername
+				target := b.cfg.BotUsername
 				label := "Открыть бот сервиса"
 				if m.FileBot == string(supportRole) {
-					target = b.cfg.Current().SupportBotUsername
+					target = b.cfg.SupportBotUsername
 					label = "Открыть бот поддержки"
 				}
 				if target != "" {

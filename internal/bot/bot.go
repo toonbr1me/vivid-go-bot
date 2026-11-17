@@ -258,8 +258,6 @@ func (b *Bot) register(h *telegohandler.BotHandler) {
 		b.registerSupport(h)
 		return
 	}
-	h.HandleMessage(b.cleanCommand(b.handleGiftsCommand), telegohandler.CommandEqual("gifts"))
-	h.HandleMessage(b.cleanCommand(b.handleGiftsCommand), telegohandler.CommandEqual("gift"))
 	h.HandleMessage(b.cleanCommand(b.handleStart), telegohandler.CommandEqual("start"))
 	h.HandleMessage(b.cleanCommand(b.handleMenuCommand), telegohandler.CommandEqual("menu"))
 	h.HandleMessage(b.cleanCommand(b.handleBuyCommand), telegohandler.CommandEqual("buy"))

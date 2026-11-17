@@ -37,10 +37,6 @@ func (b *Bot) handleStart(ctx *telegohandler.Context, message telego.Message) er
 		b.showSupportHome(ctx, telego.ChatID{ID: message.Chat.ID}, tgID)
 		return nil
 	}
-	if code, ok := deepLinkArg(message.Text, "gift_"); ok && message.Chat.ID == tgID {
-		b.claimGift(ctx, telego.ChatID{ID: tgID}, tgID, code)
-		return nil
-	}
 	b.claimReferral(ctx, tgID, message.Text)
 	chatID := telego.ChatID{ID: message.Chat.ID}
 	if chatID.ID == tgID && b.cfg.BotStyle == "" {
@@ -209,11 +205,11 @@ func (b *Bot) handleReferralCommand(ctx *telegohandler.Context, message telego.M
 }
 
 func (b *Bot) handleSupportCommand(ctx *telegohandler.Context, message telego.Message) error {
-	if !b.isSupportBot() && b.cfg.Current().SupportBotEnabled && b.cfg.Current().SupportBotUsername != "" {
+	if !b.isSupportBot() && b.cfg.SupportBotEnabled && b.cfg.SupportBotUsername != "" {
 		b.clearInput(message.From.ID)
 		b.send(ctx, telego.ChatID{ID: message.Chat.ID},
 			"<b>Поддержка</b>\n\nДля обращений используйте отдельный бот: там сохраняется история, фотографии и ответы сотрудников.",
-			keyboard([]telego.InlineKeyboardButton{urlButton("Открыть поддержку", "https://t.me/"+b.cfg.Current().SupportBotUsername)}))
+			keyboard([]telego.InlineKeyboardButton{urlButton("Открыть поддержку", "https://t.me/"+b.cfg.SupportBotUsername)}))
 		return nil
 	}
 	b.clearInput(message.From.ID)
