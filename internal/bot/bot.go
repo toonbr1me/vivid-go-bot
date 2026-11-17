@@ -111,6 +111,7 @@ func (b *Bot) text(text string, data map[string]any) string {
 // фоновые задачи работают без бота. Поэтому ошибка опроса — это пауза с
 // переподключением, а не конец процесса.
 func (b *Bot) Run(ctx context.Context) error {
+	go b.maintainMiniAppMenu(ctx)
 	backoff := 5 * time.Second
 	for {
 		err := b.poll(ctx)

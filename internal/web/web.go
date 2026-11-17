@@ -124,6 +124,11 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /pay/fail", s.payFail)
 
 	s.mux.HandleFunc("GET /login", s.loginPage)
+	s.mux.HandleFunc("GET /app", s.miniAppPage)
+	s.mux.HandleFunc("POST /auth/telegram", func(w http.ResponseWriter, r *http.Request) {
+		r.Body = http.MaxBytesReader(w, r.Body, 16<<10)
+		s.csrf(s.miniAppAuth)(w, r)
+	})
 	s.mux.HandleFunc("POST /auth/code", s.csrf(s.loginByCode))
 	s.mux.HandleFunc("GET /auth/google", s.googleLogin)
 	s.mux.HandleFunc("GET /auth/google/callback", s.googleCallback)
@@ -252,13 +257,17 @@ func (s *Server) withSecurityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
 		h.Set("X-Content-Type-Options", "nosniff")
-		h.Set("X-Frame-Options", "SAMEORIGIN")
+		ancestors := "'self' https://web.telegram.org https://*.web.telegram.org"
+		if strings.HasPrefix(r.URL.Path, "/admin") || strings.HasPrefix(r.URL.Path, "/partner") {
+			ancestors = "'self'"
+			h.Set("X-Frame-Options", "SAMEORIGIN")
+		}
 		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
 		h.Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
 		h.Set("Content-Security-Policy",
 			"default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "+
-				"font-src 'self' https://fonts.gstatic.com; script-src 'self'; form-action 'self'; "+
-				"frame-ancestors 'self'; base-uri 'self'")
+				"font-src 'self' https://fonts.gstatic.com; script-src 'self' https://telegram.org; form-action 'self'; "+
+				"frame-ancestors "+ancestors+"; base-uri 'self'")
 		next.ServeHTTP(w, r)
 	})
 }
@@ -319,10 +328,11 @@ func (s *Server) withRecovery(next http.Handler) http.Handler {
 // ---------------------------------------------------------------------------
 
 const (
-	sessionCookie = "vivid_session"
-	csrfCookie    = "vivid_csrf"
-	flashCookie   = "vivid_flash"
-	refCookie     = "vivid_ref"
+	sessionCookie        = "vivid_session"
+	miniAppSessionCookie = "vivid_miniapp_session"
+	csrfCookie           = "vivid_csrf"
+	flashCookie          = "vivid_flash"
+	refCookie            = "vivid_ref"
 )
 
 func (s *Server) csrf(next http.HandlerFunc) http.HandlerFunc {
@@ -346,14 +356,16 @@ func (s *Server) csrfToken(w http.ResponseWriter, r *http.Request) string {
 		return cookie.Value
 	}
 	token := randomToken(24)
+	sameSite, miniApp := s.miniAppCookieMode(r)
 	http.SetCookie(w, &http.Cookie{
-		Name:     csrfCookie,
-		Value:    token,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   s.isSecure(r),
-		SameSite: http.SameSiteLaxMode,
-		MaxAge:   24 * 60 * 60,
+		Name:        csrfCookie,
+		Value:       token,
+		Path:        "/",
+		HttpOnly:    true,
+		Secure:      s.isSecure(r),
+		SameSite:    sameSite,
+		Partitioned: miniApp,
+		MaxAge:      24 * 60 * 60,
 	})
 	return token
 }
@@ -361,14 +373,16 @@ func (s *Server) csrfToken(w http.ResponseWriter, r *http.Request) string {
 // flashRedirect показывает одноразовое сообщение после POST и уводит на GET,
 // чтобы обновление страницы не повторяло действие.
 func (s *Server) flashRedirect(w http.ResponseWriter, r *http.Request, path, kind, text string) {
+	sameSite, partitioned := s.miniAppCookieMode(r)
 	http.SetCookie(w, &http.Cookie{
-		Name:     flashCookie,
-		Value:    url.QueryEscape(kind + "|" + text),
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   s.isSecure(r),
-		SameSite: http.SameSiteLaxMode,
-		MaxAge:   60,
+		Name:        flashCookie,
+		Value:       url.QueryEscape(kind + "|" + text),
+		Path:        "/",
+		HttpOnly:    true,
+		Secure:      s.isSecure(r),
+		SameSite:    sameSite,
+		Partitioned: partitioned,
+		MaxAge:      60,
 	})
 	http.Redirect(w, r, path, http.StatusSeeOther)
 }
@@ -383,9 +397,10 @@ func (s *Server) takeFlash(w http.ResponseWriter, r *http.Request) *flashMessage
 	if err != nil || cookie.Value == "" {
 		return nil
 	}
+	sameSite, partitioned := s.miniAppCookieMode(r)
 	http.SetCookie(w, &http.Cookie{
 		Name: flashCookie, Value: "", Path: "/", MaxAge: -1,
-		HttpOnly: true, Secure: s.isSecure(r), SameSite: http.SameSiteLaxMode,
+		HttpOnly: true, Secure: s.isSecure(r), SameSite: sameSite, Partitioned: partitioned,
 	})
 	decoded, err := url.QueryUnescape(cookie.Value)
 	if err != nil {

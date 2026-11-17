@@ -28,6 +28,8 @@ var pageFiles = []string{
 	"landing.html",
 	"buy.html",
 	"login.html",
+	"miniapp.html",
+	"miniapp_payment.html",
 	"account.html",
 	"connect.html",
 	"support.html",

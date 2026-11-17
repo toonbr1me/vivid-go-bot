@@ -130,6 +130,9 @@ func (s *Service) QuotePlans(ctx context.Context, subjectID int64, promoCode str
 		if promoCode != "" {
 			resolution, reject := s.resolvePromo(ctx, subjectID, promoCode, plan)
 			if reject != nil {
+				if !errors.Is(reject, ErrPromoRejected) {
+					return nil, fmt.Errorf("расчёт промокода: %w", reject)
+				}
 				quote.Rejection = reject.Error()
 			} else {
 				quote.BonusDays = resolution.BonusDays

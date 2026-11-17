@@ -42,7 +42,7 @@ func (s *Server) giftsPage(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if checkout.URL != "" {
-			http.Redirect(w, r, checkout.URL, http.StatusSeeOther)
+			s.redirectPayment(w, r, checkout)
 			return
 		}
 		s.flashRedirect(w, r, "/gifts", "ok", "Подарок приобретён. Ссылка доступна в истории.")

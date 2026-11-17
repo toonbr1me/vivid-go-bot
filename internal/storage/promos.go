@@ -14,7 +14,7 @@ const promoColumns = `
 	repeat_discount_percent, round(repeat_discount_fixed * 100)::bigint,
 	bonus_days, grant_days, max_uses, used_count, per_user_limit,
 	is_active, starts_at, expires_at, plan_ids, partner_id,
-	reward_type, round(reward_value * 100)::bigint, reward_scope`
+	COALESCE(reward_type,''), round(reward_value * 100)::bigint, reward_scope`
 
 func scanPromo(row pgx.Row) (domain.PromoCode, error) {
 	var promo domain.PromoCode

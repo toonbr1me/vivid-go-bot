@@ -46,6 +46,9 @@ func hashToken(token string) string {
 
 func (s *Server) sessionSubject(r *http.Request) (*domain.Subject, error) {
 	cookie, err := r.Cookie(sessionCookie)
+	if miniCookie, miniErr := r.Cookie(miniAppSessionCookie); miniErr == nil && miniCookie.Value != "" {
+		cookie, err = miniCookie, nil
+	}
 	if err != nil || cookie.Value == "" {
 		return nil, nil
 	}
@@ -64,19 +67,28 @@ func (s *Server) startSession(w http.ResponseWriter, r *http.Request, subjectID 
 	if err := s.db.CreateWebSession(r.Context(), hashToken(token), subjectID, sessionTTL); err != nil {
 		return err
 	}
+	name, sameSite, partitioned := sessionCookie, http.SameSiteLaxMode, false
+	if r.URL.Path == "/auth/telegram" && s.isSecure(r) {
+		name, sameSite, partitioned = miniAppSessionCookie, http.SameSiteNoneMode, true
+	}
 	http.SetCookie(w, &http.Cookie{
-		Name:     sessionCookie,
-		Value:    token,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   s.isSecure(r),
-		SameSite: http.SameSiteLaxMode,
-		Expires:  time.Now().Add(sessionTTL),
+		Name:        name,
+		Value:       token,
+		Path:        "/",
+		HttpOnly:    true,
+		Secure:      s.isSecure(r),
+		SameSite:    sameSite,
+		Partitioned: partitioned,
+		Expires:     time.Now().Add(sessionTTL),
 	})
 	return nil
 }
 
 func (s *Server) clearSession(w http.ResponseWriter, r *http.Request) {
+	if cookie, err := r.Cookie(miniAppSessionCookie); err == nil && cookie.Value != "" {
+		_ = s.db.DeleteWebSession(r.Context(), hashToken(cookie.Value))
+	}
+	http.SetCookie(w, &http.Cookie{Name: miniAppSessionCookie, Path: "/", MaxAge: -1, HttpOnly: true, Secure: true, SameSite: http.SameSiteNoneMode, Partitioned: true})
 	if cookie, err := r.Cookie(sessionCookie); err == nil && cookie.Value != "" {
 		_ = s.db.DeleteWebSession(r.Context(), hashToken(cookie.Value))
 	}

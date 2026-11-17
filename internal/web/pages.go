@@ -238,7 +238,7 @@ func (s *Server) trialSubmit(w http.ResponseWriter, r *http.Request) {
 func (s *Server) finishCheckout(w http.ResponseWriter, r *http.Request, checkout domain.Checkout) {
 	switch {
 	case checkout.URL != "":
-		http.Redirect(w, r, checkout.URL, http.StatusSeeOther)
+		s.redirectPayment(w, r, checkout)
 	case checkout.Trial:
 		s.flashRedirect(w, r, "/account", "ok", "Пробный доступ выдан. Подключайтесь.")
 	case checkout.Free:
