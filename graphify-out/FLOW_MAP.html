@@ -1,0 +1,3630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>vivid-go-bot — Complete Call Flow &amp; Architecture Documentation</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+:root {
+  --bg: #0f172a; --surface: #1e293b; --border: #334155;
+  --text: #e2e8f0; --muted: #94a3b8; --accent: #38bdf8;
+  --warn: #fbbf24; --err: #f87171; --ok: #34d399;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+.container { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+h1 { font-size: 2.4rem; margin-bottom: 8px; background: linear-gradient(135deg, var(--accent), #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+h2 { font-size: 1.7rem; margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--accent); }
+h3 { font-size: 1.25rem; margin: 32px 0 12px; color: var(--accent); }
+h4 { font-size: 1.05rem; margin: 20px 0 8px; color: var(--warn); }
+p { margin: 8px 0; color: var(--muted); }
+.subtitle { color: var(--muted); font-size: 1.1rem; margin-bottom: 32px; }
+.mermaid { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 20px 0; overflow-x: auto; position: relative; }
+.mermaid.is-enhanced { padding: 0; overflow: hidden; min-height: 260px; }
+.mermaid-viewport { padding: 54px 24px 24px; overflow: hidden; cursor: grab; touch-action: none; min-height: 260px; }
+.mermaid-viewport.is-dragging { cursor: grabbing; }
+.mermaid-viewport svg { max-width: none !important; height: auto; transform-origin: 0 0; transition: transform 120ms ease; }
+.mermaid-toolbar { position: absolute; top: 10px; right: 10px; z-index: 3; display: flex; align-items: center; gap: 6px; padding: 6px; background: rgba(15,23,42,0.92); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.28); }
+.mermaid-toolbar button, .mermaid-toolbar .zoom-level { height: 28px; min-width: 32px; border: 1px solid var(--border); border-radius: 6px; background: #1e293b; color: var(--text); font: 600 0.78rem system-ui, sans-serif; display: inline-flex; align-items: center; justify-content: center; }
+.mermaid-toolbar button { cursor: pointer; }
+.mermaid-toolbar button:hover { border-color: var(--accent); color: var(--accent); }
+.mermaid-toolbar .zoom-level { min-width: 52px; color: var(--muted); background: transparent; }
+.call-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.92rem; }
+.call-table th { background: #1a2744; color: var(--accent); text-align: left; padding: 10px 14px; border: 1px solid var(--border); }
+.call-table td { padding: 8px 14px; border: 1px solid var(--border); vertical-align: top; }
+.call-table tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 600; }
+.tag-async { background: #7c3aed33; color: #a78bfa; }
+.tag-class { background: #05966933; color: var(--ok); }
+.tag-func { background: #2563eb33; color: var(--accent); }
+.tag-cmd { background: #d9770633; color: var(--warn); }
+.tag-endpoint { background: #dc262633; color: var(--err); }
+.tag-hook { background: #db277733; color: #f472b6; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin: 16px 0; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; margin: 16px 0; }
+.arrow-chain { font-family: 'Fira Code', monospace; font-size: 0.85rem; color: var(--accent); padding: 10px; background: rgba(56,189,248,0.06); border-radius: 6px; }
+code { font-family: 'Fira Code', 'Cascadia Code', monospace; background: rgba(255,255,255,0.06); padding: 1px 6px; border-radius: 3px; font-size: 0.88em; }
+ul, ol { margin: 8px 0 8px 24px; color: var(--muted); }
+li { margin: 4px 0; }
+a { color: var(--accent); }
+hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+.nav { position: sticky; top: 0; background: var(--bg); z-index: 10; padding: 12px 0; border-bottom: 1px solid var(--border); display: flex; gap: 20px; flex-wrap: wrap; font-size: 0.9rem; }
+.nav a { text-decoration: none; }
+.nav a:hover { text-decoration: underline; }
+@media (max-width: 768px) { .container { padding: 16px; } h1 { font-size: 1.8rem; } }
+
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>vivid-go-bot — Complete Call Flow &amp; Architecture Documentation</h1>
+<p class="subtitle">Generated from graphify knowledge graph: 268 nodes, 419 edges, 17 communities. Commit: bfb1c04</p>
+
+<div class="nav">
+    <a href="#overview">Architecture Overview</a>
+    <a href="#runtime">Запуск и входящие события</a>
+    <a href="#legacy">Legacy: доставка и восстановление</a>
+    <a href="#html">HTML: карточка и проверка действий</a>
+    <a href="#navigation">Экраны и пользовательская навигация</a>
+    <a href="#checkout">Покупка, триал и промокоды</a>
+    <a href="#payment">Подтверждение оплаты и выдача</a>
+    <a href="#recurring">Автопродление и отмена</a>
+    <a href="#connect">Подключение и диагностика</a>
+    <a href="#devices">Устройства и дополнительные места</a>
+    <a href="#account">Профиль, рефералы и авторизация</a>
+    <a href="#support">Поддержка и история переписки</a>
+    <a href="#operations">Сотрудники и операции</a>
+    <a href="#website">Веб-сайт и кабинет</a>
+    <a href="#jobs">Фоновые задачи и уведомления</a>
+    <a href="#data">Сохранённое состояние и миграции</a>
+    <a href="#findings">Найденные расхождения flow</a>
+    <a href="#future">Развитие HTML: предложения</a>
+</div>
+
+<!-- ====== Architecture Overview ====== -->
+<h2 id="overview">1. Architecture Overview</h2>
+
+<div class="mermaid">
+
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    RUNTIME_F2E18FFC("Запуск и входящие события<br/><small>36 nodes</small>")
+    class RUNTIME_F2E18FFC module;
+    LEGACY_9B33046E("Legacy: доставка и восстановление<br/><small>12 nodes</small>")
+    class LEGACY_9B33046E module;
+    HTML_950A39B6("HTML: карточка и проверка действий<br/><small>20 nodes</small>")
+    class HTML_950A39B6 module;
+    NAVIGATION_AD831792("Экраны и пользовательская навигация<br/><small>22 nodes</small>")
+    class NAVIGATION_AD831792 module;
+    CHECKOUT_D5491E7E("Покупка, триал и промокоды<br/><small>13 nodes</small>")
+    class CHECKOUT_D5491E7E module;
+    PAYMENT_E86256B2("Подтверждение оплаты и выдача<br/><small>19 nodes</small>")
+    class PAYMENT_E86256B2 module;
+    RECURRING_E1A31B3E("Автопродление и отмена<br/><small>9 nodes</small>")
+    class RECURRING_E1A31B3E module;
+    CONNECT_F11A107F("Подключение и диагностика<br/><small>7 nodes</small>")
+    class CONNECT_F11A107F module;
+    DEVICES_728190E7("Устройства и дополнительные места<br/><small>7 nodes</small>")
+    class DEVICES_728190E7 module;
+    ACCOUNT_CA20728D("Профиль, рефералы и авторизация<br/><small>9 nodes</small>")
+    class ACCOUNT_CA20728D module;
+    SUPPORT_5BDCD3C0("Поддержка и история переписки<br/><small>13 nodes</small>")
+    class SUPPORT_5BDCD3C0 module;
+    OPERATIONS_E8C39C4D("Сотрудники и операции<br/><small>10 nodes</small>")
+    class OPERATIONS_E8C39C4D module;
+    WEBSITE_3AB3E0B0("Веб-сайт и кабинет<br/><small>67 nodes</small>")
+    class WEBSITE_3AB3E0B0 module;
+    JOBS_69669221("Фоновые задачи и уведомления<br/><small>8 nodes</small>")
+    class JOBS_69669221 module;
+    DATA_A17C9AAA("Сохранённое состояние и миграции<br/><small>7 nodes</small>")
+    class DATA_A17C9AAA module;
+    FINDINGS_2457E0C6("Найденные расхождения flow<br/><small>5 nodes</small>")
+    class FINDINGS_2457E0C6 module;
+    FUTURE_D848C971("Развитие HTML: предложения<br/><small>4 nodes</small>")
+    class FUTURE_D848C971 module;
+    LEGACY_9B33046E -->|раздел навигации x16| NAVIGATION_AD831792
+    RUNTIME_F2E18FFC -->|успешная доставка legacy x10| LEGACY_9B33046E
+    WEBSITE_3AB3E0B0 -->|обработчик ticketcompensate x8| SUPPORT_5BDCD3C0
+    NAVIGATION_AD831792 -->|экран / действие раздела x7| CHECKOUT_D5491E7E
+    RUNTIME_F2E18FFC -->|handleadmin x5| OPERATIONS_E8C39C4D
+    RUNTIME_F2E18FFC -->|handlebuycommand x5| CHECKOUT_D5491E7E
+    NAVIGATION_AD831792 -->|экран / действие раздела x5| CONNECT_F11A107F
+    NAVIGATION_AD831792 -->|экран / действие раздела x5| ACCOUNT_CA20728D
+    CHECKOUT_D5491E7E -->|клиент проверяет внешний платёж x5| PAYMENT_E86256B2
+    RUNTIME_F2E18FFC -->|handlecloseticketcommand x4| SUPPORT_5BDCD3C0
+    OPERATIONS_E8C39C4D -->|сотрудник повторяет выдачу paid заказа x4| PAYMENT_E86256B2
+    WEBSITE_3AB3E0B0 -->|обработчик appimport x4| CONNECT_F11A107F
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<div class="grid">
+  <div class="card">
+    <h4>Architecture Layers</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>Layer</th><th>Nodes</th><th>Communities</th></tr>
+      <tr><td>Запуск и входящие события</td><td>36</td><td><code>0</code></td></tr><tr><td>Legacy: доставка и восстановление</td><td>12</td><td><code>1</code></td></tr><tr><td>HTML: карточка и проверка действий</td><td>20</td><td><code>2</code></td></tr><tr><td>Экраны и пользовательская навигация</td><td>22</td><td><code>3</code></td></tr><tr><td>Покупка, триал и промокоды</td><td>13</td><td><code>4</code></td></tr><tr><td>Подтверждение оплаты и выдача</td><td>19</td><td><code>5</code></td></tr><tr><td>Автопродление и отмена</td><td>9</td><td><code>6</code></td></tr><tr><td>Подключение и диагностика</td><td>7</td><td><code>7</code></td></tr><tr><td>Устройства и дополнительные места</td><td>7</td><td><code>8</code></td></tr><tr><td>Профиль, рефералы и авторизация</td><td>9</td><td><code>9</code></td></tr><tr><td>Поддержка и история переписки</td><td>13</td><td><code>10</code></td></tr><tr><td>Сотрудники и операции</td><td>10</td><td><code>11</code></td></tr><tr><td>Веб-сайт и кабинет</td><td>67</td><td><code>12</code></td></tr><tr><td>Фоновые задачи и уведомления</td><td>8</td><td><code>13</code></td></tr><tr><td>Сохранённое состояние и миграции</td><td>7</td><td><code>14</code></td></tr><tr><td>Найденные расхождения flow</td><td>5</td><td><code>15</code></td></tr><tr><td>Развитие HTML: предложения</td><td>4</td><td><code>16</code></td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Core Flow</h4>
+    <div class="arrow-chain">Найденные расхождения flow -&gt; Веб-сайт и кабинет -&gt; Поддержка и история переписки -&gt; Сотрудники и операции -&gt; Подтверждение оплаты и выдача -&gt; Сохранённое состояние и миграции -&gt; Запуск и входящие события</div>
+  </div>
+</div>
+<div class="grid">
+  <div class="card">
+    <h4>Graph Report Highlights</h4>
+    <ul>
+      <li>2837 nodes · 14162 edges · 83 communities (70 shown, 13 thin omitted)</li>
+      <li>Extraction: 83% EXTRACTED · 17% INFERRED · 0% AMBIGUOUS · INFERRED: 2349 edges (avg confidence: 0.81)</li>
+      <li>Token cost: 0 input · 0 output</li>
+      <li>1. `Bot` - 227 edges</li>
+      <li>2. `Server` - 110 edges</li>
+      <li>3. `Open()` - 108 edges</li>
+    </ul>
+  </div>
+</div>
+<hr>
+<!-- ====== 2. Запуск и входящие события ====== -->
+<h2 id="runtime">2. Запуск и входящие события</h2>
+<p>Запуск и входящие события groups implementation around internal, bot, botgo, messagesgo, mostly in internal/bot/bot.go, internal/bot/messages.go, internal/config/config.go. This section covers 36 nodes and 36 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Запуск и входящие события (36 nodes, 36 edges)
+    subgraph runtime_internal_bot_bot_go_14cfe5eb["internal/bot/bot.go"]
+        flow_register_2cb1cb7e("Регистрация команд и событий<br/><small>internal/bot/bot.go</small>")
+        flow_command_cancel_112a9ac9("/cancel<br/><small>internal/bot/bot.go</small>")
+        flow_command_start_950532f4("/start<br/><small>internal/bot/bot.go</small>")
+        flow_polling_89ad3649("Telegram long polling<br/><small>internal/bot/bot.go</small>")
+        flow_input_9b9d6c61("Временный диалог ввода: 20 минут<br/><small>internal/bot/bot.go</small>")
+        flow_command_admin_f5ab525d("/admin<br/><small>internal/bot/bot.go</small>")
+        flow_command_announce_109c4272("/announce<br/><small>internal/bot/bot.go</small>")
+        flow_command_buy_ec6fe15d("/buy<br/><small>internal/bot/bot.go</small>")
+        flow_command_close_7e983d09("/close<br/><small>internal/bot/bot.go</small>")
+        flow_command_devices_8ddc81c5("/devices<br/><small>internal/bot/bot.go</small>")
+        flow_command_diagnostics_6b624bce("/diagnostics<br/><small>internal/bot/bot.go</small>")
+        flow_command_grant_e58752cc("/grant<br/><small>internal/bot/bot.go</small>")
+    end
+    subgraph runtime_internal_bot_messages_go_aabccc62["internal/bot/messages.go"]
+        flow_text_966c3ca9("Входящий текст и состояние ввода<br/><small>internal/bot/messages.go</small>")
+        flow_cancel_6d757992("/cancel и выход из раздела<br/><small>internal/bot/messages.go</small>")
+        flow_start_d2888660("/start и deep links<br/><small>internal/bot/messages.go</small>")
+    end
+    flow_boot_b399d33d("Запуск единого процесса<br/><small>cmd/vivid/main.go</small>")
+    flow_config_a30ba33e("BOT_STYLE и настройки<br/><small>internal/config/config.go</small>")
+    flow_schema_d1d0aa2d("Миграции и стартовый каталог<br/><small>internal/storage/postgres.go</small>")
+    flow_config_a30ba33e -->|последовательность запуска / входа| flow_polling_89ad3649
+    flow_text_966c3ca9 -->|выбрать активный режим ввода| flow_input_9b9d6c61
+    flow_schema_d1d0aa2d -->|последовательность запуска / входа| flow_config_a30ba33e
+    flow_boot_b399d33d -->|последовательность запуска / входа| flow_schema_d1d0aa2d
+    flow_polling_89ad3649 -->|последовательность запуска / входа| flow_register_2cb1cb7e
+    flow_command_cancel_112a9ac9 -->|handlecancelcommand| flow_cancel_6d757992
+    flow_command_start_950532f4 -->|handlestart| flow_start_d2888660
+    flow_register_2cb1cb7e -->|выбрать активный режим ввода| flow_text_966c3ca9
+    flow_register_2cb1cb7e -->|зарегистрирована команда| flow_command_admin_f5ab525d
+    flow_register_2cb1cb7e -->|зарегистрирована команда| flow_command_announce_109c4272
+    flow_register_2cb1cb7e -->|зарегистрирована команда| flow_command_buy_ec6fe15d
+    flow_register_2cb1cb7e -->|зарегистрирована команда| flow_command_cancel_112a9ac9
+    flow_register_2cb1cb7e -->|зарегистрирована команда| flow_command_close_7e983d09
+    flow_register_2cb1cb7e -->|зарегистрирована команда| flow_command_devices_8ddc81c5
+    flow_register_2cb1cb7e -->|зарегистрирована команда| flow_command_diagnostics_6b624bce
+    flow_register_2cb1cb7e -->|зарегистрирована команда| flow_command_grant_e58752cc
+    flow_register_2cb1cb7e -->|зарегистрирована команда| flow_command_start_950532f4
+    flow_register_2cb1cb7e -->|последовательность запуска / входа| flow_start_d2888660
+    %% Omitted for readability: 18 nodes, 0 edges
+    class flow_register_2cb1cb7e klass;
+    class flow_command_cancel_112a9ac9 function;
+    class flow_command_start_950532f4 function;
+    class flow_polling_89ad3649 klass;
+    class flow_input_9b9d6c61 klass;
+    class flow_command_admin_f5ab525d function;
+    class flow_command_announce_109c4272 function;
+    class flow_command_buy_ec6fe15d function;
+    class flow_command_close_7e983d09 function;
+    class flow_command_devices_8ddc81c5 function;
+    class flow_command_diagnostics_6b624bce function;
+    class flow_command_grant_e58752cc function;
+    class flow_text_966c3ca9 klass;
+    class flow_cancel_6d757992 function;
+    class flow_start_d2888660 function;
+    class flow_boot_b399d33d klass;
+    class flow_config_a30ba33e klass;
+    class flow_schema_d1d0aa2d klass;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>BOT_STYLE и настройки</code><br><small style="color:var(--muted)">internal/config/config.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>BOT_STYLE и настройки node in internal/config/config.go.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>Временный диалог ввода: 20 минут</code><br><small style="color:var(--muted)">internal/bot/bot.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Временный диалог ввода: 20 минут node in internal/bot/bot.go.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>Входящий текст и состояние ввода</code><br><small style="color:var(--muted)">internal/bot/messages.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Входящий текст и состояние ввода node in internal/bot/messages.go.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>/start и deep links</code><br><small style="color:var(--muted)">internal/bot/messages.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>/start и deep links node in internal/bot/messages.go.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>Миграции и стартовый каталог</code><br><small style="color:var(--muted)">internal/storage/postgres.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Миграции и стартовый каталог node in internal/storage/postgres.go.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>Запуск единого процесса</code><br><small style="color:var(--muted)">cmd/vivid/main.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Запуск единого процесса node in cmd/vivid/main.go.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>Telegram long polling</code><br><small style="color:var(--muted)">internal/bot/bot.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Telegram long polling node in internal/bot/bot.go.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>/admin</code><br><small style="color:var(--muted)">internal/bot/bot.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>/admin node in internal/bot/bot.go.</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>/announce</code><br><small style="color:var(--muted)">internal/bot/bot.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>/announce node in internal/bot/bot.go.</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td><code>/buy</code><br><small style="color:var(--muted)">internal/bot/bot.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>/buy node in internal/bot/bot.go.</td>
+</tr>
+<tr>
+  <td>11</td>
+  <td><code>/cancel</code><br><small style="color:var(--muted)">internal/bot/bot.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>/cancel node in internal/bot/bot.go.</td>
+</tr>
+<tr>
+  <td>12</td>
+  <td><code>/close</code><br><small style="color:var(--muted)">internal/bot/bot.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>/close node in internal/bot/bot.go.</td>
+</tr>
+<tr>
+  <td>13</td>
+  <td><code>/devices</code><br><small style="color:var(--muted)">internal/bot/bot.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>/devices node in internal/bot/bot.go.</td>
+</tr>
+<tr>
+  <td>14</td>
+  <td><code>/diagnostics</code><br><small style="color:var(--muted)">internal/bot/bot.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>/diagnostics node in internal/bot/bot.go.</td>
+</tr>
+<tr>
+  <td>15</td>
+  <td><code>/grant</code><br><small style="color:var(--muted)">internal/bot/bot.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>/grant node in internal/bot/bot.go.</td>
+</tr>
+<tr>
+  <td>16</td>
+  <td><code>/help</code><br><small style="color:var(--muted)">internal/bot/bot.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>/help node in internal/bot/bot.go.</td>
+</tr>
+<tr>
+  <td>17</td>
+  <td><code>/info</code><br><small style="color:var(--muted)">internal/bot/bot.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>/info node in internal/bot/bot.go.</td>
+</tr>
+<tr>
+  <td>18</td>
+  <td><code>/menu</code><br><small style="color:var(--muted)">internal/bot/bot.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>/menu node in internal/bot/bot.go.</td>
+</tr>
+<tr>
+  <td>19</td>
+  <td><code>/partners</code><br><small style="color:var(--muted)">internal/bot/bot.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>/partners node in internal/bot/bot.go.</td>
+</tr>
+<tr>
+  <td>20</td>
+  <td><code>/paysupport</code><br><small style="color:var(--muted)">internal/bot/bot.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>/paysupport node in internal/bot/bot.go.</td>
+</tr>
+<tr>
+  <td>21</td>
+  <td><code>/polls</code><br><small style="color:var(--muted)">internal/bot/bot.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>/polls node in internal/bot/bot.go.</td>
+</tr>
+<tr>
+  <td>22</td>
+  <td><code>/promo</code><br><small style="color:var(--muted)">internal/bot/bot.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>/promo node in internal/bot/bot.go.</td>
+</tr>
+<tr>
+  <td>23</td>
+  <td><code>/referral</code><br><small style="color:var(--muted)">internal/bot/bot.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>/referral node in internal/bot/bot.go.</td>
+</tr>
+<tr>
+  <td>24</td>
+  <td><code>/reply</code><br><small style="color:var(--muted)">internal/bot/bot.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>/reply node in internal/bot/bot.go.</td>
+</tr>
+<tr>
+  <td>25</td>
+  <td><code>/start</code><br><small style="color:var(--muted)">internal/bot/bot.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>/start node in internal/bot/bot.go.</td>
+</tr>
+<tr>
+  <td>26</td>
+  <td><code>/stats</code><br><small style="color:var(--muted)">internal/bot/bot.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>/stats node in internal/bot/bot.go.</td>
+</tr>
+<tr>
+  <td>27</td>
+  <td><code>/status</code><br><small style="color:var(--muted)">internal/bot/bot.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>/status node in internal/bot/bot.go.</td>
+</tr>
+<tr>
+  <td>28</td>
+  <td><code>/subscription</code><br><small style="color:var(--muted)">internal/bot/bot.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>/subscription node in internal/bot/bot.go.</td>
+</tr>
+<tr>
+  <td>29</td>
+  <td><code>/support</code><br><small style="color:var(--muted)">internal/bot/bot.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>/support node in internal/bot/bot.go.</td>
+</tr>
+<tr>
+  <td>30</td>
+  <td><code>/tickets</code><br><small style="color:var(--muted)">internal/bot/bot.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>/tickets node in internal/bot/bot.go.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>internal/bot/bot.go</code></td><td>29 nodes</td></tr>
+<tr><td><code>internal/bot/messages.go</code></td><td>3 nodes</td></tr>
+<tr><td><code>cmd/vivid/main.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/bot/callbacks.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/config/config.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/storage/postgres.go</code></td><td>1 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: зарегистрирована команда x26, последовательность запуска / входа x5, выбрать активный режим ввода x2, handlecancelcommand x1. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 3. Legacy: доставка и восстановление ====== -->
+<h2 id="legacy">3. Legacy: доставка и восстановление</h2>
+<p>Legacy: доставка и восстановление groups implementation around internal, bot, botgo, rich, mostly in internal/bot/bot.go, internal/bot/clean_chat.go, internal/bot/card_screens.go. This section covers 12 nodes and 11 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Legacy: доставка и восстановление (12 nodes, 11 edges)
+    subgraph legacy_internal_bot_bot_go_e04b01d0["internal/bot/bot.go"]
+        flow_richsend_17301b78("sendRichMessage / editRichMessage<br/><small>internal/bot/bot.go</small>")
+        flow_nativehtml_e9549cb1("Telegram HTML и inline-кнопки<br/><small>internal/bot/bot.go</small>")
+        flow_plain_3aceff6e("Обычный текст при ошибке разметки<br/><small>internal/bot/bot.go</small>")
+        flow_markdown_573dbf3e("Markdown поддержки → rich / HTML chunks<br/><small>internal/bot/bot.go</small>")
+    end
+    subgraph legacy_internal_bot_clean_chat_go_8c2e3fd3["internal/bot/clean_chat.go"]
+        flow_clean_6cbfa355("Удаление обработанной команды<br/><small>internal/bot/clean_chat.go</small>")
+        flow_remember_3a67a03b("Сначала сохранить ID экрана<br/><small>internal/bot/clean_chat.go</small>")
+        flow_retire_3428aaae("Убрать старый интерфейс после смены режима<br/><small>internal/bot/clean_chat.go</small>")
+    end
+    flow_compact_eff84874("Компактный native-экран<br/><small>internal/bot/card_screens.go</small>")
+    flow_richscreen_96c7dc0d("Специализированный rich-экран<br/><small>internal/bot/rich_standard.go</small>")
+    flow_show_b5b880f0("Выбор рендерера showScreen<br/><small>internal/bot/richscreens.go</small>")
+    flow_legacy_99f693cf("BOT_STYLE=legacy → classic<br/><small>internal/bot/views.go</small>")
+    flow_richfallback_94973686("Rich API недоступен<br/><small>legacy/transport/rich.go</small>")
+    flow_nativehtml_e9549cb1 -->|путь fallback при соответствующем отказе| flow_plain_3aceff6e
+    flow_compact_eff84874 -->|путь fallback при соответствующем отказе| flow_nativehtml_e9549cb1
+    flow_richscreen_96c7dc0d -->|успешная доставка legacy| flow_richsend_17301b78
+    flow_show_b5b880f0 -->|успешная доставка legacy| flow_richscreen_96c7dc0d
+    flow_richsend_17301b78 -->|путь fallback при соответствующем отказе| flow_richfallback_94973686
+    flow_richsend_17301b78 -->|успешная доставка legacy| flow_remember_3a67a03b
+    flow_legacy_99f693cf -->|поддержка отображает markdown независимо от widget api| flow_markdown_573dbf3e
+    flow_legacy_99f693cf -->|успешная доставка legacy| flow_show_b5b880f0
+    flow_richfallback_94973686 -->|путь fallback при соответствующем отказе| flow_compact_eff84874
+    flow_remember_3a67a03b -->|успешная доставка legacy| flow_clean_6cbfa355
+    flow_clean_6cbfa355 -->|успешная доставка legacy| flow_retire_3428aaae
+    class flow_richsend_17301b78 function;
+    class flow_nativehtml_e9549cb1 klass;
+    class flow_plain_3aceff6e klass;
+    class flow_markdown_573dbf3e klass;
+    class flow_clean_6cbfa355 klass;
+    class flow_remember_3a67a03b klass;
+    class flow_retire_3428aaae klass;
+    class flow_compact_eff84874 klass;
+    class flow_richscreen_96c7dc0d klass;
+    class flow_show_b5b880f0 klass;
+    class flow_legacy_99f693cf klass;
+    class flow_richfallback_94973686 api;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>Telegram HTML и inline-кнопки</code><br><small style="color:var(--muted)">internal/bot/bot.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Exports documentation data to a target format.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>Компактный native-экран</code><br><small style="color:var(--muted)">internal/bot/card_screens.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Компактный native-экран node in internal/bot/card_screens.go.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>Специализированный rich-экран</code><br><small style="color:var(--muted)">internal/bot/rich_standard.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Специализированный rich-экран node in internal/bot/rich_standard.go.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>Выбор рендерера showScreen</code><br><small style="color:var(--muted)">internal/bot/richscreens.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Выбор рендерера showScreen node in internal/bot/richscreens.go.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>Markdown поддержки → rich / HTML chunks</code><br><small style="color:var(--muted)">internal/bot/bot.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Exports documentation data to a target format.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>sendRichMessage / editRichMessage</code><br><small style="color:var(--muted)">internal/bot/bot.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>sendRichMessage / editRichMessage node in internal/bot/bot.go.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>BOT_STYLE=legacy → classic</code><br><small style="color:var(--muted)">internal/bot/views.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>BOT_STYLE=legacy → classic node in internal/bot/views.go.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>Rich API недоступен</code><br><small style="color:var(--muted)">legacy/transport/rich.go</small></td>
+  <td><span class="tag tag-endpoint">API</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Rich API недоступен node in legacy/transport/rich.go.</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>Убрать старый интерфейс после смены режима</code><br><small style="color:var(--muted)">internal/bot/clean_chat.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Убрать старый интерфейс после смены режима node in internal/bot/clean_chat.go.</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td><code>Сначала сохранить ID экрана</code><br><small style="color:var(--muted)">internal/bot/clean_chat.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Сначала сохранить ID экрана node in internal/bot/clean_chat.go.</td>
+</tr>
+<tr>
+  <td>11</td>
+  <td><code>Удаление обработанной команды</code><br><small style="color:var(--muted)">internal/bot/clean_chat.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Удаление обработанной команды node in internal/bot/clean_chat.go.</td>
+</tr>
+<tr>
+  <td>12</td>
+  <td><code>Обычный текст при ошибке разметки</code><br><small style="color:var(--muted)">internal/bot/bot.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Обычный текст при ошибке разметки node in internal/bot/bot.go.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>internal/bot/bot.go</code></td><td>4 nodes</td></tr>
+<tr><td><code>internal/bot/clean_chat.go</code></td><td>3 nodes</td></tr>
+<tr><td><code>internal/bot/card_screens.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/bot/rich_standard.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/bot/richscreens.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/bot/views.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>legacy/transport/rich.go</code></td><td>1 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: успешная доставка legacy x6, путь fallback при соответствующем отказе x4, поддержка отображает markdown независимо от widget api x1. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 4. HTML: карточка и проверка действий ====== -->
+<h2 id="html">4. HTML: карточка и проверка действий</h2>
+<p>HTML: карточка и проверка действий groups implementation around bot, internal, cardsgo, card, mostly in internal/bot/cards.go, internal/storage/bot_cards.go, internal/bot/card_appearance.go. This section covers 20 nodes and 23 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: HTML: карточка и проверка действий (20 nodes, 23 edges)
+    subgraph html_internal_bot_cards_go_05d42309["internal/bot/cards.go"]
+        flow_newwidget_87881e61("SendWidget при новом документе<br/><small>internal/bot/cards.go</small>")
+        flow_widgetguard_1f39b088("Проверить владельца, ID, ревизию и види...<br/><small>internal/bot/cards.go</small>")
+        flow_editwidget_2a782c95("Изменить приватный chatData<br/><small>internal/bot/cards.go</small>")
+        flow_textcard_f6f7294d("Остальные ответы → textCard<br/><small>internal/bot/cards.go</small>")
+        flow_prepare_b45cbcf0("prepareCard и границы страницы<br/><small>internal/bot/cards.go</small>")
+        flow_widgetaction_d11de048("Подтверждённое действие → общий callback<br/><small>internal/bot/cards.go</small>")
+        flow_widgetquery_7547336f("WidgetQuery: ui:revision:kind:value<br/><small>internal/bot/cards.go</small>")
+        flow_widgetcompat_b9012d4a("WIDGET NOT ALLOWED<br/><small>internal/bot/cards.go</small>")
+        flow_deliverui_5b379b69("deliverUI: создать или изменить<br/><small>internal/bot/cards.go</small>")
+        flow_widgetpage_bbb506a6("Пагинация / нижние вкладки<br/><small>internal/bot/cards.go</small>")
+    end
+    subgraph html_internal_storage_bot_cards_go_ef2c6ea9["internal/storage/bot_cards.go"]
+        flow_widgetlock_da7a2340("Сериализовать действие карточки<br/><small>internal/storage/bot_cards.go</small>")
+        flow_widgetsave_02c48420("Сохранить cardState и message ID<br/><small>internal/storage/bot_cards.go</small>")
+    end
+    flow_widgetclient_246175a1("createVividWidget и chatDataChanged<br/><small>bot/widgets/interface.html</small>")
+    flow_widgetlimits_ff20da65("HTML ≤32 KiB / zlib ≤4 KiB<br/><small>internal/bot/card_appearance.go</small>")
+    flow_copy_f40bc5f3("Получить ссылку отдельным сообщением<br/><small>internal/bot/card_native.go</small>")
+    flow_interfaces_444d5bec("Специализированные HTML-экраны<br/><small>internal/bot/card_screens.go</small>")
+    flow_widgeterror_5cc69aa0("HTML не доставлен: сохранить выбранный...<br/><small>internal/bot/richscreens.go</small>")
+    flow_html_716e1282("BOT_STYLE=html → cards<br/><small>internal/bot/views.go</small>")
+    flow_widgetlock_da7a2340 -->|подтверждённое действие html| flow_widgetguard_1f39b088
+    flow_textcard_f6f7294d -->|проверить универсальную карточку| flow_prepare_b45cbcf0
+    flow_widgetaction_d11de048 -->|разрешённая copytext кнопка| flow_copy_f40bc5f3
+    flow_interfaces_444d5bec -->|выбрать специализированный html экран| flow_prepare_b45cbcf0
+    flow_widgetquery_7547336f -->|подтверждённое действие html| flow_widgetlock_da7a2340
+    flow_widgetcompat_b9012d4a -->|отказ нового документа при наличии совместимого старого| flow_widgetsave_02c48420
+    flow_widgetclient_246175a1 -->|подтверждённое действие html| flow_widgetquery_7547336f
+    flow_newwidget_87881e61 -->|нет совместимого старого документа и новая отправка запрещена| flow_widgeterror_5cc69aa0
+    flow_newwidget_87881e61 -->|новый документ или forced command| flow_widgetsave_02c48420
+    flow_newwidget_87881e61 -->|отказ нового документа при наличии совместимого старого| flow_widgetcompat_b9012d4a
+    flow_prepare_b45cbcf0 -->|выбрать специализированный html экран| flow_deliverui_5b379b69
+    flow_widgetpage_bbb506a6 -->|проверенное переключение страницы| flow_deliverui_5b379b69
+    flow_widgetlimits_ff20da65 -->|проверить документ до отправки| flow_deliverui_5b379b69
+    flow_deliverui_5b379b69 -->|новый документ или forced command| flow_newwidget_87881e61
+    flow_deliverui_5b379b69 -->|совместимый сохранённый документ| flow_editwidget_2a782c95
+    flow_widgetguard_1f39b088 -->|подтверждённое действие html| flow_widgetaction_d11de048
+    flow_widgetguard_1f39b088 -->|проверенное переключение страницы| flow_widgetpage_bbb506a6
+    flow_editwidget_2a782c95 -->|ошибка изменения не вызывает новую отправку| flow_widgeterror_5cc69aa0
+    flow_editwidget_2a782c95 -->|совместимый сохранённый документ| flow_widgetsave_02c48420
+    flow_html_716e1282 -->|выбрать специализированный html экран| flow_interfaces_444d5bec
+    %% Omitted for readability: 2 nodes, 0 edges
+    class flow_newwidget_87881e61 klass;
+    class flow_widgetguard_1f39b088 klass;
+    class flow_editwidget_2a782c95 klass;
+    class flow_textcard_f6f7294d klass;
+    class flow_prepare_b45cbcf0 function;
+    class flow_widgetaction_d11de048 klass;
+    class flow_widgetquery_7547336f klass;
+    class flow_widgetcompat_b9012d4a klass;
+    class flow_deliverui_5b379b69 function;
+    class flow_widgetpage_bbb506a6 klass;
+    class flow_widgetlock_da7a2340 klass;
+    class flow_widgetsave_02c48420 klass;
+    class flow_widgetclient_246175a1 function;
+    class flow_widgetlimits_ff20da65 klass;
+    class flow_copy_f40bc5f3 klass;
+    class flow_interfaces_444d5bec klass;
+    class flow_widgeterror_5cc69aa0 klass;
+    class flow_html_716e1282 klass;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>Сериализовать действие карточки</code><br><small style="color:var(--muted)">internal/storage/bot_cards.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Сериализовать действие карточки node in internal/storage/bot_cards.go.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>Остальные ответы → textCard</code><br><small style="color:var(--muted)">internal/bot/cards.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Остальные ответы → textCard node in internal/bot/cards.go.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>Подтверждённое действие → общий callback</code><br><small style="color:var(--muted)">internal/bot/cards.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Подтверждённое действие → общий callback node in internal/bot/cards.go.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>Специализированные HTML-экраны</code><br><small style="color:var(--muted)">internal/bot/card_screens.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Exports documentation data to a target format.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>HTML не доставлен: сохранить выбранный режим</code><br><small style="color:var(--muted)">internal/bot/richscreens.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Exports documentation data to a target format.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>WidgetQuery: ui:revision:kind:value</code><br><small style="color:var(--muted)">internal/bot/cards.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>WidgetQuery: ui:revision:kind:value node in internal/bot/cards.go.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>INPUT_MEDIA_WIDGET_NOT_ALLOWED</code><br><small style="color:var(--muted)">internal/bot/cards.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>INPUT_MEDIA_WIDGET_NOT_ALLOWED node in internal/bot/cards.go.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>Получить ссылку отдельным сообщением</code><br><small style="color:var(--muted)">internal/bot/card_native.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Получить ссылку отдельным сообщением node in internal/bot/card_native.go.</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>createVividWidget и chatDataChanged</code><br><small style="color:var(--muted)">bot/widgets/interface.html</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Supports retrieval-augmented Q&amp;A or streaming chat.</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td><code>SendWidget при новом документе</code><br><small style="color:var(--muted)">internal/bot/cards.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>SendWidget при новом документе node in internal/bot/cards.go.</td>
+</tr>
+<tr>
+  <td>11</td>
+  <td><code>Устаревшее действие отклонить</code><br><small style="color:var(--muted)">internal/bot/cards.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Устаревшее действие отклонить node in internal/bot/cards.go.</td>
+</tr>
+<tr>
+  <td>12</td>
+  <td><code>prepareCard и границы страницы</code><br><small style="color:var(--muted)">internal/bot/cards.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>prepareCard и границы страницы node in internal/bot/cards.go.</td>
+</tr>
+<tr>
+  <td>13</td>
+  <td><code>Пагинация / нижние вкладки</code><br><small style="color:var(--muted)">internal/bot/cards.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Пагинация / нижние вкладки node in internal/bot/cards.go.</td>
+</tr>
+<tr>
+  <td>14</td>
+  <td><code>HTML ≤32 KiB / zlib ≤4 KiB</code><br><small style="color:var(--muted)">internal/bot/card_appearance.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Exports documentation data to a target format.</td>
+</tr>
+<tr>
+  <td>15</td>
+  <td><code>Сохранить cardState и message ID</code><br><small style="color:var(--muted)">internal/storage/bot_cards.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Сохранить cardState и message ID node in internal/storage/bot_cards.go.</td>
+</tr>
+<tr>
+  <td>16</td>
+  <td><code>deliverUI: создать или изменить</code><br><small style="color:var(--muted)">internal/bot/cards.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>deliverUI: создать или изменить node in internal/bot/cards.go.</td>
+</tr>
+<tr>
+  <td>17</td>
+  <td><code>Проверить владельца, ID, ревизию и видимость</code><br><small style="color:var(--muted)">internal/bot/cards.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Проверить владельца, ID, ревизию и видимость node in internal/bot/cards.go.</td>
+</tr>
+<tr>
+  <td>18</td>
+  <td><code>Изменить приватный chatData</code><br><small style="color:var(--muted)">internal/bot/cards.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Supports retrieval-augmented Q&amp;A or streaming chat.</td>
+</tr>
+<tr>
+  <td>19</td>
+  <td><code>Шаблон, тема и SHA256 документа</code><br><small style="color:var(--muted)">internal/bot/card_appearance.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Шаблон, тема и SHA256 документа node in internal/bot/card_appearance.go.</td>
+</tr>
+<tr>
+  <td>20</td>
+  <td><code>BOT_STYLE=html → cards</code><br><small style="color:var(--muted)">internal/bot/views.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Exports documentation data to a target format.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>internal/bot/cards.go</code></td><td>11 nodes</td></tr>
+<tr><td><code>internal/bot/card_appearance.go</code></td><td>2 nodes</td></tr>
+<tr><td><code>internal/storage/bot_cards.go</code></td><td>2 nodes</td></tr>
+<tr><td><code>internal/bot/card_native.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/bot/card_screens.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/bot/richscreens.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/bot/views.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>bot/widgets/interface.html</code></td><td>1 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: подтверждённое действие html x4, выбрать специализированный html экран x3, отказ нового документа при наличии совместимого старого x2, новый документ или forced command x2. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 5. Экраны и пользовательская навигация ====== -->
+<h2 id="navigation">5. Экраны и пользовательская навигация</h2>
+<p>Экраны и пользовательская навигация groups implementation around internal, bot, callbacksgo, domain, mostly in internal/bot/callbacks.go, internal/domain/customer.go. This section covers 22 nodes and 5 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Экраны и пользовательская навигация (22 nodes, 5 edges)
+    subgraph navigation_internal_bot_callbacks_go_04d0803f["internal/bot/callbacks.go"]
+        flow_screen_buy_d0c53dfa("nav:buy<br/><small>internal/bot/callbacks.go</small>")
+        flow_screen_connect_006ab731("nav:connect<br/><small>internal/bot/callbacks.go</small>")
+        flow_screen_devices_2abcca5d("nav:devices<br/><small>internal/bot/callbacks.go</small>")
+        flow_screen_diagnostics_bafe2fad("nav:diagnostics<br/><small>internal/bot/callbacks.go</small>")
+        flow_screen_help_551e8af1("nav:help<br/><small>internal/bot/callbacks.go</small>")
+        flow_screen_history_d62158eb("nav:history<br/><small>internal/bot/callbacks.go</small>")
+        flow_screen_info_74dcae16("nav:info<br/><small>internal/bot/callbacks.go</small>")
+        flow_screen_main_70188f04("nav:main<br/><small>internal/bot/callbacks.go</small>")
+        flow_screen_more_62b38222("nav:more<br/><small>internal/bot/callbacks.go</small>")
+        flow_screen_profile_8c9ed351("nav:profile<br/><small>internal/bot/callbacks.go</small>")
+        flow_screen_promo_06cd7f6a("nav:promo<br/><small>internal/bot/callbacks.go</small>")
+        flow_screen_referral_c7dae6b6("nav:referral<br/><small>internal/bot/callbacks.go</small>")
+    end
+    subgraph navigation_internal_domain_customer_go_aa17e8bb["internal/domain/customer.go"]
+        flow_guidance_17dc5fca("Приоритет следующего действия клиента<br/><small>internal/domain/customer.go</small>")
+        flow_guideactive_5f6b02e2("Активная подписка: выбрать нужный следу...<br/><small>internal/domain/customer.go</small>")
+        flow_guidetrial_c61a2934("Новый клиент: доступен trial<br/><small>internal/domain/customer.go</small>")
+        flow_guidepaid_8588fe3d("Приоритет 1: оплачено, но не выдано<br/><small>internal/domain/customer.go</small>")
+        flow_guideexpiry_7efdc3c7("Неактивный доступ: известный срок<br/><small>internal/domain/customer.go</small>")
+        flow_guidepending_6b78b29d("Неактивный доступ: живой счёт ожидает о...<br/><small>internal/domain/customer.go</small>")
+    end
+    flow_guidance_17dc5fca -->|действующий доступ, если нет более приоритетного действия| flow_guideactive_5f6b02e2
+    flow_guidance_17dc5fca -->|новый клиент с доступным trial| flow_guidetrial_c61a2934
+    flow_guidance_17dc5fca -->|приоритет оплаченного незавершённого заказа| flow_guidepaid_8588fe3d
+    flow_guidance_17dc5fca -->|срок ещё действует, но текущий статус неактивен| flow_guideexpiry_7efdc3c7
+    flow_guidance_17dc5fca -->|уже существующий живой счёт| flow_guidepending_6b78b29d
+    %% Omitted for readability: 4 nodes, 0 edges
+    class flow_screen_buy_d0c53dfa function;
+    class flow_screen_connect_006ab731 function;
+    class flow_screen_devices_2abcca5d function;
+    class flow_screen_diagnostics_bafe2fad function;
+    class flow_screen_help_551e8af1 function;
+    class flow_screen_history_d62158eb function;
+    class flow_screen_info_74dcae16 function;
+    class flow_screen_main_70188f04 function;
+    class flow_screen_more_62b38222 function;
+    class flow_screen_profile_8c9ed351 function;
+    class flow_screen_promo_06cd7f6a function;
+    class flow_screen_referral_c7dae6b6 function;
+    class flow_guidance_17dc5fca klass;
+    class flow_guideactive_5f6b02e2 klass;
+    class flow_guidetrial_c61a2934 klass;
+    class flow_guidepaid_8588fe3d klass;
+    class flow_guideexpiry_7efdc3c7 klass;
+    class flow_guidepending_6b78b29d klass;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>Неактивный доступ: известный срок</code><br><small style="color:var(--muted)">internal/domain/customer.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Неактивный доступ: известный срок node in internal/domain/customer.go.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>nav:buy</code><br><small style="color:var(--muted)">internal/bot/callbacks.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>nav:buy node in internal/bot/callbacks.go.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>nav:connect</code><br><small style="color:var(--muted)">internal/bot/callbacks.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>nav:connect node in internal/bot/callbacks.go.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>nav:devices</code><br><small style="color:var(--muted)">internal/bot/callbacks.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>nav:devices node in internal/bot/callbacks.go.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>nav:diagnostics</code><br><small style="color:var(--muted)">internal/bot/callbacks.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>nav:diagnostics node in internal/bot/callbacks.go.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>nav:help</code><br><small style="color:var(--muted)">internal/bot/callbacks.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>nav:help node in internal/bot/callbacks.go.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>nav:history</code><br><small style="color:var(--muted)">internal/bot/callbacks.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>nav:history node in internal/bot/callbacks.go.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>nav:info</code><br><small style="color:var(--muted)">internal/bot/callbacks.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>nav:info node in internal/bot/callbacks.go.</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>nav:main</code><br><small style="color:var(--muted)">internal/bot/callbacks.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>nav:main node in internal/bot/callbacks.go.</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td><code>nav:more</code><br><small style="color:var(--muted)">internal/bot/callbacks.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>nav:more node in internal/bot/callbacks.go.</td>
+</tr>
+<tr>
+  <td>11</td>
+  <td><code>nav:profile</code><br><small style="color:var(--muted)">internal/bot/callbacks.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>nav:profile node in internal/bot/callbacks.go.</td>
+</tr>
+<tr>
+  <td>12</td>
+  <td><code>nav:promo</code><br><small style="color:var(--muted)">internal/bot/callbacks.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>nav:promo node in internal/bot/callbacks.go.</td>
+</tr>
+<tr>
+  <td>13</td>
+  <td><code>nav:referral</code><br><small style="color:var(--muted)">internal/bot/callbacks.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>nav:referral node in internal/bot/callbacks.go.</td>
+</tr>
+<tr>
+  <td>14</td>
+  <td><code>nav:settings</code><br><small style="color:var(--muted)">internal/bot/callbacks.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>nav:settings node in internal/bot/callbacks.go.</td>
+</tr>
+<tr>
+  <td>15</td>
+  <td><code>nav:subscription</code><br><small style="color:var(--muted)">internal/bot/callbacks.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>nav:subscription node in internal/bot/callbacks.go.</td>
+</tr>
+<tr>
+  <td>16</td>
+  <td><code>nav:support</code><br><small style="color:var(--muted)">internal/bot/callbacks.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>nav:support node in internal/bot/callbacks.go.</td>
+</tr>
+<tr>
+  <td>17</td>
+  <td><code>nav:trial</code><br><small style="color:var(--muted)">internal/bot/callbacks.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>nav:trial node in internal/bot/callbacks.go.</td>
+</tr>
+<tr>
+  <td>18</td>
+  <td><code>Новый клиент: доступен trial</code><br><small style="color:var(--muted)">internal/domain/customer.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Новый клиент: доступен trial node in internal/domain/customer.go.</td>
+</tr>
+<tr>
+  <td>19</td>
+  <td><code>Неактивный доступ: живой счёт ожидает оплаты</code><br><small style="color:var(--muted)">internal/domain/customer.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Неактивный доступ: живой счёт ожидает оплаты node in internal/domain/customer.go.</td>
+</tr>
+<tr>
+  <td>20</td>
+  <td><code>Активная подписка: выбрать нужный следующий шаг</code><br><small style="color:var(--muted)">internal/domain/customer.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Активная подписка: выбрать нужный следующий шаг node in internal/domain/customer.go.</td>
+</tr>
+<tr>
+  <td>21</td>
+  <td><code>Приоритет 1: оплачено, но не выдано</code><br><small style="color:var(--muted)">internal/domain/customer.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Приоритет 1: оплачено, но не выдано node in internal/domain/customer.go.</td>
+</tr>
+<tr>
+  <td>22</td>
+  <td><code>Приоритет следующего действия клиента</code><br><small style="color:var(--muted)">internal/domain/customer.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Приоритет следующего действия клиента node in internal/domain/customer.go.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>internal/bot/callbacks.go</code></td><td>16 nodes</td></tr>
+<tr><td><code>internal/domain/customer.go</code></td><td>6 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: действующий доступ, если нет более приоритетного действия x1, новый клиент с доступным trial x1, приоритет оплаченного незавершённого заказа x1, срок ещё действует, но текущий статус неактивен x1. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 6. Покупка, триал и промокоды ====== -->
+<h2 id="checkout">6. Покупка, триал и промокоды</h2>
+<p>Покупка, триал и промокоды groups implementation around internal, payments, servicego, bot, mostly in internal/payments/service.go, internal/bot/payments.go, internal/bot/checkout_cards.go. This section covers 13 nodes and 11 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Покупка, триал и промокоды (13 nodes, 11 edges)
+    subgraph checkout_internal_payments_service_go_3b21a30a["internal/payments/service.go"]
+        flow_checkout_cfe50b83("Создать или переиспользовать счёт<br/><small>internal/payments/service.go</small>")
+        flow_promorules_0e202e06("Проверки промокода<br/><small>internal/payments/service.go</small>")
+        flow_trial_32fdeb9c("Пробный период своего канала<br/><small>internal/payments/service.go</small>")
+        flow_payoptions_b38cb45d("Выбор шлюза и способа<br/><small>internal/payments/service.go</small>")
+        flow_free_93993a13("Бесплатная покупка по промокоду<br/><small>internal/payments/service.go</small>")
+        flow_gift_9d0f2bc7("Подарочный промокод → оплаченный gift-з...<br/><small>internal/payments/service.go</small>")
+    end
+    flow_checkbox_7ec296d0("Серверный opt-in автопродления<br/><small>internal/bot/callbacks.go</small>")
+    flow_plan_6cec3bcb("Оформление выбранного тарифа<br/><small>internal/bot/checkout_cards.go</small>")
+    flow_promo_891676d2("Ввести и проверить промокод<br/><small>internal/bot/messages.go</small>")
+    flow_invoice_7071ede6("Экран счёта и внешняя оплата<br/><small>internal/bot/payments.go</small>")
+    flow_plans_d209f622("Выбор тарифа и QuotePlans<br/><small>internal/bot/screens.go</small>")
+    flow_balance_b56ae916("Оплатить с внутреннего баланса<br/><small>internal/payments/admin.go</small>")
+    flow_trialreserve_6e0c438a("Сохранить trial и заказ до выдачи<br/><small>internal/payments/provision.go</small>")
+    flow_plan_6cec3bcb -->|оплата с баланса| flow_balance_b56ae916
+    flow_plan_6cec3bcb -->|покупка подписки| flow_payoptions_b38cb45d
+    flow_plan_6cec3bcb -->|явный opt-in автопродления| flow_checkbox_7ec296d0
+    flow_plans_d209f622 -->|покупка подписки| flow_plan_6cec3bcb
+    flow_promo_891676d2 -->|скидочный промокод| flow_promorules_0e202e06
+    flow_checkout_cfe50b83 -->|нулевая стоимость без recurring| flow_free_93993a13
+    flow_checkout_cfe50b83 -->|покупка подписки| flow_invoice_7071ede6
+    flow_trial_32fdeb9c -->|пробный доступ своего канала| flow_trialreserve_6e0c438a
+    flow_payoptions_b38cb45d -->|покупка подписки| flow_checkout_cfe50b83
+    flow_promorules_0e202e06 -->|подарочные дни| flow_gift_9d0f2bc7
+    flow_promorules_0e202e06 -->|скидочный промокод| flow_plans_d209f622
+    class flow_checkout_cfe50b83 klass;
+    class flow_promorules_0e202e06 klass;
+    class flow_trial_32fdeb9c klass;
+    class flow_payoptions_b38cb45d klass;
+    class flow_free_93993a13 klass;
+    class flow_gift_9d0f2bc7 klass;
+    class flow_checkbox_7ec296d0 klass;
+    class flow_plan_6cec3bcb klass;
+    class flow_promo_891676d2 klass;
+    class flow_invoice_7071ede6 klass;
+    class flow_plans_d209f622 klass;
+    class flow_balance_b56ae916 klass;
+    class flow_trialreserve_6e0c438a klass;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>Экран счёта и внешняя оплата</code><br><small style="color:var(--muted)">internal/bot/payments.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Экран счёта и внешняя оплата node in internal/bot/payments.go.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>Оформление выбранного тарифа</code><br><small style="color:var(--muted)">internal/bot/checkout_cards.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Оформление выбранного тарифа node in internal/bot/checkout_cards.go.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>Серверный opt-in автопродления</code><br><small style="color:var(--muted)">internal/bot/callbacks.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Серверный opt-in автопродления node in internal/bot/callbacks.go.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>Выбор тарифа и QuotePlans</code><br><small style="color:var(--muted)">internal/bot/screens.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Выбор тарифа и QuotePlans node in internal/bot/screens.go.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>Бесплатная покупка по промокоду</code><br><small style="color:var(--muted)">internal/payments/service.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Бесплатная покупка по промокоду node in internal/payments/service.go.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>Подарочный промокод → оплаченный gift-заказ</code><br><small style="color:var(--muted)">internal/payments/service.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Подарочный промокод → оплаченный gift-заказ node in internal/payments/service.go.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>Ввести и проверить промокод</code><br><small style="color:var(--muted)">internal/bot/messages.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Ввести и проверить промокод node in internal/bot/messages.go.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>Создать или переиспользовать счёт</code><br><small style="color:var(--muted)">internal/payments/service.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Создать или переиспользовать счёт node in internal/payments/service.go.</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>Пробный период своего канала</code><br><small style="color:var(--muted)">internal/payments/service.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Пробный период своего канала node in internal/payments/service.go.</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td><code>Выбор шлюза и способа</code><br><small style="color:var(--muted)">internal/payments/service.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Выбор шлюза и способа node in internal/payments/service.go.</td>
+</tr>
+<tr>
+  <td>11</td>
+  <td><code>Оплатить с внутреннего баланса</code><br><small style="color:var(--muted)">internal/payments/admin.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Оплатить с внутреннего баланса node in internal/payments/admin.go.</td>
+</tr>
+<tr>
+  <td>12</td>
+  <td><code>Сохранить trial и заказ до выдачи</code><br><small style="color:var(--muted)">internal/payments/provision.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Сохранить trial и заказ до выдачи node in internal/payments/provision.go.</td>
+</tr>
+<tr>
+  <td>13</td>
+  <td><code>Проверки промокода</code><br><small style="color:var(--muted)">internal/payments/service.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Проверки промокода node in internal/payments/service.go.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>internal/payments/service.go</code></td><td>6 nodes</td></tr>
+<tr><td><code>internal/bot/callbacks.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/bot/checkout_cards.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/bot/messages.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/bot/payments.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/bot/screens.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/payments/admin.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/payments/provision.go</code></td><td>1 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: покупка подписки x4, скидочный промокод x2, оплата с баланса x1, явный opt-in автопродления x1. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 7. Подтверждение оплаты и выдача ====== -->
+<h2 id="payment">7. Подтверждение оплаты и выдача</h2>
+<p>Подтверждение оплаты и выдача groups implementation around internal, payments, provisiongo, domain, mostly in internal/payments/provision.go, internal/domain/order_progress.go, internal/payments/service.go. This section covers 19 nodes and 20 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Подтверждение оплаты и выдача (19 nodes, 20 edges)
+    subgraph payment_internal_payments_provision_go_2503f81e["internal/payments/provision.go"]
+        flow_days_c40cdca0("Зафиксировать дни в журнале<br/><small>internal/payments/provision.go</small>")
+        flow_target_4f123064("Зарезервировать абсолютный срок<br/><small>internal/payments/provision.go</small>")
+        flow_upgrade_5adef88a("Trial → paid: профиль и трафик<br/><small>internal/payments/provision.go</small>")
+        flow_panel_a9e41ec5("Создать / обновить профиль Remnawave<br/><small>internal/payments/provision.go</small>")
+        flow_postgrant_b3424198("Слоты, активация промо, награды<br/><small>internal/payments/provision.go</small>")
+        flow_ready_c70aadb9("provisioned: доступ готов<br/><small>internal/payments/provision.go</small>")
+        flow_subjectlock_79386165("Блокировка subject и повторное чтение<br/><small>internal/payments/provision.go</small>")
+    end
+    subgraph payment_internal_domain_order_progress_go_461bf393["internal/domain/order_progress.go"]
+        flow_paid_6021a4d7("paid: оплата подтверждена<br/><small>internal/domain/order_progress.go</small>")
+        flow_pending_6f913182("pending: ожидаем оплату<br/><small>internal/domain/order_progress.go</small>")
+        flow_delayed_92c49885("paid: выдача задерживается<br/><small>internal/domain/order_progress.go</small>")
+    end
+    subgraph payment_internal_payments_service_go_adcc4c49["internal/payments/service.go"]
+        flow_event_541cbd34("Сопоставить событие и заказ<br/><small>internal/payments/service.go</small>")
+        flow_retry_024a8b2d("Сохранённая очередь повторной выдачи<br/><small>internal/payments/service.go</small>")
+        flow_provision_ddb0c2ff("Выдать paid-заказ по типу<br/><small>internal/payments/service.go</small>")
+    end
+    subgraph payment_internal_bot_payments_go_fbba2926["internal/bot/payments.go"]
+        flow_check_db13568a("Проверить статус принадлежащего заказа<br/><small>internal/bot/payments.go</small>")
+        flow_stars_40e507ab("Telegram Stars: pre-checkout и success<br/><small>internal/bot/payments.go</small>")
+    end
+    flow_inbox_1c9c276f("Сначала сохранить событие в payment inbox<br/><small>internal/payments/inbox.go</small>")
+    flow_reconcile_87282620("Сверить платёж через API провайдера<br/><small>internal/payments/reconcile.go</small>")
+    flow_verify_842019e0("Проверенный webhook провайдера<br/><small>internal/web/webhooks.go</small>")
+    flow_days_c40cdca0 -->|подтверждение и выдача| flow_target_4f123064
+    flow_target_4f123064 -->|подтверждение и выдача| flow_upgrade_5adef88a
+    flow_panel_a9e41ec5 -->|подтверждение и выдача| flow_postgrant_b3424198
+    flow_inbox_1c9c276f -->|подтверждение и выдача| flow_event_541cbd34
+    flow_pending_6f913182 -->|клиент проверяет внешний платёж| flow_check_db13568a
+    flow_reconcile_87282620 -->|клиент проверяет внешний платёж| flow_inbox_1c9c276f
+    flow_upgrade_5adef88a -->|подтверждение и выдача| flow_panel_a9e41ec5
+    flow_postgrant_b3424198 -->|подтверждение и выдача| flow_ready_c70aadb9
+    flow_stars_40e507ab -->|применить проверенный telegram платёж| flow_inbox_1c9c276f
+    flow_delayed_92c49885 -->|восстановление после сбоя выдачи| flow_retry_024a8b2d
+    flow_check_db13568a -->|если заказ уже paid, checkorder может довести выдачу| flow_provision_ddb0c2ff
+    flow_check_db13568a -->|клиент проверяет внешний платёж| flow_reconcile_87282620
+    flow_paid_6021a4d7 -->|восстановление после сбоя выдачи| flow_delayed_92c49885
+    flow_paid_6021a4d7 -->|подтверждение и выдача| flow_provision_ddb0c2ff
+    flow_provision_ddb0c2ff -->|подтверждение и выдача| flow_subjectlock_79386165
+    flow_event_541cbd34 -->|подтверждение и выдача| flow_paid_6021a4d7
+    flow_retry_024a8b2d -->|восстановление после сбоя выдачи| flow_provision_ddb0c2ff
+    flow_verify_842019e0 -->|подтверждение и выдача| flow_inbox_1c9c276f
+    flow_subjectlock_79386165 -->|подтверждение и выдача| flow_days_c40cdca0
+    %% Omitted for readability: 1 nodes, 0 edges
+    class flow_days_c40cdca0 klass;
+    class flow_target_4f123064 klass;
+    class flow_upgrade_5adef88a klass;
+    class flow_panel_a9e41ec5 klass;
+    class flow_postgrant_b3424198 klass;
+    class flow_ready_c70aadb9 function;
+    class flow_subjectlock_79386165 klass;
+    class flow_paid_6021a4d7 function;
+    class flow_pending_6f913182 function;
+    class flow_delayed_92c49885 function;
+    class flow_event_541cbd34 klass;
+    class flow_retry_024a8b2d klass;
+    class flow_provision_ddb0c2ff klass;
+    class flow_check_db13568a klass;
+    class flow_stars_40e507ab klass;
+    class flow_inbox_1c9c276f klass;
+    class flow_reconcile_87282620 api;
+    class flow_verify_842019e0 ui;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>Зафиксировать дни в журнале</code><br><small style="color:var(--muted)">internal/payments/provision.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Зафиксировать дни в журнале node in internal/payments/provision.go.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>Зарезервировать абсолютный срок</code><br><small style="color:var(--muted)">internal/payments/provision.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Зарезервировать абсолютный срок node in internal/payments/provision.go.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>Создать / обновить профиль Remnawave</code><br><small style="color:var(--muted)">internal/payments/provision.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Создать / обновить профиль Remnawave node in internal/payments/provision.go.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>Сначала сохранить событие в payment inbox</code><br><small style="color:var(--muted)">internal/payments/inbox.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Сначала сохранить событие в payment inbox node in internal/payments/inbox.go.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>pending: ожидаем оплату</code><br><small style="color:var(--muted)">internal/domain/order_progress.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>pending: ожидаем оплату node in internal/domain/order_progress.go.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>Сверить платёж через API провайдера</code><br><small style="color:var(--muted)">internal/payments/reconcile.go</small></td>
+  <td><span class="tag tag-endpoint">API</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Сверить платёж через API провайдера node in internal/payments/reconcile.go.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>Trial → paid: профиль и трафик</code><br><small style="color:var(--muted)">internal/payments/provision.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Trial → paid: профиль и трафик node in internal/payments/provision.go.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>Слоты, активация промо, награды</code><br><small style="color:var(--muted)">internal/payments/provision.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Слоты, активация промо, награды node in internal/payments/provision.go.</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>Telegram Stars: pre-checkout и success</code><br><small style="color:var(--muted)">internal/bot/payments.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Telegram Stars: pre-checkout и success node in internal/bot/payments.go.</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td><code>paid: выдача задерживается</code><br><small style="color:var(--muted)">internal/domain/order_progress.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>paid: выдача задерживается node in internal/domain/order_progress.go.</td>
+</tr>
+<tr>
+  <td>11</td>
+  <td><code>Проверить статус принадлежащего заказа</code><br><small style="color:var(--muted)">internal/bot/payments.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Проверить статус принадлежащего заказа node in internal/bot/payments.go.</td>
+</tr>
+<tr>
+  <td>12</td>
+  <td><code>paid: оплата подтверждена</code><br><small style="color:var(--muted)">internal/domain/order_progress.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>paid: оплата подтверждена node in internal/domain/order_progress.go.</td>
+</tr>
+<tr>
+  <td>13</td>
+  <td><code>Выдать paid-заказ по типу</code><br><small style="color:var(--muted)">internal/payments/service.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Выдать paid-заказ по типу node in internal/payments/service.go.</td>
+</tr>
+<tr>
+  <td>14</td>
+  <td><code>Сопоставить событие и заказ</code><br><small style="color:var(--muted)">internal/payments/service.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Сопоставить событие и заказ node in internal/payments/service.go.</td>
+</tr>
+<tr>
+  <td>15</td>
+  <td><code>failed / cancelled / refunded</code><br><small style="color:var(--muted)">internal/domain/order_progress.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>failed / cancelled / refunded node in internal/domain/order_progress.go.</td>
+</tr>
+<tr>
+  <td>16</td>
+  <td><code>Сохранённая очередь повторной выдачи</code><br><small style="color:var(--muted)">internal/payments/service.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Сохранённая очередь повторной выдачи node in internal/payments/service.go.</td>
+</tr>
+<tr>
+  <td>17</td>
+  <td><code>Проверенный webhook провайдера</code><br><small style="color:var(--muted)">internal/web/webhooks.go</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Проверенный webhook провайдера node in internal/web/webhooks.go.</td>
+</tr>
+<tr>
+  <td>18</td>
+  <td><code>provisioned: доступ готов</code><br><small style="color:var(--muted)">internal/payments/provision.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>provisioned: доступ готов node in internal/payments/provision.go.</td>
+</tr>
+<tr>
+  <td>19</td>
+  <td><code>Блокировка subject и повторное чтение</code><br><small style="color:var(--muted)">internal/payments/provision.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Блокировка subject и повторное чтение node in internal/payments/provision.go.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>internal/payments/provision.go</code></td><td>7 nodes</td></tr>
+<tr><td><code>internal/domain/order_progress.go</code></td><td>4 nodes</td></tr>
+<tr><td><code>internal/payments/service.go</code></td><td>3 nodes</td></tr>
+<tr><td><code>internal/bot/payments.go</code></td><td>2 nodes</td></tr>
+<tr><td><code>internal/payments/inbox.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/payments/reconcile.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/web/webhooks.go</code></td><td>1 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: подтверждение и выдача x11, клиент проверяет внешний платёж x3, восстановление после сбоя выдачи x3, применить проверенный telegram платёж x1. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 8. Автопродление и отмена ====== -->
+<h2 id="recurring">8. Автопродление и отмена</h2>
+<p>Автопродление и отмена groups implementation around internal, payments, recurringgo, разрешённые, mostly in internal/payments/recurring.go, internal/domain/recurring.go, internal/payments/service.go. This section covers 9 nodes and 8 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Автопродление и отмена (9 nodes, 8 edges)
+    subgraph recurring_internal_payments_recurring_go_1a8fd08c["internal/payments/recurring.go"]
+        flow_activation_71062bd0("Ожидать подтверждение сохранённого метода<br/><small>internal/payments/recurring.go</small>")
+        flow_schedule_a7c652ca("Проверить расписание соглашения<br/><small>internal/payments/recurring.go</small>")
+        flow_cancelrec_7b66b935("Отмена через общий сервис<br/><small>internal/payments/recurring.go</small>")
+        flow_capability_1bb53caf("Разрешённые recurring-возможности<br/><small>internal/payments/recurring.go</small>")
+        flow_terms_67aa758b("Остановить при изменении условий<br/><small>internal/payments/recurring.go</small>")
+        flow_plategadebit_5a858bac("Списание по расписанию Platega<br/><small>internal/payments/recurring.go</small>")
+        flow_debit_86a50e07("Один заказ на период списания<br/><small>internal/payments/recurring.go</small>")
+    end
+    flow_stopped_5b646163("История: user / declined / terms / review<br/><small>internal/domain/recurring.go</small>")
+    flow_consent_acd26c7e("Зафиксировать согласие и исходные условия<br/><small>internal/payments/service.go</small>")
+    flow_capability_1bb53caf -->|явный opt-in автопродления| flow_consent_acd26c7e
+    flow_cancelrec_7b66b935 -->|отмена автопродления клиентом| flow_stopped_5b646163
+    flow_activation_71062bd0 -->|внешние списания platega| flow_plategadebit_5a858bac
+    flow_activation_71062bd0 -->|планировщик автоплатежей| flow_schedule_a7c652ca
+    flow_terms_67aa758b -->|изменённые условия требуют нового согласия| flow_stopped_5b646163
+    flow_consent_acd26c7e -->|планировщик автоплатежей| flow_activation_71062bd0
+    flow_schedule_a7c652ca -->|изменённые условия требуют нового согласия| flow_terms_67aa758b
+    flow_schedule_a7c652ca -->|планировщик автоплатежей| flow_debit_86a50e07
+    class flow_activation_71062bd0 klass;
+    class flow_schedule_a7c652ca klass;
+    class flow_cancelrec_7b66b935 klass;
+    class flow_capability_1bb53caf klass;
+    class flow_terms_67aa758b klass;
+    class flow_plategadebit_5a858bac klass;
+    class flow_debit_86a50e07 klass;
+    class flow_stopped_5b646163 entry;
+    class flow_consent_acd26c7e klass;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>Разрешённые recurring-возможности</code><br><small style="color:var(--muted)">internal/payments/recurring.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Разрешённые recurring-возможности node in internal/payments/recurring.go.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>Списание по расписанию Platega</code><br><small style="color:var(--muted)">internal/payments/recurring.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Списание по расписанию Platega node in internal/payments/recurring.go.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>Отмена через общий сервис</code><br><small style="color:var(--muted)">internal/payments/recurring.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Отмена через общий сервис node in internal/payments/recurring.go.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>История: user / declined / terms / review</code><br><small style="color:var(--muted)">internal/domain/recurring.go</small></td>
+  <td><span class="tag tag-cmd">Entry</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>История: user / declined / terms / review node in internal/domain/recurring.go.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>Ожидать подтверждение сохранённого метода</code><br><small style="color:var(--muted)">internal/payments/recurring.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Ожидать подтверждение сохранённого метода node in internal/payments/recurring.go.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>Остановить при изменении условий</code><br><small style="color:var(--muted)">internal/payments/recurring.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Остановить при изменении условий node in internal/payments/recurring.go.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>Зафиксировать согласие и исходные условия</code><br><small style="color:var(--muted)">internal/payments/service.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Зафиксировать согласие и исходные условия node in internal/payments/service.go.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>Один заказ на период списания</code><br><small style="color:var(--muted)">internal/payments/recurring.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Один заказ на период списания node in internal/payments/recurring.go.</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>Проверить расписание соглашения</code><br><small style="color:var(--muted)">internal/payments/recurring.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Проверить расписание соглашения node in internal/payments/recurring.go.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>internal/payments/recurring.go</code></td><td>7 nodes</td></tr>
+<tr><td><code>internal/domain/recurring.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/payments/service.go</code></td><td>1 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: планировщик автоплатежей x3, изменённые условия требуют нового согласия x2, явный opt-in автопродления x1, отмена автопродления клиентом x1. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 9. Подключение и диагностика ====== -->
+<h2 id="connect">9. Подключение и диагностика</h2>
+<p>Подключение и диагностика groups implementation around internal, bot, web, connect, mostly in internal/bot/connect_hub.go, internal/bot/card_journey.go, internal/payments/access.go. This section covers 7 nodes and 4 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Подключение и диагностика (7 nodes, 4 edges)
+    subgraph connect_internal_bot_connect_hub_go_53ba2e28["internal/bot/connect_hub.go"]
+        flow_connect_537c1edb("Хаб подключения<br/><small>internal/bot/connect_hub.go</small>")
+        flow_apps_b7d160bb("Выбор Happ / Incy / Clash Mi / FlClashX<br/><small>internal/bot/connect_hub.go</small>")
+    end
+    flow_setup_a81682b1("Платформа → установка → импорт<br/><small>internal/bot/card_journey.go</small>")
+    flow_diagnostics_32431f74("Проверить подписку и места<br/><small>internal/bot/diagnostics.go</small>")
+    flow_access_b8d3fee5("Access: панель и сохранённый срок<br/><small>internal/payments/access.go</small>")
+    flow_bridge_3aa3e96d("HTTPS-мостик → deep link приложения<br/><small>internal/web/app_import.go</small>")
+    flow_firstconnect_488fb425("Первое подключение из панели<br/><small>internal/web/panel_webhook.go</small>")
+    flow_apps_b7d160bb -->|подключение после выдачи| flow_bridge_3aa3e96d
+    flow_connect_537c1edb -->|подключение после выдачи| flow_apps_b7d160bb
+    flow_connect_537c1edb -->|проверить доступ и запросить помощь| flow_diagnostics_32431f74
+    flow_connect_537c1edb -->|установка клиента вручную| flow_setup_a81682b1
+    class flow_connect_537c1edb klass;
+    class flow_apps_b7d160bb klass;
+    class flow_setup_a81682b1 klass;
+    class flow_diagnostics_32431f74 klass;
+    class flow_access_b8d3fee5 klass;
+    class flow_bridge_3aa3e96d klass;
+    class flow_firstconnect_488fb425 klass;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>Платформа → установка → импорт</code><br><small style="color:var(--muted)">internal/bot/card_journey.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Платформа → установка → импорт node in internal/bot/card_journey.go.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>Access: панель и сохранённый срок</code><br><small style="color:var(--muted)">internal/payments/access.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Access: панель и сохранённый срок node in internal/payments/access.go.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>Первое подключение из панели</code><br><small style="color:var(--muted)">internal/web/panel_webhook.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Первое подключение из панели node in internal/web/panel_webhook.go.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>Выбор Happ / Incy / Clash Mi / FlClashX</code><br><small style="color:var(--muted)">internal/bot/connect_hub.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Выбор Happ / Incy / Clash Mi / FlClashX node in internal/bot/connect_hub.go.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>Проверить подписку и места</code><br><small style="color:var(--muted)">internal/bot/diagnostics.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Проверить подписку и места node in internal/bot/diagnostics.go.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>HTTPS-мостик → deep link приложения</code><br><small style="color:var(--muted)">internal/web/app_import.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>HTTPS-мостик → deep link приложения node in internal/web/app_import.go.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>Хаб подключения</code><br><small style="color:var(--muted)">internal/bot/connect_hub.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Хаб подключения node in internal/bot/connect_hub.go.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>internal/bot/connect_hub.go</code></td><td>2 nodes</td></tr>
+<tr><td><code>internal/bot/card_journey.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/bot/diagnostics.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/payments/access.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/web/app_import.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/web/panel_webhook.go</code></td><td>1 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: подключение после выдачи x2, проверить доступ и запросить помощь x1, установка клиента вручную x1. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 10. Устройства и дополнительные места ====== -->
+<h2 id="devices">10. Устройства и дополнительные места</h2>
+<p>Устройства и дополнительные места groups implementation around internal, payments, bot, card, mostly in internal/bot/card_screens.go, internal/payments/device.go, internal/payments/access.go. This section covers 7 nodes and 6 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Устройства и дополнительные места (7 nodes, 6 edges)
+    subgraph devices_internal_bot_card_screens_go_46e834b6["internal/bot/card_screens.go"]
+        flow_devices_35afd835("Список устройств: по 3 на страницу<br/><small>internal/bot/card_screens.go</small>")
+        flow_deviceconfirm_e7959af3("Выбор → подтверждение отвязки<br/><small>internal/bot/card_screens.go</small>")
+        flow_slots_03d23be9("Дополнительные места и продление<br/><small>internal/bot/card_screens.go</small>")
+    end
+    subgraph devices_internal_payments_device_go_fcbbfe05["internal/payments/device.go"]
+        flow_devicequote_29e98d8d("Цена устройств до окончания подписки<br/><small>internal/payments/device.go</small>")
+        flow_devicecheckout_12c2c02f("Заказ устройств / продление grant<br/><small>internal/payments/device.go</small>")
+        flow_devicelimit_1f8fb425("Синхронизация лимита панели<br/><small>internal/payments/device.go</small>")
+    end
+    flow_detach_4046cafd("Удалить HWID из панели<br/><small>internal/payments/access.go</small>")
+    flow_deviceconfirm_e7959af3 -->|отвязка с подтверждением и повторным чтением| flow_detach_4046cafd
+    flow_devices_35afd835 -->|отвязка с подтверждением и повторным чтением| flow_deviceconfirm_e7959af3
+    flow_devices_35afd835 -->|покупка / продление мест| flow_slots_03d23be9
+    flow_devicequote_29e98d8d -->|покупка / продление мест| flow_devicecheckout_12c2c02f
+    flow_slots_03d23be9 -->|покупка / продление мест| flow_devicequote_29e98d8d
+    flow_detach_4046cafd -->|отвязка с подтверждением и повторным чтением| flow_devices_35afd835
+    class flow_devices_35afd835 klass;
+    class flow_deviceconfirm_e7959af3 klass;
+    class flow_slots_03d23be9 klass;
+    class flow_devicequote_29e98d8d klass;
+    class flow_devicecheckout_12c2c02f klass;
+    class flow_devicelimit_1f8fb425 klass;
+    class flow_detach_4046cafd klass;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>Выбор → подтверждение отвязки</code><br><small style="color:var(--muted)">internal/bot/card_screens.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Выбор → подтверждение отвязки node in internal/bot/card_screens.go.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>Список устройств: по 3 на страницу</code><br><small style="color:var(--muted)">internal/bot/card_screens.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Список устройств: по 3 на страницу node in internal/bot/card_screens.go.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>Цена устройств до окончания подписки</code><br><small style="color:var(--muted)">internal/payments/device.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Цена устройств до окончания подписки node in internal/payments/device.go.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>Дополнительные места и продление</code><br><small style="color:var(--muted)">internal/bot/card_screens.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Дополнительные места и продление node in internal/bot/card_screens.go.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>Заказ устройств / продление grant</code><br><small style="color:var(--muted)">internal/payments/device.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Заказ устройств / продление grant node in internal/payments/device.go.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>Удалить HWID из панели</code><br><small style="color:var(--muted)">internal/payments/access.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Удалить HWID из панели node in internal/payments/access.go.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>Синхронизация лимита панели</code><br><small style="color:var(--muted)">internal/payments/device.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Синхронизация лимита панели node in internal/payments/device.go.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>internal/bot/card_screens.go</code></td><td>3 nodes</td></tr>
+<tr><td><code>internal/payments/device.go</code></td><td>3 nodes</td></tr>
+<tr><td><code>internal/payments/access.go</code></td><td>1 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: отвязка с подтверждением и повторным чтением x3, покупка / продление мест x3. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 11. Профиль, рефералы и авторизация ====== -->
+<h2 id="account">11. Профиль, рефералы и авторизация</h2>
+<p>Профиль, рефералы и авторизация groups implementation around internal, bot, web, authgo, mostly in internal/web/auth.go, internal/bot/messages.go, internal/bot/callbacks.go. This section covers 9 nodes and 6 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Профиль, рефералы и авторизация (9 nodes, 6 edges)
+    subgraph account_internal_web_auth_go_68cc37a0["internal/web/auth.go"]
+        flow_google_ee973c80("Google OAuth → subject<br/><small>internal/web/auth.go</small>")
+        flow_codeauth_fb1dcd47("Код → серверная сессия<br/><small>internal/web/auth.go</small>")
+        flow_session_553c9fa5("Cookie HttpOnly / Lax / Secure<br/><small>internal/web/auth.go</small>")
+    end
+    subgraph account_internal_bot_messages_go_3f75a22b["internal/bot/messages.go"]
+        flow_weblogin_d40a681d("/weblogin → одноразовый код<br/><small>internal/bot/messages.go</small>")
+        flow_link_67f0c1d1("link_ код: объединить Telegram и web<br/><small>internal/bot/messages.go</small>")
+    end
+    flow_profile_23aa647b("Профиль и баланс<br/><small>internal/bot/account_cards.go</small>")
+    flow_settings_66cd5df4("Настройки уведомлений<br/><small>internal/bot/callbacks.go</small>")
+    flow_history_123b4ba9("История заказов<br/><small>internal/bot/rich_standard.go</small>")
+    flow_referral_3d8103b5("Приглашение и режим награды<br/><small>internal/bot/screens.go</small>")
+    flow_google_ee973c80 -->|oauth вход на сайт| flow_session_553c9fa5
+    flow_profile_23aa647b -->|история и проверка заказа| flow_history_123b4ba9
+    flow_profile_23aa647b -->|приглашение друга| flow_referral_3d8103b5
+    flow_profile_23aa647b -->|управление уведомлениями| flow_settings_66cd5df4
+    flow_weblogin_d40a681d -->|вход из telegram на сайт| flow_codeauth_fb1dcd47
+    flow_codeauth_fb1dcd47 -->|вход из telegram на сайт| flow_session_553c9fa5
+    class flow_google_ee973c80 klass;
+    class flow_codeauth_fb1dcd47 klass;
+    class flow_session_553c9fa5 klass;
+    class flow_weblogin_d40a681d function;
+    class flow_link_67f0c1d1 function;
+    class flow_profile_23aa647b klass;
+    class flow_settings_66cd5df4 klass;
+    class flow_history_123b4ba9 klass;
+    class flow_referral_3d8103b5 klass;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>Настройки уведомлений</code><br><small style="color:var(--muted)">internal/bot/callbacks.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Настройки уведомлений node in internal/bot/callbacks.go.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>Google OAuth → subject</code><br><small style="color:var(--muted)">internal/web/auth.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Google OAuth → subject node in internal/web/auth.go.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>Приглашение и режим награды</code><br><small style="color:var(--muted)">internal/bot/screens.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Приглашение и режим награды node in internal/bot/screens.go.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>Профиль и баланс</code><br><small style="color:var(--muted)">internal/bot/account_cards.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Профиль и баланс node in internal/bot/account_cards.go.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>Cookie HttpOnly / Lax / Secure</code><br><small style="color:var(--muted)">internal/web/auth.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Cookie HttpOnly / Lax / Secure node in internal/web/auth.go.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>История заказов</code><br><small style="color:var(--muted)">internal/bot/rich_standard.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>История заказов node in internal/bot/rich_standard.go.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>/weblogin → одноразовый код</code><br><small style="color:var(--muted)">internal/bot/messages.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>/weblogin → одноразовый код node in internal/bot/messages.go.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>link_ код: объединить Telegram и web</code><br><small style="color:var(--muted)">internal/bot/messages.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>link_ код: объединить Telegram и web node in internal/bot/messages.go.</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>Код → серверная сессия</code><br><small style="color:var(--muted)">internal/web/auth.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Код → серверная сессия node in internal/web/auth.go.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>internal/web/auth.go</code></td><td>3 nodes</td></tr>
+<tr><td><code>internal/bot/messages.go</code></td><td>2 nodes</td></tr>
+<tr><td><code>internal/bot/account_cards.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/bot/callbacks.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/bot/rich_standard.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/bot/screens.go</code></td><td>1 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: вход из telegram на сайт x2, oauth вход на сайт x1, история и проверка заказа x1, приглашение друга x1. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 12. Поддержка и история переписки ====== -->
+<h2 id="support">12. Поддержка и история переписки</h2>
+<p>Поддержка и история переписки groups implementation around internal, bot, support, lifecyclego, mostly in internal/bot/support_lifecycle.go, internal/bot/callbacks.go, internal/bot/messages.go. This section covers 13 nodes and 16 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Поддержка и история переписки (13 nodes, 16 edges)
+    subgraph support_internal_bot_support_lifecycle_go_95df9456["internal/bot/support_lifecycle.go"]
+        flow_attachment_acdc3c90("Фото / документ и подпись<br/><small>internal/bot/support_lifecycle.go</small>")
+        flow_ticket_95e19b39("История обращения<br/><small>internal/bot/support_lifecycle.go</small>")
+        flow_resolve_b1c95b40("Пользователь: проблема решена<br/><small>internal/bot/support_lifecycle.go</small>")
+    end
+    subgraph support_internal_bot_callbacks_go_ab97287a["internal/bot/callbacks.go"]
+        flow_newticket_67b77dec("Создать обращение с контекстом<br/><small>internal/bot/callbacks.go</small>")
+        flow_reply_3d3726d6("Ответить и продолжать диалог<br/><small>internal/bot/callbacks.go</small>")
+    end
+    subgraph support_internal_bot_messages_go_5886014d["internal/bot/messages.go"]
+        flow_messagepersist_887950e3("Записать сообщение и вложение<br/><small>internal/bot/messages.go</small>")
+        flow_staffreply_4303e8da("Ответ сотрудника и внутренние заметки<br/><small>internal/bot/messages.go</small>")
+    end
+    flow_support_0f0a5534("Помощь: диагностика / инструкция / обра...<br/><small>internal/bot/card_screens.go</small>")
+    flow_cleaninput_34ed9b0e("Убрать сохранённое входящее сообщение<br/><small>internal/bot/clean_chat.go</small>")
+    flow_unread_2e75ff37("Счётчик последнего ответа и прочтения<br/><small>internal/storage/support_lifecycle.go</small>")
+    flow_ai_de1148b2("LLM или передача сотруднику<br/><small>internal/support/assistant.go</small>")
+    flow_sse_f61aaae1("SSE / updates → видимая вкладка → read<br/><small>internal/web/live.go</small>")
+    flow_webticket_f2679572("Веб-лента и авторизованные файлы<br/><small>internal/web/support.go</small>")
+    flow_ticket_95e19b39 -->|ответы и закрытие обращения| flow_resolve_b1c95b40
+    flow_ticket_95e19b39 -->|создание и продолжение обращения| flow_reply_3d3726d6
+    flow_sse_f61aaae1 -->|веб обновления и read marker| flow_unread_2e75ff37
+    flow_reply_3d3726d6 -->|создание и продолжение обращения| flow_messagepersist_887950e3
+    flow_webticket_f2679572 -->|веб обновления и read marker| flow_sse_f61aaae1
+    flow_ai_de1148b2 -->|ответы и закрытие обращения| flow_staffreply_4303e8da
+    flow_attachment_acdc3c90 -->|сначала сохранить, затем убрать входящее сообщение| flow_messagepersist_887950e3
+    flow_newticket_67b77dec -->|создание и продолжение обращения| flow_messagepersist_887950e3
+    flow_support_0f0a5534 -->|перейти к полной истории на сайте| flow_webticket_f2679572
+    flow_support_0f0a5534 -->|создание и продолжение обращения| flow_newticket_67b77dec
+    flow_staffreply_4303e8da -->|ответы и закрытие обращения| flow_unread_2e75ff37
+    flow_resolve_b1c95b40 -->|закрытая история остаётся доступна| flow_ticket_95e19b39
+    flow_unread_2e75ff37 -->|ответы и закрытие обращения| flow_ticket_95e19b39
+    flow_messagepersist_887950e3 -->|ответы и закрытие обращения| flow_ai_de1148b2
+    flow_messagepersist_887950e3 -->|сначала сохранить, затем убрать входящее сообщение| flow_cleaninput_34ed9b0e
+    flow_messagepersist_887950e3 -->|создание и продолжение обращения| flow_ticket_95e19b39
+    class flow_attachment_acdc3c90 klass;
+    class flow_ticket_95e19b39 klass;
+    class flow_resolve_b1c95b40 klass;
+    class flow_newticket_67b77dec klass;
+    class flow_reply_3d3726d6 klass;
+    class flow_messagepersist_887950e3 klass;
+    class flow_staffreply_4303e8da klass;
+    class flow_support_0f0a5534 klass;
+    class flow_cleaninput_34ed9b0e klass;
+    class flow_unread_2e75ff37 klass;
+    class flow_ai_de1148b2 klass;
+    class flow_sse_f61aaae1 async;
+    class flow_webticket_f2679572 klass;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>История обращения</code><br><small style="color:var(--muted)">internal/bot/support_lifecycle.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>История обращения node in internal/bot/support_lifecycle.go.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>SSE / updates → видимая вкладка → read</code><br><small style="color:var(--muted)">internal/web/live.go</small></td>
+  <td><span class="tag tag-async">Async</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>SSE / updates → видимая вкладка → read node in internal/web/live.go.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>Ответить и продолжать диалог</code><br><small style="color:var(--muted)">internal/bot/callbacks.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Ответить и продолжать диалог node in internal/bot/callbacks.go.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>Веб-лента и авторизованные файлы</code><br><small style="color:var(--muted)">internal/web/support.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Веб-лента и авторизованные файлы node in internal/web/support.go.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>LLM или передача сотруднику</code><br><small style="color:var(--muted)">internal/support/assistant.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>LLM или передача сотруднику node in internal/support/assistant.go.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>Фото / документ и подпись</code><br><small style="color:var(--muted)">internal/bot/support_lifecycle.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Фото / документ и подпись node in internal/bot/support_lifecycle.go.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>Создать обращение с контекстом</code><br><small style="color:var(--muted)">internal/bot/callbacks.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Создать обращение с контекстом node in internal/bot/callbacks.go.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>Помощь: диагностика / инструкция / обращение</code><br><small style="color:var(--muted)">internal/bot/card_screens.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Помощь: диагностика / инструкция / обращение node in internal/bot/card_screens.go.</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>Ответ сотрудника и внутренние заметки</code><br><small style="color:var(--muted)">internal/bot/messages.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Ответ сотрудника и внутренние заметки node in internal/bot/messages.go.</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td><code>Пользователь: проблема решена</code><br><small style="color:var(--muted)">internal/bot/support_lifecycle.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Пользователь: проблема решена node in internal/bot/support_lifecycle.go.</td>
+</tr>
+<tr>
+  <td>11</td>
+  <td><code>Убрать сохранённое входящее сообщение</code><br><small style="color:var(--muted)">internal/bot/clean_chat.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Убрать сохранённое входящее сообщение node in internal/bot/clean_chat.go.</td>
+</tr>
+<tr>
+  <td>12</td>
+  <td><code>Счётчик последнего ответа и прочтения</code><br><small style="color:var(--muted)">internal/storage/support_lifecycle.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Счётчик последнего ответа и прочтения node in internal/storage/support_lifecycle.go.</td>
+</tr>
+<tr>
+  <td>13</td>
+  <td><code>Записать сообщение и вложение</code><br><small style="color:var(--muted)">internal/bot/messages.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Записать сообщение и вложение node in internal/bot/messages.go.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>internal/bot/support_lifecycle.go</code></td><td>3 nodes</td></tr>
+<tr><td><code>internal/bot/callbacks.go</code></td><td>2 nodes</td></tr>
+<tr><td><code>internal/bot/messages.go</code></td><td>2 nodes</td></tr>
+<tr><td><code>internal/bot/card_screens.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/bot/clean_chat.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/storage/support_lifecycle.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/support/assistant.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/web/live.go</code></td><td>1 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: ответы и закрытие обращения x5, создание и продолжение обращения x5, веб обновления и read marker x2, сначала сохранить, затем убрать входящее сообщение x2. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 13. Сотрудники и операции ====== -->
+<h2 id="operations">13. Сотрудники и операции</h2>
+<p>Сотрудники и операции groups implementation around internal, bot, broadcastsgo, admingo, mostly in internal/bot/broadcasts.go, internal/bot/admin.go, internal/bot/operations.go. This section covers 10 nodes and 8 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Сотрудники и операции (10 nodes, 8 edges)
+    subgraph operations_internal_bot_broadcasts_go_0e49897b["internal/bot/broadcasts.go"]
+        flow_broadcast_78cde813("Рассылка: аудитория → текст → предпросмотр<br/><small>internal/bot/broadcasts.go</small>")
+        flow_broadcastconfirm_13561264("Подтвердить черновик за 20 минут<br/><small>internal/bot/broadcasts.go</small>")
+        flow_broadcastdelivery_3cca0655("Доставка: sent / failed / unknown / pen...<br/><small>internal/bot/broadcasts.go</small>")
+    end
+    subgraph operations_internal_bot_admin_go_0ec7c8e6["internal/bot/admin.go"]
+        flow_admin_b17ee9f1("Пульт Telegram и веб-админка<br/><small>internal/bot/admin.go</small>")
+        flow_grant_eb4ef277("Ручная выдача дней<br/><small>internal/bot/admin.go</small>")
+    end
+    flow_attention_a55f7259("Очередь проблем и повтор выдачи<br/><small>internal/bot/operations.go</small>")
+    flow_partners_b9826399("Партнёры, промокоды и приглашения<br/><small>internal/bot/partners.go</small>")
+    flow_polls_5a131c0c("Опросы: вопрос → варианты → ответы<br/><small>internal/bot/polls.go</small>")
+    flow_compensate_fbfa0989("Компенсация: 3 дня на обращение<br/><small>internal/payments/compensation.go</small>")
+    flow_complimit_433634e3("Лимит компенсаций за 24 часа<br/><small>internal/storage/compensation.go</small>")
+    flow_broadcast_78cde813 -->|создание и отправка рассылки| flow_broadcastconfirm_13561264
+    flow_compensate_fbfa0989 -->|компенсация по открытому обращению| flow_complimit_433634e3
+    flow_broadcastconfirm_13561264 -->|создание и отправка рассылки| flow_broadcastdelivery_3cca0655
+    flow_admin_b17ee9f1 -->|опросы сотрудников| flow_polls_5a131c0c
+    flow_admin_b17ee9f1 -->|партнёры и кабинет| flow_partners_b9826399
+    flow_admin_b17ee9f1 -->|ручная выдача через заказ| flow_grant_eb4ef277
+    flow_admin_b17ee9f1 -->|создание и отправка рассылки| flow_broadcast_78cde813
+    flow_admin_b17ee9f1 -->|сотрудник повторяет выдачу paid заказа| flow_attention_a55f7259
+    class flow_broadcast_78cde813 klass;
+    class flow_broadcastconfirm_13561264 klass;
+    class flow_broadcastdelivery_3cca0655 klass;
+    class flow_admin_b17ee9f1 klass;
+    class flow_grant_eb4ef277 klass;
+    class flow_attention_a55f7259 klass;
+    class flow_partners_b9826399 klass;
+    class flow_polls_5a131c0c klass;
+    class flow_compensate_fbfa0989 klass;
+    class flow_complimit_433634e3 klass;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>Очередь проблем и повтор выдачи</code><br><small style="color:var(--muted)">internal/bot/operations.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Очередь проблем и повтор выдачи node in internal/bot/operations.go.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>Опросы: вопрос → варианты → ответы</code><br><small style="color:var(--muted)">internal/bot/polls.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Опросы: вопрос → варианты → ответы node in internal/bot/polls.go.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>Рассылка: аудитория → текст → предпросмотр</code><br><small style="color:var(--muted)">internal/bot/broadcasts.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Рассылка: аудитория → текст → предпросмотр node in internal/bot/broadcasts.go.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>Ручная выдача дней</code><br><small style="color:var(--muted)">internal/bot/admin.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Ручная выдача дней node in internal/bot/admin.go.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>Лимит компенсаций за 24 часа</code><br><small style="color:var(--muted)">internal/storage/compensation.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Лимит компенсаций за 24 часа node in internal/storage/compensation.go.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>Компенсация: 3 дня на обращение</code><br><small style="color:var(--muted)">internal/payments/compensation.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Компенсация: 3 дня на обращение node in internal/payments/compensation.go.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>Доставка: sent / failed / unknown / pending</code><br><small style="color:var(--muted)">internal/bot/broadcasts.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Доставка: sent / failed / unknown / pending node in internal/bot/broadcasts.go.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>Подтвердить черновик за 20 минут</code><br><small style="color:var(--muted)">internal/bot/broadcasts.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Подтвердить черновик за 20 минут node in internal/bot/broadcasts.go.</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>Пульт Telegram и веб-админка</code><br><small style="color:var(--muted)">internal/bot/admin.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Пульт Telegram и веб-админка node in internal/bot/admin.go.</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td><code>Партнёры, промокоды и приглашения</code><br><small style="color:var(--muted)">internal/bot/partners.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Партнёры, промокоды и приглашения node in internal/bot/partners.go.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>internal/bot/broadcasts.go</code></td><td>3 nodes</td></tr>
+<tr><td><code>internal/bot/admin.go</code></td><td>2 nodes</td></tr>
+<tr><td><code>internal/bot/operations.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/bot/partners.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/bot/polls.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/payments/compensation.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/storage/compensation.go</code></td><td>1 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: создание и отправка рассылки x3, компенсация по открытому обращению x1, опросы сотрудников x1, партнёры и кабинет x1. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 14. Веб-сайт и кабинет ====== -->
+<h2 id="website">14. Веб-сайт и кабинет</h2>
+<p>Веб-сайт и кабинет groups implementation around internal, web, webgo, get, mostly in internal/web/web.go, internal/web/pages.go, internal/web/support.go. This section covers 67 nodes and 104 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Веб-сайт и кабинет (67 nodes, 104 edges)
+    subgraph website_internal_web_web_go_2441ef9c["internal/web/web.go"]
+        flow_web_7b46719f("HTTP-маршруты и middleware<br/><small>internal/web/web.go</small>")
+        flow_route_0_196d18d0("GET /$<br/><small>internal/web/web.go</small>")
+        flow_route_1_99c86a88("GET /buy<br/><small>internal/web/web.go</small>")
+        flow_route_10_aa147847("POST /logout<br/><small>internal/web/web.go</small>")
+        flow_route_11_6829d303("GET /account<br/><small>internal/web/web.go</small>")
+        flow_route_12_2435a72d("POST /account/promo<br/><small>internal/web/web.go</small>")
+        flow_route_17_31e7f3d1("POST /account/devices/buy<br/><small>internal/web/web.go</small>")
+        flow_route_15_a8ff10d8("POST /account/recurring/cancel<br/><small>internal/web/web.go</small>")
+        flow_route_14_ae97eb5f("POST /account/orders/check<br/><small>internal/web/web.go</small>")
+        flow_route_16_1330aaec("POST /account/devices/detach<br/><small>internal/web/web.go</small>")
+        flow_route_13_cdf0148d("POST /account/referral-mode<br/><small>internal/web/web.go</small>")
+        flow_route_18_ba90bb2a("POST /account/devices/renew<br/><small>internal/web/web.go</small>")
+        flow_route_52_0a13a740("GET /admin/appearance<br/><small>internal/web/web.go</small>")
+        flow_route_53_cedf92a1("POST /admin/appearance<br/><small>internal/web/web.go</small>")
+        flow_route_48_adadfb33("GET /admin/audit<br/><small>internal/web/web.go</small>")
+        flow_route_37_52e90130("GET /admin<br/><small>internal/web/web.go</small>")
+    end
+    flow_webaccount_5458d75e("/account: доступ, заказы, промо, устрой...<br/><small>internal/web/account.go</small>")
+    flow_webadmin_ae0bc5fc("/admin: роли и аудит<br/><small>internal/web/admin.go</small>")
+    flow_route_17_31e7f3d1 -->|обработчик accountbuydevices| flow_webaccount_5458d75e
+    flow_route_15_a8ff10d8 -->|обработчик accountcancelrecurring| flow_webaccount_5458d75e
+    flow_route_14_ae97eb5f -->|обработчик accountcheckorder| flow_webaccount_5458d75e
+    flow_route_16_1330aaec -->|обработчик accountdetachdevice| flow_webaccount_5458d75e
+    flow_route_11_6829d303 -->|обработчик accountpage| flow_webaccount_5458d75e
+    flow_route_12_2435a72d -->|обработчик accountpromo| flow_webaccount_5458d75e
+    flow_route_13_cdf0148d -->|обработчик accountreferralmode| flow_webaccount_5458d75e
+    flow_route_18_ba90bb2a -->|обработчик accountrenewdevices| flow_webaccount_5458d75e
+    flow_route_52_0a13a740 -->|обработчик adminappearancepage| flow_webadmin_ae0bc5fc
+    flow_route_53_cedf92a1 -->|обработчик adminappearancesave| flow_webadmin_ae0bc5fc
+    flow_route_48_adadfb33 -->|обработчик adminauditpage| flow_webadmin_ae0bc5fc
+    flow_route_37_52e90130 -->|обработчик adminhome| flow_webadmin_ae0bc5fc
+    flow_web_7b46719f -->|зарегистрирован http маршрут| flow_route_0_196d18d0
+    flow_web_7b46719f -->|зарегистрирован http маршрут| flow_route_1_99c86a88
+    flow_web_7b46719f -->|зарегистрирован http маршрут| flow_route_10_aa147847
+    flow_web_7b46719f -->|зарегистрирован http маршрут| flow_route_11_6829d303
+    flow_web_7b46719f -->|зарегистрирован http маршрут| flow_route_12_2435a72d
+    flow_web_7b46719f -->|зарегистрирован http маршрут| flow_route_13_cdf0148d
+    flow_web_7b46719f -->|зарегистрирован http маршрут| flow_route_14_ae97eb5f
+    flow_web_7b46719f -->|зарегистрирован http маршрут| flow_route_15_a8ff10d8
+    flow_web_7b46719f -->|зарегистрирован http маршрут| flow_route_16_1330aaec
+    flow_web_7b46719f -->|зарегистрирован http маршрут| flow_route_17_31e7f3d1
+    flow_web_7b46719f -->|зарегистрирован http маршрут| flow_route_18_ba90bb2a
+    flow_web_7b46719f -->|зарегистрирован http маршрут| flow_route_37_52e90130
+    %% Omitted for readability: 49 nodes, 3 edges
+    class flow_web_7b46719f klass;
+    class flow_route_0_196d18d0 klass;
+    class flow_route_1_99c86a88 klass;
+    class flow_route_10_aa147847 klass;
+    class flow_route_11_6829d303 klass;
+    class flow_route_12_2435a72d klass;
+    class flow_route_17_31e7f3d1 klass;
+    class flow_route_15_a8ff10d8 klass;
+    class flow_route_14_ae97eb5f klass;
+    class flow_route_16_1330aaec klass;
+    class flow_route_13_cdf0148d klass;
+    class flow_route_18_ba90bb2a klass;
+    class flow_route_52_0a13a740 klass;
+    class flow_route_53_cedf92a1 klass;
+    class flow_route_48_adadfb33 klass;
+    class flow_route_37_52e90130 klass;
+    class flow_webaccount_5458d75e function;
+    class flow_webadmin_ae0bc5fc function;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>POST /account/devices/buy</code><br><small style="color:var(--muted)">internal/web/web.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>POST /account/devices/buy node in internal/web/web.go.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>POST /account/recurring/cancel</code><br><small style="color:var(--muted)">internal/web/web.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>POST /account/recurring/cancel node in internal/web/web.go.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>POST /account/orders/check</code><br><small style="color:var(--muted)">internal/web/web.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>POST /account/orders/check node in internal/web/web.go.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>POST /account/devices/detach</code><br><small style="color:var(--muted)">internal/web/web.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>POST /account/devices/detach node in internal/web/web.go.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>GET /account</code><br><small style="color:var(--muted)">internal/web/web.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>GET /account node in internal/web/web.go.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>POST /account/promo</code><br><small style="color:var(--muted)">internal/web/web.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>POST /account/promo node in internal/web/web.go.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>POST /account/referral-mode</code><br><small style="color:var(--muted)">internal/web/web.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>POST /account/referral-mode node in internal/web/web.go.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>POST /account/devices/renew</code><br><small style="color:var(--muted)">internal/web/web.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>POST /account/devices/renew node in internal/web/web.go.</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>GET /admin/appearance</code><br><small style="color:var(--muted)">internal/web/web.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>GET /admin/appearance node in internal/web/web.go.</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td><code>POST /admin/appearance</code><br><small style="color:var(--muted)">internal/web/web.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>POST /admin/appearance node in internal/web/web.go.</td>
+</tr>
+<tr>
+  <td>11</td>
+  <td><code>GET /admin/audit</code><br><small style="color:var(--muted)">internal/web/web.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>GET /admin/audit node in internal/web/web.go.</td>
+</tr>
+<tr>
+  <td>12</td>
+  <td><code>GET /admin</code><br><small style="color:var(--muted)">internal/web/web.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>GET /admin node in internal/web/web.go.</td>
+</tr>
+<tr>
+  <td>13</td>
+  <td><code>POST /admin/orders/{id}/retry</code><br><small style="color:var(--muted)">internal/web/web.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>POST /admin/orders/{id}/retry node in internal/web/web.go.</td>
+</tr>
+<tr>
+  <td>14</td>
+  <td><code>GET /admin/orders</code><br><small style="color:var(--muted)">internal/web/web.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>GET /admin/orders node in internal/web/web.go.</td>
+</tr>
+<tr>
+  <td>15</td>
+  <td><code>POST /admin/partners</code><br><small style="color:var(--muted)">internal/web/web.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>POST /admin/partners node in internal/web/web.go.</td>
+</tr>
+<tr>
+  <td>16</td>
+  <td><code>POST /admin/partners/{id}/invite</code><br><small style="color:var(--muted)">internal/web/web.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>POST /admin/partners/{id}/invite node in internal/web/web.go.</td>
+</tr>
+<tr>
+  <td>17</td>
+  <td><code>GET /admin/partners/{id}</code><br><small style="color:var(--muted)">internal/web/web.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>GET /admin/partners/{id} node in internal/web/web.go.</td>
+</tr>
+<tr>
+  <td>18</td>
+  <td><code>POST /admin/partners/{id}</code><br><small style="color:var(--muted)">internal/web/web.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>POST /admin/partners/{id} node in internal/web/web.go.</td>
+</tr>
+<tr>
+  <td>19</td>
+  <td><code>GET /admin/partners</code><br><small style="color:var(--muted)">internal/web/web.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>GET /admin/partners node in internal/web/web.go.</td>
+</tr>
+<tr>
+  <td>20</td>
+  <td><code>POST /admin/promos</code><br><small style="color:var(--muted)">internal/web/web.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>POST /admin/promos node in internal/web/web.go.</td>
+</tr>
+<tr>
+  <td>21</td>
+  <td><code>POST /admin/promos/{code}/partner</code><br><small style="color:var(--muted)">internal/web/web.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>POST /admin/promos/{code}/partner node in internal/web/web.go.</td>
+</tr>
+<tr>
+  <td>22</td>
+  <td><code>POST /admin/promos/{code}/toggle</code><br><small style="color:var(--muted)">internal/web/web.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>POST /admin/promos/{code}/toggle node in internal/web/web.go.</td>
+</tr>
+<tr>
+  <td>23</td>
+  <td><code>GET /admin/promos</code><br><small style="color:var(--muted)">internal/web/web.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>GET /admin/promos node in internal/web/web.go.</td>
+</tr>
+<tr>
+  <td>24</td>
+  <td><code>GET /admin/screens</code><br><small style="color:var(--muted)">internal/web/web.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>GET /admin/screens node in internal/web/web.go.</td>
+</tr>
+<tr>
+  <td>25</td>
+  <td><code>GET /admin/tickets</code><br><small style="color:var(--muted)">internal/web/web.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>GET /admin/tickets node in internal/web/web.go.</td>
+</tr>
+<tr>
+  <td>26</td>
+  <td><code>GET /app-import/{app}</code><br><small style="color:var(--muted)">internal/web/web.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>GET /app-import/{app} node in internal/web/web.go.</td>
+</tr>
+<tr>
+  <td>27</td>
+  <td><code>GET /static/bot-mascot/{name}</code><br><small style="color:var(--muted)">internal/web/web.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>GET /static/bot-mascot/{name} node in internal/web/web.go.</td>
+</tr>
+<tr>
+  <td>28</td>
+  <td><code>GET /buy</code><br><small style="color:var(--muted)">internal/web/web.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>GET /buy node in internal/web/web.go.</td>
+</tr>
+<tr>
+  <td>29</td>
+  <td><code>POST /buy</code><br><small style="color:var(--muted)">internal/web/web.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>POST /buy node in internal/web/web.go.</td>
+</tr>
+<tr>
+  <td>30</td>
+  <td><code>GET /connect</code><br><small style="color:var(--muted)">internal/web/web.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>GET /connect node in internal/web/web.go.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>internal/web/web.go</code></td><td>59 nodes</td></tr>
+<tr><td><code>internal/web/pages.go</code></td><td>3 nodes</td></tr>
+<tr><td><code>internal/bot/screen_catalog.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/web/account.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/web/admin.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/web/partner.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/web/support.go</code></td><td>1 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: зарегистрирован http маршрут x58, обработчик partnerclaim x2, веб путь покупки x2, обработчик accountbuydevices x1. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 15. Фоновые задачи и уведомления ====== -->
+<h2 id="jobs">15. Фоновые задачи и уведомления</h2>
+<p>Фоновые задачи и уведомления groups implementation around internal, jobs, jobsgo, минут, mostly in internal/jobs/jobs.go, internal/bot/panel_events.go. This section covers 8 nodes and 7 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Фоновые задачи и уведомления (8 nodes, 7 edges)
+    subgraph jobs_internal_jobs_jobs_go_5117c440["internal/jobs/jobs.go"]
+        flow_jobs_4d7f98d8("Фоновые задачи под общим контекстом<br/><small>internal/jobs/jobs.go</small>")
+        flow_unpaidjob_b52e22c5("30 минут: неоплаченный счёт<br/><small>internal/jobs/jobs.go</small>")
+        flow_expiryjob_29682e10("15 минут: напоминание о сроке<br/><small>internal/jobs/jobs.go</small>")
+        flow_devicejob_ea08c078("10 минут: пересчитать лимиты устройств<br/><small>internal/jobs/jobs.go</small>")
+        flow_broadcastjob_e1791b2a("2 секунды: очередь рассылки<br/><small>internal/jobs/jobs.go</small>")
+        flow_paymentjob_fd3b5077("Каждую минуту: деньги и выдача<br/><small>internal/jobs/jobs.go</small>")
+        flow_aijob_3a52df56("20 секунд: помощник; час: idle<br/><small>internal/jobs/jobs.go</small>")
+    end
+    flow_paneljob_de0f90f7("5 секунд: очередь уведомлений панели<br/><small>internal/bot/panel_events.go</small>")
+    flow_jobs_4d7f98d8 -->|activity напоминания| flow_unpaidjob_b52e22c5
+    flow_jobs_4d7f98d8 -->|напоминание с проверкой настроек| flow_expiryjob_29682e10
+    flow_jobs_4d7f98d8 -->|пересчёт мест| flow_devicejob_ea08c078
+    flow_jobs_4d7f98d8 -->|периодическая доставка событий панели| flow_paneljob_de0f90f7
+    flow_jobs_4d7f98d8 -->|периодическая рассылка| flow_broadcastjob_e1791b2a
+    flow_jobs_4d7f98d8 -->|периодическая сверка| flow_paymentjob_fd3b5077
+    flow_jobs_4d7f98d8 -->|фоновая поддержка| flow_aijob_3a52df56
+    class flow_jobs_4d7f98d8 klass;
+    class flow_unpaidjob_b52e22c5 function;
+    class flow_expiryjob_29682e10 function;
+    class flow_devicejob_ea08c078 function;
+    class flow_broadcastjob_e1791b2a function;
+    class flow_paymentjob_fd3b5077 klass;
+    class flow_aijob_3a52df56 function;
+    class flow_paneljob_de0f90f7 function;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>20 секунд: помощник; час: idle</code><br><small style="color:var(--muted)">internal/jobs/jobs.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>20 секунд: помощник; час: idle node in internal/jobs/jobs.go.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>Каждую минуту: деньги и выдача</code><br><small style="color:var(--muted)">internal/jobs/jobs.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Каждую минуту: деньги и выдача node in internal/jobs/jobs.go.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>Фоновые задачи под общим контекстом</code><br><small style="color:var(--muted)">internal/jobs/jobs.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Фоновые задачи под общим контекстом node in internal/jobs/jobs.go.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>2 секунды: очередь рассылки</code><br><small style="color:var(--muted)">internal/jobs/jobs.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>2 секунды: очередь рассылки node in internal/jobs/jobs.go.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>10 минут: пересчитать лимиты устройств</code><br><small style="color:var(--muted)">internal/jobs/jobs.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>10 минут: пересчитать лимиты устройств node in internal/jobs/jobs.go.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>15 минут: напоминание о сроке</code><br><small style="color:var(--muted)">internal/jobs/jobs.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>15 минут: напоминание о сроке node in internal/jobs/jobs.go.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>5 секунд: очередь уведомлений панели</code><br><small style="color:var(--muted)">internal/bot/panel_events.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>5 секунд: очередь уведомлений панели node in internal/bot/panel_events.go.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>30 минут: неоплаченный счёт</code><br><small style="color:var(--muted)">internal/jobs/jobs.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>30 минут: неоплаченный счёт node in internal/jobs/jobs.go.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>internal/jobs/jobs.go</code></td><td>7 nodes</td></tr>
+<tr><td><code>internal/bot/panel_events.go</code></td><td>1 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: activity напоминания x1, напоминание с проверкой настроек x1, пересчёт мест x1, периодическая доставка событий панели x1. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 16. Сохранённое состояние и миграции ====== -->
+<h2 id="data">16. Сохранённое состояние и миграции</h2>
+<p>Сохранённое состояние и миграции groups implementation around internal, storage, subject, support, mostly in internal/storage/subjects_migration.go, internal/storage/support.go, internal/storage/journal.go. This section covers 7 nodes and 1 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Сохранённое состояние и миграции (7 nodes, 1 edges)
+    flow_journal_9466acb5("Журнал идемпотентной выдачи<br/><small>internal/storage/journal.go</small>")
+    flow_ordersdb_8baa5ed5("orders и payment inbox<br/><small>internal/storage/orders.go</small>")
+    flow_cardsdb_09296478("bot_cards / bot_views / checkout prefer...<br/><small>internal/storage/recurring.go</small>")
+    flow_subject_01f8505c("Subject: единый владелец данных<br/><small>internal/storage/subjects.go</small>")
+    flow_subjectmigration_e17654cc("Перенос subject_id из Python-схемы<br/><small>internal/storage/subjects_migration.go</small>")
+    flow_supportdb_8593bc9b("support_tickets и support_messages<br/><small>internal/storage/support.go</small>")
+    flow_operationsdb_8bc32571("Рассылки, panel events, компенсации<br/><small>storage/migrations/0008_legacy_operations.sql</small>")
+    flow_subjectmigration_e17654cc -->|сохранить идентичность существующей базы| flow_subject_01f8505c
+    class flow_journal_9466acb5 klass;
+    class flow_ordersdb_8baa5ed5 function;
+    class flow_cardsdb_09296478 function;
+    class flow_subject_01f8505c klass;
+    class flow_subjectmigration_e17654cc klass;
+    class flow_supportdb_8593bc9b function;
+    class flow_operationsdb_8bc32571 klass;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>Перенос subject_id из Python-схемы</code><br><small style="color:var(--muted)">internal/storage/subjects_migration.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Перенос subject_id из Python-схемы node in internal/storage/subjects_migration.go.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>support_tickets и support_messages</code><br><small style="color:var(--muted)">internal/storage/support.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>support_tickets и support_messages node in internal/storage/support.go.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>Журнал идемпотентной выдачи</code><br><small style="color:var(--muted)">internal/storage/journal.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Журнал идемпотентной выдачи node in internal/storage/journal.go.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>Рассылки, panel events, компенсации</code><br><small style="color:var(--muted)">storage/migrations/0008_legacy_operations.sql</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Рассылки, panel events, компенсации node in storage/migrations/0008_legacy_operations.sql.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>bot_cards / bot_views / checkout preference</code><br><small style="color:var(--muted)">internal/storage/recurring.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>bot_cards / bot_views / checkout preference node in internal/storage/recurring.go.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>Subject: единый владелец данных</code><br><small style="color:var(--muted)">internal/storage/subjects.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Subject: единый владелец данных node in internal/storage/subjects.go.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>orders и payment inbox</code><br><small style="color:var(--muted)">internal/storage/orders.go</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>orders и payment inbox node in internal/storage/orders.go.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>internal/storage/journal.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>storage/migrations/0008_legacy_operations.sql</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/storage/orders.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/storage/recurring.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/storage/subjects.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/storage/subjects_migration.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/storage/support.go</code></td><td>1 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: сохранить идентичность существующей базы x1. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 17. Найденные расхождения flow ====== -->
+<h2 id="findings">17. Найденные расхождения flow</h2>
+<p>Найденные расхождения flow groups implementation around internal, web, обещает, berloga, mostly in internal/web/pages.go, berloga/templates/landing.html, internal/bot/richscreens.go. This section covers 5 nodes and 0 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Найденные расхождения flow (5 nodes, 0 edges)
+    flow_gaprecurringcopy_3d20a7dd("Berloga обещает отсутствие автосписаний<br/><small>berloga/templates/landing.html</small>")
+    flow_gapguidance_6ce4df8b("Rich main не использует CustomerGuidance<br/><small>internal/bot/richscreens.go</small>")
+    flow_gapreminder_0821dfa3("Настройка not connected без фонового за...<br/><small>internal/config/config.go</small>")
+    flow_gapfree_aa65b5fb("Free flash обещает выданный доступ преж...<br/><small>internal/web/pages.go</small>")
+    flow_gaptickets_56e63705("Очередь admin tickets без перехода к ti...<br/><small>web/templates/admin_tickets.html</small>")
+    class flow_gaprecurringcopy_3d20a7dd klass;
+    class flow_gapguidance_6ce4df8b klass;
+    class flow_gapreminder_0821dfa3 klass;
+    class flow_gapfree_aa65b5fb klass;
+    class flow_gaptickets_56e63705 klass;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>Free flash обещает выданный доступ преждевременно</code><br><small style="color:var(--muted)">internal/web/pages.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Free flash обещает выданный доступ преждевременно node in internal/web/pages.go.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>Berloga обещает отсутствие автосписаний</code><br><small style="color:var(--muted)">berloga/templates/landing.html</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Berloga обещает отсутствие автосписаний node in berloga/templates/landing.html.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>Rich main не использует CustomerGuidance</code><br><small style="color:var(--muted)">internal/bot/richscreens.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Rich main не использует CustomerGuidance node in internal/bot/richscreens.go.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>Настройка not connected без фонового задания</code><br><small style="color:var(--muted)">internal/config/config.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Настройка not connected без фонового задания node in internal/config/config.go.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>Очередь admin tickets без перехода к ticket</code><br><small style="color:var(--muted)">web/templates/admin_tickets.html</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Очередь admin tickets без перехода к ticket node in web/templates/admin_tickets.html.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>internal/bot/richscreens.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/config/config.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/web/pages.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>web/templates/admin_tickets.html</code></td><td>1 nodes</td></tr>
+<tr><td><code>berloga/templates/landing.html</code></td><td>1 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: No high-confidence call edges detected. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 18. Развитие HTML: предложения ====== -->
+<h2 id="future">18. Развитие HTML: предложения</h2>
+<p>Развитие HTML: предложения groups implementation around предложение, bot, internal, production, mostly in docs/bot-interface.md, internal/bot/bot.go, internal/bot/card_screens.go. This section covers 4 nodes and 0 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Развитие HTML: предложения (4 nodes, 0 edges)
+    flow_copyreview_9b8f9006("Предложение: согласовать тексты и инстр...<br/><small>berloga/templates/landing.html</small>")
+    flow_realwidget_1fe401ed("Предложение: production smoke HTML в Te...<br/><small>docs/bot-interface.md</small>")
+    flow_inputresume_4af2e3c6("Предложение: явно восстанавливать незав...<br/><small>internal/bot/bot.go</small>")
+    flow_parity_8bcd7224("Предложение: единая матрица состояний UI<br/><small>internal/bot/card_screens.go</small>")
+    class flow_copyreview_9b8f9006 klass;
+    class flow_realwidget_1fe401ed klass;
+    class flow_inputresume_4af2e3c6 klass;
+    class flow_parity_8bcd7224 klass;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>Предложение: production smoke HTML в Telegram</code><br><small style="color:var(--muted)">docs/bot-interface.md</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Exports documentation data to a target format.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>Предложение: явно восстанавливать незавершённый ввод</code><br><small style="color:var(--muted)">internal/bot/bot.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Предложение: явно восстанавливать незавершённый ввод node in internal/bot/bot.go.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>Предложение: единая матрица состояний UI</code><br><small style="color:var(--muted)">internal/bot/card_screens.go</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Предложение: единая матрица состояний UI node in internal/bot/card_screens.go.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>Предложение: согласовать тексты и инструкции</code><br><small style="color:var(--muted)">berloga/templates/landing.html</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Предложение: согласовать тексты и инструкции node in berloga/templates/landing.html.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>docs/bot-interface.md</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/bot/bot.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>internal/bot/card_screens.go</code></td><td>1 nodes</td></tr>
+<tr><td><code>berloga/templates/landing.html</code></td><td>1 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: No high-confidence call edges detected. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<h2 id="stats">Project Statistics</h2>
+
+<div class="grid">
+  <div class="card">
+    <h4>Graph</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><td>Nodes</td><td>268</td></tr>
+      <tr><td>Edges</td><td>419</td></tr>
+      <tr><td>Hyperedges</td><td>0</td></tr>
+      <tr><td>Communities</td><td>17</td></tr>
+      <tr><td>Documented Sections</td><td>17</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Edge Confidence</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><td>EXTRACTED</td><td>415</td></tr>
+      <tr><td>INFERRED</td><td>4</td></tr>
+      <tr><td>AMBIGUOUS</td><td>0</td></tr>
+    </table>
+  </div>
+</div>
+
+<div style="text-align:center; padding:40px 0; color: var(--muted); font-size:0.9rem;">
+  <p>vivid-go-bot — Architecture Documentation</p>
+  <p>Generated: 2026-11-16 05:31 UTC · graphify callflow-html</p>
+</div>
+
+</div><!-- .container -->
+
+<script>
+(function () {
+  const mermaidConfig = {
+    startOnLoad: false,
+    theme: 'dark',
+    securityLevel: 'loose',
+    flowchart: { htmlLabels: true, useMaxWidth: true },
+    themeVariables: {
+      primaryColor: '#1e293b',
+      primaryTextColor: '#e2e8f0',
+      primaryBorderColor: '#38bdf8',
+      secondaryColor: '#0f172a',
+      tertiaryColor: '#334155',
+      lineColor: '#64748b',
+      textColor: '#e2e8f0',
+    }
+  };
+
+  mermaid.initialize(mermaidConfig);
+
+  function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+  }
+
+  function enhanceMermaidDiagrams() {
+    document.querySelectorAll('.mermaid').forEach((container) => {
+      if (container.dataset.zoomReady === 'true') return;
+      const svg = container.querySelector('svg');
+      if (!svg) return;
+
+      container.dataset.zoomReady = 'true';
+      container.classList.add('is-enhanced');
+
+      const viewport = document.createElement('div');
+      viewport.className = 'mermaid-viewport';
+      svg.parentNode.insertBefore(viewport, svg);
+      viewport.appendChild(svg);
+
+      const toolbar = document.createElement('div');
+      toolbar.className = 'mermaid-toolbar';
+      toolbar.innerHTML = [
+        '<button type="button" data-action="zoom-out" title="Zoom out">-</button>',
+        '<span class="zoom-level" data-role="level">100%</span>',
+        '<button type="button" data-action="zoom-in" title="Zoom in">+</button>',
+        '<button type="button" data-action="fit" title="Fit width">Fit</button>',
+        '<button type="button" data-action="reset" title="Reset view">Reset</button>'
+      ].join('');
+      container.insertBefore(toolbar, viewport);
+
+      const state = { scale: 1, x: 0, y: 0, dragging: false, startX: 0, startY: 0, originX: 0, originY: 0 };
+      const level = toolbar.querySelector('[data-role="level"]');
+
+      function applyTransform() {
+        svg.style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.scale})`;
+        level.textContent = `${Math.round(state.scale * 100)}%`;
+      }
+
+      function zoomBy(delta) {
+        state.scale = clamp(state.scale + delta, 0.25, 3);
+        applyTransform();
+      }
+
+      function reset() {
+        state.scale = 1;
+        state.x = 0;
+        state.y = 0;
+        applyTransform();
+      }
+
+      function fitWidth() {
+        const rawWidth = svg.viewBox && svg.viewBox.baseVal && svg.viewBox.baseVal.width
+          ? svg.viewBox.baseVal.width
+          : svg.getBoundingClientRect().width / state.scale;
+        if (!rawWidth) {
+          reset();
+          return;
+        }
+        state.scale = clamp((viewport.clientWidth - 48) / rawWidth, 0.25, 1.4);
+        state.x = 0;
+        state.y = 0;
+        applyTransform();
+      }
+
+      toolbar.addEventListener('click', (event) => {
+        const button = event.target.closest('button[data-action]');
+        if (!button) return;
+        const action = button.dataset.action;
+        if (action === 'zoom-in') zoomBy(0.15);
+        if (action === 'zoom-out') zoomBy(-0.15);
+        if (action === 'fit') fitWidth();
+        if (action === 'reset') reset();
+      });
+
+      viewport.addEventListener('wheel', (event) => {
+        if (!event.ctrlKey && !event.metaKey) return;
+        event.preventDefault();
+        zoomBy(event.deltaY < 0 ? 0.1 : -0.1);
+      }, { passive: false });
+
+      viewport.addEventListener('pointerdown', (event) => {
+        if (event.button !== 0) return;
+        state.dragging = true;
+        state.startX = event.clientX;
+        state.startY = event.clientY;
+        state.originX = state.x;
+        state.originY = state.y;
+        viewport.classList.add('is-dragging');
+        viewport.setPointerCapture(event.pointerId);
+      });
+
+      viewport.addEventListener('pointermove', (event) => {
+        if (!state.dragging) return;
+        state.x = state.originX + event.clientX - state.startX;
+        state.y = state.originY + event.clientY - state.startY;
+        applyTransform();
+      });
+
+      function endDrag(event) {
+        if (!state.dragging) return;
+        state.dragging = false;
+        viewport.classList.remove('is-dragging');
+        if (viewport.hasPointerCapture(event.pointerId)) {
+          viewport.releasePointerCapture(event.pointerId);
+        }
+      }
+
+      viewport.addEventListener('pointerup', endDrag);
+      viewport.addEventListener('pointercancel', endDrag);
+      applyTransform();
+    });
+  }
+
+  function renderMermaid() {
+    const result = mermaid.run
+      ? mermaid.run({ querySelector: '.mermaid' })
+      : Promise.resolve();
+    Promise.resolve(result)
+      .then(enhanceMermaidDiagrams)
+      .catch((error) => {
+        console.error('Mermaid render failed:', error);
+        enhanceMermaidDiagrams();
+      });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', renderMermaid);
+  } else {
+    renderMermaid();
+  }
+})();
+</script>
+
+</body>
+</html>
