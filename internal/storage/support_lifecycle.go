@@ -18,6 +18,10 @@ func (db *DB) ResolveOwnTicket(ctx context.Context, id, subjectID int64) (bool, 
 
 // Lock against resolution so a stale reply cannot silently reopen a ticket.
 func (db *DB) AddOwnerTicketMessage(ctx context.Context, id, subjectID int64, tgID *int64, text, fileID, fileType string) (Message, error) {
+	return db.AddOwnerTicketMessageFromBot(ctx, id, subjectID, tgID, text, fileID, fileType, "commerce")
+}
+
+func (db *DB) AddOwnerTicketMessageFromBot(ctx context.Context, id, subjectID int64, tgID *int64, text, fileID, fileType, fileBot string) (Message, error) {
 	tx, err := db.Pool.Begin(ctx)
 	if err != nil {
 		return Message{}, err
@@ -30,7 +34,7 @@ func (db *DB) AddOwnerTicketMessage(ctx context.Context, id, subjectID int64, tg
 		}
 		return Message{}, err
 	}
-	m, err := addTicketMessage(ctx, tx, id, subjectID, tgID, text, false, fileID, fileType)
+	m, err := addTicketMessage(ctx, tx, id, subjectID, tgID, text, false, fileID, fileType, fileBot)
 	if err != nil {
 		return Message{}, err
 	}

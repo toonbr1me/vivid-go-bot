@@ -142,7 +142,7 @@ func (db *DB) staffTicketAction(ctx context.Context, ticketID, actor int64, acti
 }
 
 func (db *DB) StaffTicketHistory(ctx context.Context, id int64) ([]Message, error) {
-	rows, err := db.Pool.Query(ctx, `SELECT id,ticket_id,subject_id,telegram_id,message,is_from_admin,is_internal,is_assistant,file_id,file_type,created_at FROM support_messages WHERE ticket_id=$1 ORDER BY created_at,id`, id)
+	rows, err := db.Pool.Query(ctx, `SELECT id,ticket_id,subject_id,telegram_id,message,is_from_admin,is_internal,is_assistant,file_id,file_type,file_bot,created_at FROM support_messages WHERE ticket_id=$1 ORDER BY created_at,id`, id)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +150,7 @@ func (db *DB) StaffTicketHistory(ctx context.Context, id int64) ([]Message, erro
 	var out []Message
 	for rows.Next() {
 		var m Message
-		if err = rows.Scan(&m.ID, &m.TicketID, &m.SubjectID, &m.TelegramID, &m.Text, &m.FromAdmin, &m.Internal, &m.Assistant, &m.FileID, &m.FileType, &m.CreatedAt); err != nil {
+		if err = rows.Scan(&m.ID, &m.TicketID, &m.SubjectID, &m.TelegramID, &m.Text, &m.FromAdmin, &m.Internal, &m.Assistant, &m.FileID, &m.FileType, &m.FileBot, &m.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, m)

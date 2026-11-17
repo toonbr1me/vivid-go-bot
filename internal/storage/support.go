@@ -38,6 +38,7 @@ type Message struct {
 	Assistant  bool
 	FileID     *string
 	FileType   *string
+	FileBot    string
 	CreatedAt  time.Time
 }
 
@@ -101,7 +102,7 @@ func (db *DB) CreateTicketContent(ctx context.Context, subjectID int64, telegram
 		return ticket, err
 	}
 	if text != "" || fileID != "" {
-		if _, err := addTicketMessage(ctx, tx, ticket.ID, subjectID, telegramID, text, false, fileID, fileType); err != nil {
+		if _, err := addTicketMessage(ctx, tx, ticket.ID, subjectID, telegramID, text, false, fileID, fileType, "commerce"); err != nil {
 			return ticket, err
 		}
 	}
@@ -116,12 +117,21 @@ func (db *DB) AddTicketMessage(
 	ctx context.Context, ticketID, subjectID int64, telegramID *int64,
 	text string, fromAdmin bool, fileID, fileType string,
 ) (Message, error) {
+	return db.AddTicketMessageFromBot(ctx, ticketID, subjectID, telegramID, text, fromAdmin, fileID, fileType, "commerce")
+}
+
+// AddTicketMessageFromBot сохраняет источник Telegram-вложения. file_id
+// нельзя переносить между ботами, поэтому источник нужен при показе истории.
+func (db *DB) AddTicketMessageFromBot(
+	ctx context.Context, ticketID, subjectID int64, telegramID *int64,
+	text string, fromAdmin bool, fileID, fileType, fileBot string,
+) (Message, error) {
 	tx, err := db.Pool.Begin(ctx)
 	if err != nil {
 		return Message{}, err
 	}
 	defer tx.Rollback(ctx)
-	message, err := addTicketMessage(ctx, tx, ticketID, subjectID, telegramID, text, fromAdmin, fileID, fileType)
+	message, err := addTicketMessage(ctx, tx, ticketID, subjectID, telegramID, text, fromAdmin, fileID, fileType, fileBot)
 	if err != nil {
 		return Message{}, err
 	}
@@ -131,17 +141,20 @@ func (db *DB) AddTicketMessage(
 	return message, nil
 }
 
-func addTicketMessage(ctx context.Context, q Querier, ticketID, subjectID int64, telegramID *int64, text string, fromAdmin bool, fileID, fileType string) (Message, error) {
+func addTicketMessage(ctx context.Context, q Querier, ticketID, subjectID int64, telegramID *int64, text string, fromAdmin bool, fileID, fileType, fileBot string) (Message, error) {
+	if fileBot == "" {
+		fileBot = "commerce"
+	}
 	row := q.QueryRow(ctx, `
-		INSERT INTO support_messages (ticket_id, subject_id, telegram_id, message, is_from_admin, file_id, file_type)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO support_messages (ticket_id, subject_id, telegram_id, message, is_from_admin, file_id, file_type, file_bot)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING id, ticket_id, subject_id, telegram_id, message, is_from_admin,
-		          is_internal, is_assistant, file_id, file_type, created_at`,
-		ticketID, subjectID, telegramID, text, fromAdmin, nullString(fileID), nullString(fileType))
+		          is_internal, is_assistant, file_id, file_type, file_bot, created_at`,
+		ticketID, subjectID, telegramID, text, fromAdmin, nullString(fileID), nullString(fileType), fileBot)
 	var message Message
 	err := row.Scan(&message.ID, &message.TicketID, &message.SubjectID, &message.TelegramID,
 		&message.Text, &message.FromAdmin, &message.Internal, &message.Assistant,
-		&message.FileID, &message.FileType, &message.CreatedAt)
+		&message.FileID, &message.FileType, &message.FileBot, &message.CreatedAt)
 	if err != nil {
 		return message, err
 	}
@@ -154,7 +167,7 @@ func addTicketMessage(ctx context.Context, q Querier, ticketID, subjectID int64,
 func (db *DB) TicketMessages(ctx context.Context, ticketID int64, limit int) ([]Message, error) {
 	rows, err := db.Pool.Query(ctx, `
 		SELECT id, ticket_id, subject_id, telegram_id, message, is_from_admin,
-		       is_internal, is_assistant, file_id, file_type, created_at
+		       is_internal, is_assistant, file_id, file_type, file_bot, created_at
 		FROM support_messages
 		WHERE ticket_id = $1 AND NOT is_internal
 		ORDER BY created_at DESC,id DESC LIMIT $2`, ticketID, limit)
@@ -167,7 +180,7 @@ func (db *DB) TicketMessages(ctx context.Context, ticketID int64, limit int) ([]
 		var message Message
 		if err := rows.Scan(&message.ID, &message.TicketID, &message.SubjectID,
 			&message.TelegramID, &message.Text, &message.FromAdmin, &message.Internal,
-			&message.Assistant, &message.FileID, &message.FileType, &message.CreatedAt); err != nil {
+			&message.Assistant, &message.FileID, &message.FileType, &message.FileBot, &message.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, message)
@@ -180,7 +193,7 @@ func (db *DB) TicketMessages(ctx context.Context, ticketID int64, limit int) ([]
 func (db *DB) TicketHistory(ctx context.Context, ticketID int64) ([]Message, error) {
 	rows, err := db.Pool.Query(ctx, `
 		SELECT id, ticket_id, subject_id, telegram_id, message, is_from_admin,
-		       is_internal, is_assistant, file_id, file_type, created_at
+		       is_internal, is_assistant, file_id, file_type, file_bot, created_at
 		FROM support_messages WHERE ticket_id=$1 AND NOT is_internal
 		ORDER BY created_at,id`, ticketID)
 	if err != nil {
@@ -191,7 +204,7 @@ func (db *DB) TicketHistory(ctx context.Context, ticketID int64) ([]Message, err
 	for rows.Next() {
 		var m Message
 		if err := rows.Scan(&m.ID, &m.TicketID, &m.SubjectID, &m.TelegramID, &m.Text,
-			&m.FromAdmin, &m.Internal, &m.Assistant, &m.FileID, &m.FileType, &m.CreatedAt); err != nil {
+			&m.FromAdmin, &m.Internal, &m.Assistant, &m.FileID, &m.FileType, &m.FileBot, &m.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, m)

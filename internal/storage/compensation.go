@@ -62,7 +62,7 @@ func (db *DB) ReserveCompensation(ctx context.Context, actor, ticketID int64, su
 	if _, err = tx.Exec(ctx, `INSERT INTO staff_audit(actor_id,action,target,amount,details) VALUES($1,'client.compensate',$2,3,$3)`, actor, fmt.Sprintf("ticket:%d", ticketID), o.OrderID); err != nil {
 		return domain.Order{}, false, err
 	}
-	if _, err = addTicketMessage(ctx, tx, ticketID, subject.ID, &actor, "Поддержка оформила компенсацию: 3 дня. Срок подписки можно проверить в профиле; при временном сбое выдача продолжится автоматически.", true, "", ""); err != nil {
+	if _, err = addTicketMessage(ctx, tx, ticketID, subject.ID, &actor, "Поддержка оформила компенсацию: 3 дня. Срок подписки можно проверить в профиле; при временном сбое выдача продолжится автоматически.", true, "", "", "commerce"); err != nil {
 		return domain.Order{}, false, err
 	}
 	if err = tx.Commit(ctx); err != nil {
