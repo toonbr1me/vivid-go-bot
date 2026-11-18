@@ -17,12 +17,14 @@ type Broadcast struct {
 	ID                                      string
 	ActorID                                 int64
 	Audience, Text, PromoCode, Status       string
+	IncludeReferral                         bool
 	Total, Sent, Failed, Uncertain, Pending int
 }
 type BroadcastDelivery struct {
 	BroadcastID                 string
 	ActorID, TelegramID         int64
 	Text, PromoCode, ClaimToken string
+	IncludeReferral             bool
 }
 
 func operationToken() string {
@@ -68,9 +70,9 @@ func (db *DB) CreateBroadcast(ctx context.Context, actor int64, audience, text, 
 	return db.Broadcast(ctx, id, actor)
 }
 func (db *DB) Broadcast(ctx context.Context, id string, actor int64) (b Broadcast, err error) {
-	err = db.Pool.QueryRow(ctx, `SELECT b.id,b.actor_id,b.audience,b.message,b.promo_code,b.status,count(d.telegram_id),
+	err = db.Pool.QueryRow(ctx, `SELECT b.id,b.actor_id,b.audience,b.message,b.promo_code,b.status,b.include_referral,count(d.telegram_id),
  count(*) FILTER(WHERE d.status='sent'),count(*) FILTER(WHERE d.status='failed'),count(*) FILTER(WHERE d.status='uncertain'),count(*) FILTER(WHERE d.status IN('pending','sending')),count(*) FILTER(WHERE d.status='skipped')
- FROM broadcasts b LEFT JOIN broadcast_deliveries d ON d.broadcast_id=b.id WHERE b.id=$1 AND b.actor_id=$2 GROUP BY b.id`, id, actor).Scan(&b.ID, &b.ActorID, &b.Audience, &b.Text, &b.PromoCode, &b.Status, &b.Total, &b.Sent, &b.Failed, &b.Uncertain, &b.Pending, &b.Skipped)
+ FROM broadcasts b LEFT JOIN broadcast_deliveries d ON d.broadcast_id=b.id WHERE b.id=$1 AND b.actor_id=$2 GROUP BY b.id`, id, actor).Scan(&b.ID, &b.ActorID, &b.Audience, &b.Text, &b.PromoCode, &b.Status, &b.IncludeReferral, &b.Total, &b.Sent, &b.Failed, &b.Uncertain, &b.Pending, &b.Skipped)
 	if errors.Is(err, pgx.ErrNoRows) {
 		err = ErrNotFound
 	}
@@ -98,13 +100,18 @@ func (db *DB) CancelBroadcast(ctx context.Context, id string, actor int64) (bool
 	tag, err := db.Pool.Exec(ctx, `UPDATE broadcasts SET status='cancelled' WHERE id=$1 AND actor_id=$2 AND status='draft'`, id, actor)
 	return tag.RowsAffected() > 0, err
 }
+
+func (db *DB) SetBroadcastReferral(ctx context.Context, id string, actor int64, include bool) (bool, error) {
+	tag, err := db.Pool.Exec(ctx, `UPDATE broadcasts SET include_referral=$3 WHERE id=$1 AND actor_id=$2 AND status='draft'`, id, actor, include)
+	return tag.RowsAffected() > 0, err
+}
 func (db *DB) ClaimBroadcast(ctx context.Context) (d BroadcastDelivery, err error) {
 	tx, err := db.Pool.Begin(ctx)
 	if err != nil {
 		return d, err
 	}
 	defer tx.Rollback(ctx)
-	err = tx.QueryRow(ctx, `SELECT b.id,b.actor_id,d.telegram_id,b.message,b.promo_code FROM broadcast_deliveries d JOIN broadcasts b ON b.id=d.broadcast_id WHERE b.status IN('queued','sending') AND d.status='pending' AND d.available_at<=now() ORDER BY b.created_at,d.telegram_id FOR UPDATE OF d SKIP LOCKED LIMIT 1`).Scan(&d.BroadcastID, &d.ActorID, &d.TelegramID, &d.Text, &d.PromoCode)
+	err = tx.QueryRow(ctx, `SELECT b.id,b.actor_id,d.telegram_id,b.message,b.promo_code,b.include_referral FROM broadcast_deliveries d JOIN broadcasts b ON b.id=d.broadcast_id WHERE b.status IN('queued','sending') AND d.status='pending' AND d.available_at<=now() ORDER BY b.created_at,d.telegram_id FOR UPDATE OF d SKIP LOCKED LIMIT 1`).Scan(&d.BroadcastID, &d.ActorID, &d.TelegramID, &d.Text, &d.PromoCode, &d.IncludeReferral)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return d, ErrNotFound
 	}

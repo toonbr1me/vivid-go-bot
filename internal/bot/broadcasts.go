@@ -75,6 +75,21 @@ func (b *Bot) broadcastCallback(ctx context.Context, q string, chat telego.ChatI
 			}
 		}
 		b.showBroadcast(ctx, chat, mid, actor, ref)
+	case "referral_toggle":
+		x, err := b.db.Broadcast(ctx, ref, actor)
+		if err != nil {
+			b.answer(ctx, q, "Рассылка не найдена", true)
+			return
+		}
+		if x.Status != "draft" {
+			b.answer(ctx, q, "Можно менять только в черновике", true)
+			return
+		}
+		if _, err := b.db.SetBroadcastReferral(ctx, ref, actor, !x.IncludeReferral); err != nil {
+			b.answer(ctx, q, "Не удалось обновить", true)
+			return
+		}
+		b.showBroadcast(ctx, chat, mid, actor, ref)
 	default:
 		b.clearInput(actor)
 		rows := [][]telego.InlineKeyboardButton{{button("Все", "ann:audience:all"), button("С подпиской", "ann:audience:active")}, {button("Без подписки", "ann:audience:inactive")}}
@@ -147,9 +162,17 @@ func (b *Bot) showBroadcast(ctx context.Context, chat telego.ChatID, mid int, ac
 	if x.PromoCode != "" {
 		text += "\n\nКнопка: Применить " + escapeHTML(x.PromoCode)
 	}
+	if x.IncludeReferral {
+		text += "\n\nКнопка: 👥 Пригласить друга"
+	}
 	rows := [][]telego.InlineKeyboardButton{}
 	if x.Status == "draft" {
 		text += "\n\nПодтверждение доступно 20 минут. После отправки отмена недоступна."
+		if x.IncludeReferral {
+			rows = append(rows, []telego.InlineKeyboardButton{button("☑ Кнопка «Пригласить друга»", "ann:referral_toggle:"+id)})
+		} else {
+			rows = append(rows, []telego.InlineKeyboardButton{button("☐ Добавить кнопку «Пригласить друга»", "ann:referral_toggle:"+id)})
+		}
 		if x.Total > 0 {
 			rows = append(rows, []telego.InlineKeyboardButton{button(fmt.Sprintf("Отправить · %d", x.Total), "ann:send:"+id)})
 		}
@@ -230,8 +253,15 @@ func (b *Bot) ProcessBroadcasts(ctx context.Context, limit int) error {
 			continue
 		}
 		var markup *telego.InlineKeyboardMarkup
+		var rows [][]telego.InlineKeyboardButton
 		if d.PromoCode != "" {
-			markup = keyboard([]telego.InlineKeyboardButton{button("Применить "+d.PromoCode, "promo:use:"+d.PromoCode)})
+			rows = append(rows, []telego.InlineKeyboardButton{button("Применить "+d.PromoCode, "promo:use:"+d.PromoCode)})
+		}
+		if d.IncludeReferral {
+			rows = append(rows, []telego.InlineKeyboardButton{button("👥 Пригласить друга", "nav:referral")})
+		}
+		if len(rows) > 0 {
+			markup = keyboard(rows...)
 		}
 		sendCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
 		if delivered, sendErr := b.deliverRich(sendCtx, telego.ChatID{ID: d.TelegramID}, 0, mdhtml.Rich(d.Text), markup); delivered {
