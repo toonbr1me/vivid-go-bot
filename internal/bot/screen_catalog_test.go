@@ -92,7 +92,7 @@ func TestRefusedNewTemplateKeepsExistingCompatibleHTMLWidget(t *testing.T) {
 
 func TestCatalogHasCompleteNavigableScreensWithinTelegramLimits(t *testing.T) {
 	screens := ScreenCatalog()
-	if len(screens) != 42 {
+	if len(screens) != 43 {
 		t.Fatalf("catalog lost a screen: %d", len(screens))
 	}
 	ids := map[string]bool{"rich": true}

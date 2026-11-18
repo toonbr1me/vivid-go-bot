@@ -140,7 +140,7 @@ func (b *Bot) richScreen(ctx context.Context, tgID int64, name string) (string, 
 	case "devices":
 		return b.richDevices(ctx, tgID)
 	default:
-		return "", nil, false
+		return b.standardRichScreen(ctx, tgID, name)
 	}
 }
 
@@ -153,6 +153,8 @@ func (b *Bot) richMain(ctx context.Context, tgID int64) (string, *telego.InlineK
 	status := "UNKNOWN"
 	if err == nil || access.Found {
 		switch {
+		case !access.Found && access.ExpireAt != nil && access.ExpireAt.After(time.Now()):
+			status = "UNKNOWN"
 		case access.Found && access.Active:
 			status = "ACTIVE"
 		case access.ExpireAt != nil:
@@ -227,9 +229,54 @@ func (b *Bot) richMain(ctx context.Context, tgID int64) (string, *telego.InlineK
 		out.WriteString("\n<blockquote>" + trial + "</blockquote>")
 	}
 	if status != "UNKNOWN" && b.texts.Rich.AutoRenewNo != "" {
-		out.WriteString("\n<footer>" + escapeHTML(b.texts.Rich.AutoRenewNo) + "</footer>")
+		out.WriteString("\n<footer>" + escapeHTML(b.customerRecurringFooter(ctx, subject)) + "</footer>")
 	}
-	return out.String(), b.mainKeyboard(status, trialAvailable), true
+	kb := b.mainKeyboard(status, trialAvailable)
+	if guidance, e := b.pay.CustomerGuidance(ctx, subject, access, "bot"); e == nil && (status != "UNKNOWN" || guidance.Action == "order") {
+		out.WriteString("<p>" + escapeHTML(guidance.Detail) + "</p>")
+		action := customerGuidanceAction(guidance)
+		if action != "" {
+			kb = primaryCustomerAction(kb, guidance.Label, action)
+		}
+	}
+	_ = b.db.RecordJourney(ctx, subject.ID, "subscription_viewed", "bot", "")
+	return out.String(), kb, true
+}
+
+func primaryCustomerAction(kb *telego.InlineKeyboardMarkup, label, action string) *telego.InlineKeyboardMarkup {
+	rows := [][]telego.InlineKeyboardButton{{{Text: label, CallbackData: action, Style: "primary"}}}
+	if kb != nil {
+		for _, row := range kb.InlineKeyboard {
+			var kept []telego.InlineKeyboardButton
+			for _, item := range row {
+				if item.CallbackData != action {
+					kept = append(kept, item)
+				}
+			}
+			if len(kept) > 0 {
+				rows = append(rows, kept)
+			}
+		}
+	}
+	return keyboard(rows...)
+}
+
+func customerGuidanceAction(g domain.CustomerGuidance) string {
+	if g.Action == "order" {
+		return "check:" + g.OrderID
+	}
+	return map[string]string{"trial": "nav:trial", "buy": "nav:buy", "connect": "nav:connect", "support": "nav:support", "recurring": "nav:profile"}[g.Action]
+}
+
+func (b *Bot) customerRecurringFooter(ctx context.Context, subject domain.Subject) string {
+	if agreement, err := b.db.LatestRecurringForSubject(ctx, subject.ID); err == nil {
+		text := "Автопродление: " + agreement.StatusText()
+		if agreement.Enabled && agreement.NextChargeAt != nil {
+			text += " · следующее списание " + agreement.NextChargeAt.In(b.timezone()).Format("02.01.2006")
+		}
+		return text
+	}
+	return b.texts.Rich.AutoRenewNo
 }
 
 // richSubscription — карточка подписки с таблицей.
@@ -284,14 +331,20 @@ func (b *Bot) richSubscription(ctx context.Context, tgID int64) (string, *telego
 		out.WriteString("\n<p>" + escapeHTML(plainLine(b.texts.Subscription.PanelPart)) + "</p>")
 	}
 
-	footer := b.texts.Rich.AutoRenewNo
+	footer := escapeHTML(b.customerRecurringFooter(ctx, subject))
 	if access.Username != "" {
 		footer = "Профиль: <code>" + escapeHTML(access.Username) + "</code> · " + footer
 	}
 	if strings.TrimSpace(footer) != "" {
 		out.WriteString("\n<footer>" + footer + "</footer>")
 	}
-	return out.String(), b.subscriptionKeyboard(access), true
+	kb := b.subscriptionKeyboard(access)
+	if g, e := b.pay.CustomerGuidance(ctx, subject, access, "bot"); e == nil {
+		if action := customerGuidanceAction(g); action != "" {
+			kb = primaryCustomerAction(kb, g.Label, action)
+		}
+	}
+	return out.String(), kb, true
 }
 
 // richBuy — витрина тарифов таблицей.

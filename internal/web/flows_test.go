@@ -231,8 +231,8 @@ func TestSupportTicketShowsMessage(t *testing.T) {
 		t.Fatalf("код ответа = %d, ждали 303: %s", rec.Code, rec.Body.String())
 	}
 
-	// В кабинете видно обращение и его текст.
-	request := httptest.NewRequest(http.MethodGet, "/account", nil)
+	// Обращения доступны в разделе помощи; главная показывает подписку.
+	request := httptest.NewRequest(http.MethodGet, "/support", nil)
 	request.AddCookie(session)
 	rec = httptest.NewRecorder()
 	handler.ServeHTTP(rec, request)

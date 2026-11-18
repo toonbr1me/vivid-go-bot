@@ -8,6 +8,18 @@ import (
 )
 
 func (b *Bot) connectHubCard(ctx context.Context, id int64) cardState {
+	state := b.connectAppsCard(ctx, id)
+	if len(state.Pages) == 0 || state.Pages[0].Layout != "apps" {
+		return state
+	}
+	picker := b.connectPickerCard()
+	if state.Pages[0].Tone == "warn" {
+		picker.Pages[0].Note = state.Pages[0].Note
+	}
+	return picker
+}
+
+func (b *Bot) connectAppsCard(ctx context.Context, id int64) cardState {
 	if b.pay == nil {
 		return b.connectPickerCard()
 	}
@@ -22,6 +34,7 @@ func (b *Bot) connectHubCard(ctx context.Context, id int64) cardState {
 	p := cardPage{Title: "Подключение", Tab: "subscription", Value: "Выберите приложение", Note: "Приложение откроется и предложит добавить подписку. Затем включите подключение.", Used: len(access.Devices), Limit: access.DeviceLimit, Layout: "apps"}
 	if err != nil {
 		p.Note = "Подписка и ссылка доступны. Список устройств временно не удалось обновить."
+		p.Tone = "warn"
 	}
 	actions := []telego.InlineKeyboardButton{}
 	if site := b.siteURL(); strings.HasPrefix(site, "https://") {

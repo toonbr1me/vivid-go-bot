@@ -19,16 +19,12 @@ func connectedState(users []remnawave.User) (known, connected bool) {
 	}
 	allKnown := true
 	for _, u := range users {
-		source := u.Raw
-		if nested, ok := u.Raw["userTraffic"].(map[string]any); ok {
-			source = nested
-		}
-		value, ok := source["firstConnectedAt"]
-		if !ok {
+		known, first := remnawave.FirstConnection(u.Raw)
+		if !known {
 			allKnown = false
 			continue
 		}
-		if value != nil && value != "" {
+		if first != nil {
 			return true, true
 		}
 	}

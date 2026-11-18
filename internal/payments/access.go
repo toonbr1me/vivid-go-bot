@@ -92,6 +92,10 @@ func (s *Service) fillAccess(ctx context.Context, access *domain.Access, subject
 	access.PanelUserUUID = user.UUID
 	access.Username = user.Username
 	access.Active = user.IsActive()
+	access.ConnectionKnown, access.FirstConnectedAt = remnawave.FirstConnection(user.Raw)
+	if access.ConnectionKnown {
+		_ = s.db.ObserveConnection(ctx, subject.ID, access.FirstConnectedAt)
+	}
 	access.URL = remnawave.SubscriptionURL(s.cfg.Current().APIBaseURL, user)
 	access.TrafficUsedBytes = user.TrafficUsedBytes
 	access.TrafficLimit = user.TrafficLimitBytes

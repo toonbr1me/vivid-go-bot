@@ -39,11 +39,11 @@ func (db *DB) RecordPanelEvent(ctx context.Context, e PanelEvent) error {
 		return err
 	}
 	if tag.RowsAffected() > 0 && status == "counted" {
-		if _, err = tx.Exec(ctx, `UPDATE accounts SET first_connected_at=COALESCE(first_connected_at,now()),connection_known=true,connection_checked_at=now() WHERE telegram_id=$1`, e.TelegramID); err != nil {
-			return err
-		}
-
-		if _, err = tx.Exec(ctx, `INSERT INTO funnel_daily(day,step,hits) VALUES(current_date,'first_connected',1) ON CONFLICT(day,step) DO UPDATE SET hits=funnel_daily.hits+1`); err != nil {
+		if _, err = tx.Exec(ctx, `WITH connected AS (
+		 UPDATE accounts SET first_connected_at=now(),connection_known=true,connection_checked_at=now()
+		 WHERE telegram_id=$1 AND merged_into IS NULL AND first_connected_at IS NULL RETURNING id)
+		 INSERT INTO funnel_daily(day,step,hits) SELECT current_date,'first_connected',count(*) FROM connected HAVING count(*)>0
+		 ON CONFLICT(day,step) DO UPDATE SET hits=funnel_daily.hits+EXCLUDED.hits`, e.TelegramID); err != nil {
 			return err
 		}
 	}

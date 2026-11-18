@@ -11,6 +11,9 @@ type OrderProgress struct {
 func (o Order) Progress(now time.Time) OrderProgress {
 	switch o.Status {
 	case OrderProvisioned:
+		if o.Kind == KindGift {
+			return OrderProgress{Label: "Подарок готов", Detail: "Ссылка на подарок доступна в разделе подарков.", Tone: "success", Ready: true}
+		}
 		if o.Kind == KindBalance {
 			return OrderProgress{Label: "Баланс пополнен", Detail: "Средства доступны в аккаунте.", Tone: "success"}
 		}

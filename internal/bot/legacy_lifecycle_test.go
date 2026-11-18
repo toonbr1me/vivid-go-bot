@@ -108,7 +108,11 @@ func TestLegacyPurchaseConnectionSupportAndRestartJourney(t *testing.T) {
 			if balance != 20000 {
 				t.Fatal("payment charged twice")
 			}
-			hub := b.connectHubCard(ctx, 7)
+			picker := b.connectHubCard(ctx, 7)
+			if len(picker.Actions) == 0 || picker.Actions[0].CallbackData != "card:platform:ios" {
+				t.Fatal("connection must start with platform selection", picker)
+			}
+			hub := b.connectAppsCard(ctx, 7)
 			if len(hub.Actions) < 7 {
 				t.Fatal("connection hub missing apps")
 			}

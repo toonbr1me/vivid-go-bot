@@ -6,16 +6,21 @@
   </div>
 </div>
 
+{{if .Data.LoggedIn}}
+<section class="card"><h2>Что не получается?</h2><nav class="customer-links" aria-label="Тема обращения">{{range .Data.Topics}}<a href="/support?topic={{.Key}}{{if $.Data.Order}}&amp;order={{$.Data.Order}}{{end}}{{if $.Data.Device}}&amp;device={{$.Data.Device}}{{end}}{{if $.Data.App}}&amp;app={{$.Data.App}}{{end}}" {{if eq .Key $.Data.Topic.Key}}aria-current="page"{{end}}>{{.Label}} →</a>{{end}}</nav></section>
+{{if .Data.Topic.Advice}}<section class="card"><h2>{{.Data.Topic.Label}}</h2><p>{{.Data.Topic.Advice}}</p>{{if .Data.Checks}}<ul class="diagnostic-list">{{range .Data.Checks}}<li>{{.}}</li>{{end}}</ul>{{end}}<p class="muted small">Проверяется состояние сервиса. Соединение и доступность сайтов на вашем устройстве здесь не проверяются.</p><div class="customer-actions"><a class="btn btn-ghost" href="/connect">Настройка подключения</a><a class="btn btn-ghost" href="#support-message">Написать специалисту</a></div></section>{{end}}
+{{end}}
 <section class="grid-two">
   <article class="card">
     <h2>{{if .Data.LoggedIn}}Новое обращение{{else}}Написать нам{{end}}</h2>
     {{if .Data.LoggedIn}}
     <p class="muted small">Обращение привяжется к вашему аккаунту. Ответ появится здесь и в боте, если Telegram привязан.</p>
-    <form method="post" action="/support" class="stack">
+    <form method="post" action="/support" class="stack" id="support-message">
       <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <input type="hidden" name="topic" value="{{.Data.Topic.Key}}">
       {{if .Data.Order}}<p>Заказ: <code>{{.Data.Order}}</code></p><input type="hidden" name="order" value="{{.Data.Order}}">{{end}}
-      <label for="device">Устройство и система (необязательно)</label><input id="device" name="device" maxlength="100" placeholder="Например, iPhone / iOS">
-      <label for="app">Приложение (необязательно)</label><input id="app" name="app" maxlength="100" placeholder="Happ, Incy, Clash Mi, FlClashX">
+      <label for="device">Устройство и система (необязательно)</label><input id="device" name="device" maxlength="100" value="{{.Data.Device}}" placeholder="Например, iPhone / iOS">
+      <label for="app">Приложение (необязательно)</label><input id="app" name="app" maxlength="100" value="{{.Data.App}}" placeholder="Happ, Incy, Clash Mi, FlClashX">
       <label for="message">Что случилось</label>
       <textarea id="message" name="message" rows="6" maxlength="4000" placeholder="Опишите проблему: что делали, что видите, когда началось" required></textarea>
       <button class="btn btn-primary" type="submit">Отправить</button>

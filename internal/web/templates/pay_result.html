@@ -10,10 +10,10 @@
   </div>
 </article>
 {{else}}
-<article class="card result-card">
+<article class="card result-card" {{if and .Data.Order .Data.OrderOwned}}data-order-status="/account/orders/{{.Data.Order.OrderID}}/status"{{end}}>
   {{if .Data.Order}}{{$p := progress .Data.Order}}
-  <h1>{{$p.Label}}</h1>
-  <p class="lead">{{$p.Detail}}</p>
+  <h1 data-status-label>{{$p.Label}}</h1>
+  <p class="lead" data-status-detail>{{$p.Detail}}</p>
   {{else}}
   <h1>Проверьте результат оплаты</h1>
   <p class="lead">Подтверждённый статус заказа доступен в вашем кабинете.</p>
@@ -23,7 +23,7 @@
   <dl class="facts">
     <div><dt>Заказ</dt><dd>{{.Data.Order.OrderID}}</dd></div>
     <div><dt>Сумма</dt><dd>{{money .Data.Order.Amount}}</dd></div>
-    <div><dt>Статус</dt><dd>{{(progress .Data.Order).Label}}</dd></div>
+    <div><dt>Статус</dt><dd data-status-fact>{{(progress .Data.Order).Label}}</dd></div>
   </dl>
   {{end}}
 
@@ -38,13 +38,16 @@
   {{end}}
 
   <div class="hero-actions">
-    {{if .Subject}}<a class="btn btn-primary" href="/account">В кабинет</a>
+    {{if and .Data.Order .Data.OrderOwned}}{{$p := progress .Data.Order}}
+    {{if and $p.CanPay .Data.Order.PaymentURL}}<a class="btn btn-primary" href="{{str .Data.Order.PaymentURL}}" target="_blank" rel="noopener noreferrer" data-miniapp-external data-status-pay>Продолжить оплату</a>{{end}}
+    <a class="btn btn-primary" href="{{.Data.NextURL}}" data-status-next {{if not $p.Ready}}hidden{{end}}>Продолжить</a><button type="button" class="btn btn-ghost" data-status-refresh>Проверить статус</button>{{end}}
+    {{if .Subject}}<a class="btn btn-ghost" href="/account">В кабинет</a>
     {{else}}<a class="btn btn-primary" href="/login?next=%2Faccount">Войти в кабинет</a>{{end}}
     {{if .Data.Order}}<a class="btn btn-ghost" href="/support?order={{.Data.Order.OrderID}}">Поддержка по заказу</a>
-    {{if (progress .Data.Order).Ready}}<a class="btn btn-ghost" href="/connect">Подключиться</a>{{end}}
     {{else}}<a class="btn btn-ghost" href="/connect">Как подключиться</a>{{end}}
   </div>
-  <p class="muted small">Для обновления статуса откройте кабинет и нажмите «Проверить» у заказа.</p>
+  <p class="muted small" data-status-feedback role="status" aria-live="polite">{{if .Data.OrderOwned}}Статус обновляется автоматически после подтверждения оплаты{{else}}Откройте заказ в истории покупок, чтобы проверить оплату{{end}}</p>
 </article>
 {{end}}
 {{end}}
+{{define "scripts"}}<script src="/static/order-status.js?v=1" defer></script>{{end}}

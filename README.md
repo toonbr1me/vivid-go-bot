@@ -9,6 +9,7 @@
 Карточки и режим бота: [интерфейс](docs/bot-interface.md), [HTML-шаблоны](web/bot/html/README.md).
 Автопродление: [настройка и протоколы](docs/recurring-payments.md).
 Telegram Mini App: [вход и автоматическое обновление кнопки](docs/telegram-miniapp.md).
+Путь клиента: [компактный кабинет, подключение, оплата и аналитика](docs/customer-experience.md).
 Проверки: [запуск и покрытые сценарии](docs/testing.md).
 
 Telegram-бот и публичный сайт сервиса подписок на Go. Это переписывание

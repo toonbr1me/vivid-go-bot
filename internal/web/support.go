@@ -10,10 +10,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/toonbr1me/vivid-go-bot/internal/domain"
 	"github.com/toonbr1me/vivid-go-bot/internal/storage"
 )
 
 type supportData struct {
+	Topics   []domain.SupportTopic
+	Topic    domain.SupportTopic
+	Device   string
+	App      string
+	Checks   []string
 	LoggedIn bool
 	Tickets  []storage.Ticket
 	Name     string
@@ -26,6 +32,10 @@ type supportData struct {
 
 func (s *Server) supportPage(w http.ResponseWriter, r *http.Request) {
 	data := supportData{
+		Topics:   domain.SupportTopics(),
+		Topic:    domain.SupportTopicFor(r.URL.Query().Get("topic")),
+		Device:   safeSupportField(r.URL.Query().Get("device")),
+		App:      safeSupportField(r.URL.Query().Get("app")),
 		LoggedIn: s.subjectFrom(r) != nil,
 		Email:    s.render.theme.SupportEmail,
 		BotURL:   s.botURL(),
@@ -44,6 +54,8 @@ func (s *Server) supportPage(w http.ResponseWriter, r *http.Request) {
 		if tickets, err := s.db.TicketsForSubject(ctx, subject.ID, 10); err == nil {
 			data.Tickets = tickets
 		}
+		access, accessErr := s.pay.Access(ctx, *subject, panelUsername(subject))
+		data.Checks = supportChecks(access, accessErr)
 	}
 	s.renderPage(w, r, "support.html", http.StatusOK, pageMeta{Title: "Поддержка"}, data)
 }
@@ -69,14 +81,15 @@ func (s *Server) supportSubmit(w http.ResponseWriter, r *http.Request) {
 
 	subject := s.subjectFrom(r)
 	if subject != nil {
-		contextText := ""
+		topic := domain.SupportTopicFor(r.PostFormValue("topic"))
+		contextText := "Тема: " + topic.Label
 		if id := strings.TrimSpace(r.PostFormValue("order")); id != "" {
 			o, err := s.pay.Order(ctx, id)
 			if err != nil || !orderBelongsTo(&o, subject) {
 				s.notFound(w, r)
 				return
 			}
-			contextText = "Заказ: " + id
+			contextText += "\nЗаказ: " + id
 		}
 		for _, field := range []struct{ key, label string }{{"device", "Устройство"}, {"app", "Приложение"}} {
 			value := strings.TrimSpace(r.PostFormValue(field.key))
@@ -88,6 +101,12 @@ func (s *Server) supportSubmit(w http.ResponseWriter, r *http.Request) {
 				contextText += "\n" + field.label + ": " + value
 			}
 		}
+		access, accessErr := s.pay.Access(ctx, *subject, panelUsername(subject))
+		contextText += "\nПроверки сервиса: " + strings.Join(supportChecks(access, accessErr), "; ")
+		if access.ExpireAt != nil {
+			contextText += "\nПоследний известный срок: " + access.ExpireAt.Format("02.01.2006")
+		}
+		contextText += "\nСоединение на устройстве пользователя не проверялось"
 		ticket, err := s.db.CreateTicketContent(ctx, subject.ID, subject.TelegramID,
 			firstRunes(message, 60), message, s.ticketMode(), strings.TrimSpace(contextText), "", "")
 		if err != nil {
@@ -95,6 +114,7 @@ func (s *Server) supportSubmit(w http.ResponseWriter, r *http.Request) {
 			s.flashRedirect(w, r, "/support", "error", "Не удалось создать обращение. Попробуйте позже.")
 			return
 		}
+		_ = s.db.RecordJourney(ctx, subject.ID, "support_created", "web", "")
 		s.notifyStaff(fmt.Sprintf("🆕 Обращение #%d с сайта\n\n%s\n\n%s",
 			ticket.ID, html.EscapeString(ticket.Subject), html.EscapeString(firstRunes(message, 500))))
 		s.flashRedirect(w, r, "/support/tickets/"+strconv.FormatInt(ticket.ID, 10), "ok",

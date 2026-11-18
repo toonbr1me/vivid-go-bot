@@ -78,6 +78,8 @@ func (s *Server) landing(w http.ResponseWriter, r *http.Request) {
 // ---------------------------------------------------------------------------
 
 type buyQuote struct {
+	Devices          int
+	Until            string
 	Quote            domain.PlanQuote
 	Stars            int
 	RecurringOptions string
@@ -128,8 +130,18 @@ func (s *Server) buyPage(w http.ResponseWriter, r *http.Request) {
 		TrialDays: s.cfg.Current().TrialWebDays,
 	}
 	registry := s.pay.Registry()
+	base := time.Now()
+	currentDevices := 0
+	if subject != nil {
+		if access, err := s.pay.SupportAccess(ctx, *subject); err == nil {
+			if access.ExpireAt != nil && access.ExpireAt.After(base) {
+				base = *access.ExpireAt
+			}
+			currentDevices = access.DeviceLimit
+		}
+	}
 	for _, quote := range quotes {
-		view := buyQuote{Quote: quote}
+		view := buyQuote{Quote: quote, Devices: max(currentDevices, domain.PlanDevicesTotal(quote.Plan, s.cfg.Current().DeviceLimitBase)), Until: base.AddDate(0, 0, quote.Plan.Days+quote.BonusDays).Format("02.01.2006")}
 		if quote.Amount > 0 && quote.Rejection == "" {
 			var tokens []string
 			for _, option := range data.Options {
@@ -148,12 +160,24 @@ func (s *Server) buyPage(w http.ResponseWriter, r *http.Request) {
 		}
 		data.Quotes = append(data.Quotes, view)
 	}
-	if data.Selected == "" && len(data.Quotes) > 0 {
-		data.Selected = data.Quotes[0].Quote.Plan.ID
+	selectedValid := false
+	for _, q := range data.Quotes {
+		if q.Quote.Rejection == "" && q.Quote.Plan.ID == data.Selected {
+			selectedValid = true
+		}
+	}
+	if !selectedValid {
+		data.Selected = ""
+		for _, q := range data.Quotes {
+			if q.Quote.Rejection == "" {
+				data.Selected = q.Quote.Plan.ID
+				break
+			}
+		}
 	}
 	if subject != nil {
 		if used, err := s.db.HasTrial(ctx, subject.ID, "web"); err == nil {
-			data.TrialAvailable = !used
+			data.TrialAvailable = !used && s.cfg.Current().TrialWebDays > 0
 		}
 	}
 	for _, plan := range s.trialPlans(ctx) {
@@ -283,6 +307,7 @@ func trialError(err error) string {
 // ---------------------------------------------------------------------------
 
 type payResultData struct {
+	NextURL    string
 	Order      *domain.Order
 	Error      string
 	Access     *domain.Access
@@ -292,7 +317,7 @@ type payResultData struct {
 func (s *Server) paySuccess(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 	defer cancel()
-	data := payResultData{}
+	data := payResultData{NextURL: "/connect"}
 	subject := s.subjectFrom(r)
 	if orderID := strings.TrimSpace(r.URL.Query().Get("order")); orderID != "" && subject != nil {
 		// Authorize before refreshing: a redirect must not operate on somebody else's order.
@@ -306,6 +331,7 @@ func (s *Server) paySuccess(w http.ResponseWriter, r *http.Request) {
 			}
 			data.Order = &order
 			data.OrderOwned = true
+			data.NextURL = customerOrderNext(order.Kind)
 		}
 	}
 	if subject != nil {
@@ -339,6 +365,10 @@ func orderBelongsTo(order *domain.Order, subject *domain.Subject) bool {
 // ---------------------------------------------------------------------------
 
 type connectData struct {
+	Platforms   []domain.ConnectionPlatform
+	Platform    domain.ConnectionPlatform
+	ImportURL   string
+	Step        string
 	Access      *domain.Access
 	AccessError string
 	LoggedIn    bool
@@ -346,18 +376,33 @@ type connectData struct {
 }
 
 func (s *Server) connectPage(w http.ResponseWriter, r *http.Request) {
-	data := connectData{GuideURL: s.render.theme.ConnectGuideURL}
+	data := connectData{GuideURL: s.render.theme.ConnectGuideURL, Platforms: domain.ConnectionPlatforms(), Step: "install"}
+	data.Platform, _ = domain.ConnectionPlatformFor(r.URL.Query().Get("platform"))
+	if r.URL.Query().Get("step") == "import" {
+		data.Step = "import"
+	}
+	if r.URL.Query().Get("step") == "finish" {
+		data.Step = "finish"
+	}
 	if subject := s.subjectFrom(r); subject != nil {
 		data.LoggedIn = true
 		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 		defer cancel()
 		access, err := s.pay.Access(ctx, *subject, panelUsername(subject))
 		data.Access = &access
+		if access.Active && isHTTPURL(access.URL) {
+			data.ImportURL = connectionImportURL("happ", access.URL)
+		}
+		if data.Platform.Key != "" {
+			_ = s.db.RecordJourney(ctx, subject.ID, "setup_started", "web", data.Platform.Key)
+		}
 		if err != nil {
 			data.AccessError = "Панель не отвечает: показываем последние известные данные."
 		}
 	}
-	s.renderPage(w, r, "connect.html", http.StatusOK, pageMeta{Title: "Подключение"}, data)
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Referrer-Policy", "no-referrer")
+	s.renderPage(w, r, "customer_connect.html", http.StatusOK, pageMeta{Title: "Подключение"}, data)
 }
 
 type documentData struct {

@@ -3,6 +3,7 @@ package bot
 import (
 	"regexp"
 	"strings"
+	"unicode"
 )
 
 var screenTitleRE = regexp.MustCompile(`^<(?:b|strong)>(.*?)</(?:b|strong)>$`)
@@ -25,8 +26,13 @@ func screenRichHTML(source string) string {
 			if paragraph == "" {
 				continue
 			}
-			if match := screenTitleRE.FindStringSubmatch(paragraph); match != nil {
+			first, rest, _ := strings.Cut(paragraph, "\n")
+			first = strings.TrimLeftFunc(first, func(r rune) bool { return r != '<' && (unicode.IsSymbol(r) || unicode.IsSpace(r) || r == 0xFE0F) })
+			if match := screenTitleRE.FindStringSubmatch(first); match != nil {
 				out.WriteString("<h3>" + match[1] + "</h3>")
+				if rest != "" {
+					out.WriteString("<p>" + strings.ReplaceAll(rest, "\n", "<br/>") + "</p>")
+				}
 			} else {
 				out.WriteString("<p>" + strings.ReplaceAll(paragraph, "\n", "<br/>") + "</p>")
 			}

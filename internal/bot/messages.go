@@ -421,6 +421,8 @@ func (b *Bot) handleTicketInput(ctx context.Context, chatID telego.ChatID, tgID 
 			return
 		}
 		contextText = "Заказ: " + order.OrderID
+	} else if strings.HasPrefix(ref, "topic:") {
+		contextText = "Тема: " + domain.SupportTopicFor(strings.TrimPrefix(ref, "topic:")).Label
 	} else if strings.HasPrefix(ref, "setup:") {
 		parts := strings.Split(strings.TrimPrefix(ref, "setup:"), ",")
 		if supportApps[parts[0]] == "" {
@@ -430,6 +432,9 @@ func (b *Bot) handleTicketInput(ctx context.Context, chatID telego.ChatID, tgID 
 		contextText = "Приложение: " + supportApps[parts[0]]
 		if len(parts) > 1 && supportDevices[parts[1]] != "" {
 			contextText += "\nУстройство: " + supportDevices[parts[1]]
+		}
+		if topic := supportTopicKey(ref); topic != "" {
+			contextText += "\nТема: " + domain.SupportTopicFor(topic).Label
 		}
 	} else if ref != "" {
 		ticketID, e := strconv.ParseInt(ref, 10, 64)
@@ -458,12 +463,23 @@ func (b *Bot) handleTicketInput(ctx context.Context, chatID telego.ChatID, tgID 
 	if title == "" {
 		title = "Вложение"
 	}
+	if access, e := b.pay.SupportAccess(ctx, subject); e == nil {
+		contextText += fmt.Sprintf("\nСостояние сервиса: активна=%t", access.Active)
+		if access.ExpireAt != nil {
+			contextText += "; срок до " + access.ExpireAt.In(b.timezone()).Format("02.01.2006")
+		}
+		if access.DeviceLimit > 0 {
+			contextText += fmt.Sprintf("; лимит устройств=%d", access.DeviceLimit)
+		}
+	}
+	contextText += "\nСоединение на устройстве пользователя не проверялось"
 	ticket, err := b.db.CreateTicketContent(ctx, subject.ID, &tgID, title, text, b.ticketMode(), contextText, fileID, fileType)
 	if err != nil {
 		b.send(ctx, chatID, b.texts.Ticket.CreateFail, keyboard(b.backRow()))
 		return
 	}
 	b.setInput(tgID, inputTicket, strconv.FormatInt(ticket.ID, 10))
+	_ = b.db.RecordJourney(ctx, subject.ID, "support_created", "bot", "")
 	b.notifyStaff(ctx, ticket, text)
 	b.ticketSent(ctx, tgID, ticket.ID, true)
 }

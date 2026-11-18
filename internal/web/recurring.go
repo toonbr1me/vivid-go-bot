@@ -7,7 +7,7 @@ import (
 )
 
 func (s *Server) accountCancelRecurring(w http.ResponseWriter, r *http.Request) {
-	subject, ok := s.requireSubject(w, r, "/account")
+	subject, ok := s.requireSubject(w, r, "/account/profile")
 	if !ok {
 		return
 	}
@@ -15,8 +15,8 @@ func (s *Server) accountCancelRecurring(w http.ResponseWriter, r *http.Request) 
 	defer cancel()
 	if err := s.pay.CancelRecurring(ctx, subject.ID); err != nil {
 		s.log.Warn("отмена автопродления", "subject", subject.ID, "err", err)
-		s.flashRedirect(w, r, "/account", "error", "Не удалось подтвердить отмену. Автопродление пока включено; повторите попытку или обратитесь в поддержку.")
+		s.flashRedirect(w, r, "/account/profile", "error", "Не удалось подтвердить отмену. Автопродление пока включено; повторите попытку или обратитесь в поддержку.")
 		return
 	}
-	s.flashRedirect(w, r, "/account", "ok", "Автопродление отключено. Уже оплаченный срок сохранён. Платёж, отправленный до отмены, ещё может завершиться.")
+	s.flashRedirect(w, r, "/account/profile", "ok", "Автопродление отключено. Уже оплаченный срок сохранён. Платёж, отправленный до отмены, ещё может завершиться.")
 }

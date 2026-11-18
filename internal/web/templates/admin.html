@@ -32,7 +32,8 @@
   </article>
 
   <article class="card">
-    <div class="card-head"><h2>Воронка</h2></div>
+      <div class="card-head"><h2>Воронка</h2></div>
+      {{with .Data.Experience}}<h3>Путь клиента · 30 дней</h3><dl class="facts"><div><dt>Открыли подписку</dt><dd>{{.Viewed}}</dd></div><div><dt>Активировали пробный доступ</dt><dd>{{.Trial}}</dd></div><div><dt>Начали настройку</dt><dd>{{.Setup}}</dd></div><div><dt>Нажали «Добавить подписку»</dt><dd>{{.Import}}</dd></div><div><dt>Первое подключение по данным панели</dt><dd>{{.Connected}}</dd></div><div><dt>Платящие клиенты</dt><dd>{{.Paid}}</dd></div><div><dt>Клиенты с повторной покупкой за период</dt><dd>{{.Repeat}}</dd></div><div><dt>Обращений на 100 платных заказов</dt><dd>{{printf "%.1f" .TicketsPerHundred}}</dd></div>{{if .ConnectMinutes}}<div><dt>Медиана до первого подключения с регистрации, мин</dt><dd>{{printf "%.0f" (float .ConnectMinutes)}}</dd></div>{{end}}</dl><p class="muted small">Нажатие кнопки не подтверждает импорт или соединение. Показатели за период могут относиться к разным группам клиентов.</p>{{end}}
     {{if .Data.Funnel}}
     <dl class="facts">
       {{range .Data.Funnel}}<div><dt>{{.Step}}</dt><dd>{{.Hits}}</dd></div>{{end}}

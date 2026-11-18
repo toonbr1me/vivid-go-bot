@@ -9,8 +9,17 @@
       app.ready();
       app.expand();
       if (app.BackButton && !form) {
-        if (window.location.pathname === '/account') app.BackButton.hide();
-        else { app.BackButton.show(); app.BackButton.onClick(() => { window.location.href = '/account'; }); }
+        if (['/account', '/account/devices', '/account/profile', '/support'].includes(window.location.pathname)) app.BackButton.hide();
+        else { app.BackButton.show(); app.BackButton.onClick(() => {
+          if (window.location.pathname === '/connect' && new URLSearchParams(window.location.search).has('platform')) {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('step') === 'finish') params.set('step', 'import');
+            else params.delete('step');
+            window.location.href = window.location.search.includes('step=') ? '/connect?' + params.toString() : '/connect';
+          }
+          else if (window.location.pathname.startsWith('/support/')) window.location.href = '/support';
+          else window.location.href = '/account';
+        }); }
       }
     } catch (_) { /* Native chrome is optional; authentication still works. */ }
     document.querySelectorAll('a[data-miniapp-external]').forEach(link => {

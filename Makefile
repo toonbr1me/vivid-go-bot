@@ -19,12 +19,12 @@ vet:
 
 test:
 	go test ./...
-	node --test internal/bot/widgets/interface.test.cjs internal/web/static/ticket-live.test.cjs internal/web/static/checkout.test.cjs
+	node --test internal/bot/widgets/interface.test.cjs internal/web/static/*.test.cjs
 
 # Тесты с настоящей базой: схемы, миграции, выдача заказов.
 test-db:
 	REQUIRE_TEST_DATABASE=true TEST_DATABASE_URL="$(TEST_DB)" go test ./...
-	node --test internal/bot/widgets/interface.test.cjs internal/web/static/ticket-live.test.cjs internal/web/static/checkout.test.cjs
+	node --test internal/bot/widgets/interface.test.cjs internal/web/static/*.test.cjs
 
 test-race:
 	REQUIRE_TEST_DATABASE=true TEST_DATABASE_URL="$(TEST_DB)" go test -race ./...

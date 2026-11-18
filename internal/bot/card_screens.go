@@ -120,6 +120,9 @@ func (b *Bot) deviceCard(ctx context.Context, id int64) cardState {
 }
 
 func (b *Bot) cardAction(ctx *telegohandler.Context, q telego.WidgetQuery, action string) error {
+	if action == "card:apps" {
+		return b.deliverJourney(ctx, q.From.ID, q.MessageID, b.connectAppsCard(ctx, q.From.ID))
+	}
 	if action == "card:setup" {
 		return b.deliverJourney(ctx, q.From.ID, q.MessageID, b.connectPickerCard())
 	}

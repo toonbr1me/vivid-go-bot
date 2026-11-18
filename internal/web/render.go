@@ -31,6 +31,8 @@ var pageFiles = []string{
 	"miniapp.html",
 	"miniapp_payment.html",
 	"account.html",
+	"customer_account.html",
+	"customer_connect.html",
 	"connect.html",
 	"support.html",
 	"ticket.html",
@@ -317,6 +319,14 @@ func newRenderer(cfg *config.Settings) (*renderer, error) {
 		}
 		r.pages[page] = t
 	}
+	// Mini App pages share a compact shell, independently of landing themes.
+	for _, page := range []string{"buy.html", "support.html", "ticket.html", "pay_result.html", "history.html", "gifts.html", "miniapp_payment.html", "miniapp.html", "notice.html"} {
+		t, err := r.build("app_" + page)
+		if err != nil {
+			return nil, err
+		}
+		r.pages["app_"+page] = t
+	}
 	if err := r.buildCustomPages(); err != nil {
 		return nil, err
 	}
@@ -324,6 +334,10 @@ func newRenderer(cfg *config.Settings) (*renderer, error) {
 }
 
 func (r *renderer) build(page string) (*template.Template, error) {
+	appPage := strings.HasPrefix(page, "app_")
+	if appPage {
+		page = strings.TrimPrefix(page, "app_")
+	}
 	settings := r.theme.Pages[strings.TrimSuffix(page, ".html")]
 	layout, source := "layout.html", page
 	if strings.HasPrefix(page, "admin") {
@@ -334,6 +348,10 @@ func (r *renderer) build(page string) (*template.Template, error) {
 	}
 	if settings.Template != "" {
 		source = settings.Template
+	}
+	if appPage || strings.HasPrefix(page, "customer_") {
+		layout, source = "customer_layout.html", page
+		settings = pageTheme{}
 	}
 	var t *template.Template
 	funcs := templateFuncs()
@@ -357,13 +375,21 @@ func (r *renderer) build(page string) (*template.Template, error) {
 	if err != nil {
 		return nil, err
 	}
-	names = append(names, components...)
+	if !appPage && !strings.HasPrefix(page, "customer_") {
+		names = append(names, components...)
+	}
 	names = append(names, source)
 	for _, name := range names {
 		if !fs.ValidPath(name) || !strings.HasSuffix(name, ".html") {
 			return nil, fmt.Errorf("неверный путь шаблона %q", name)
 		}
-		data, err := r.read("templates/" + name)
+		var data []byte
+		var err error
+		if appPage || strings.HasPrefix(page, "customer_") {
+			data, err = assets.ReadFile("templates/" + name)
+		} else {
+			data, err = r.read("templates/" + name)
+		}
 		if err != nil {
 			return nil, fmt.Errorf("шаблон %s: %w", name, err)
 		}
@@ -475,6 +501,11 @@ type pageData struct {
 }
 
 func (s *Server) renderPage(w http.ResponseWriter, r *http.Request, page string, status int, meta pageMeta, data any) {
+	if _, err := r.Cookie(miniAppSessionCookie); err == nil || r.URL.Path == "/app" || s.subjectFrom(r) != nil {
+		if _, ok := s.render.pages["app_"+page]; ok {
+			page = "app_" + page
+		}
+	}
 	settings := s.render.theme.Pages[strings.TrimSuffix(page, ".html")]
 	if settings.Title != "" {
 		meta.Title = settings.Title
@@ -549,7 +580,14 @@ func markdownHTML(text string) template.HTML {
 
 func templateFuncs() template.FuncMap {
 	return template.FuncMap{
-		"join": func(v []string) string { return strings.Join(v, ",") },
+		"float": func(v *float64) float64 {
+			if v == nil {
+				return 0
+			}
+			return *v
+		},
+		"strings": func(v string) []string { return strings.Split(v, ",") },
+		"join":    func(v []string) string { return strings.Join(v, ",") },
 		"scopeLabel": func(s string) string {
 			return map[string]string{"free": "Свободные", "mine": "Мои", "waiting": "Ждут ответа", "open": "Открытые", "closed": "Закрытые"}[s]
 		},

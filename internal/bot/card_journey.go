@@ -10,6 +10,7 @@ import (
 
 	"github.com/mymmrac/telego"
 	"github.com/mymmrac/telego/telegohandler"
+	"github.com/toonbr1me/vivid-go-bot/internal/domain"
 )
 
 func calendarDate(t time.Time) string {
@@ -103,14 +104,8 @@ func (b *Bot) subscriptionCard(ctx context.Context, id int64) (cardState, bool) 
 type connectPlatform struct{ Name, Store, URL string }
 
 func connectionPlatform(key string) (connectPlatform, bool) {
-	options := map[string]connectPlatform{
-		"ios":     {"iPhone / iPad", "App Store", "https://apps.apple.com/app/happ-proxy-utility/id6504287215"},
-		"android": {"Android", "Google Play", "https://play.google.com/store/apps/details?id=com.happproxy"},
-		"windows": {"Windows", "GitHub", "https://github.com/Happ-proxy/happ-desktop/releases/latest/download/setup-Happ.x64.exe"},
-		"macos":   {"macOS", "App Store", "https://apps.apple.com/app/happ-proxy-utility/id6504287215"},
-	}
-	platform, ok := options[key]
-	return platform, ok
+	p, ok := domain.ConnectionPlatformFor(key)
+	return connectPlatform{p.Name, p.Store, p.URL}, ok
 }
 
 func (b *Bot) connectPickerCard() cardState {
@@ -133,9 +128,7 @@ func (b *Bot) platformCard(key string) cardState {
 	platform, _ := connectionPlatform(key)
 	page := cardPage{Title: platform.Name, Tab: "subscription", Value: "Установите Happ", Note: "Из " + platform.Store + " — затем вернитесь в бот", Step: 1}
 	actions := []telego.InlineKeyboardButton{urlButton("Установить Happ", platform.URL), button("Приложение уже установлено", "card:import:"+key)}
-	if key == "ios" || key == "android" {
-		actions = append(actions, button("Другие приложения", "card:clients:"+key))
-	}
+	actions = append(actions, button("Другие приложения", "card:apps"))
 	return cardUtility(cardWithButtons(page, actions), "nav:connect", false)
 }
 
@@ -186,6 +179,9 @@ func (b *Bot) journeyAction(ctx *telegohandler.Context, q telego.WidgetQuery, ac
 		platform, ok := connectionPlatform(parts[2])
 		if !ok {
 			return true, fmt.Errorf("unknown platform")
+		}
+		if subject, err := b.subject(ctx, id); err == nil {
+			_ = b.db.RecordJourney(ctx, subject.ID, "setup_started", "bot", parts[2])
 		}
 		state := b.platformCard(parts[2])
 		if parts[1] == "import" {

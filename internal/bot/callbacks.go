@@ -10,6 +10,7 @@ import (
 	"github.com/mymmrac/telego"
 	"github.com/mymmrac/telego/telegohandler"
 
+	"github.com/toonbr1me/vivid-go-bot/internal/domain"
 	"github.com/toonbr1me/vivid-go-bot/internal/payments"
 	"github.com/toonbr1me/vivid-go-bot/internal/storage"
 )
@@ -196,13 +197,19 @@ func (b *Bot) handleCallback(ctx *telegohandler.Context, q telego.CallbackQuery)
 
 	case "support":
 		switch action {
+		case "topic":
+			topic := domain.SupportTopicFor(rest)
+			b.setInput(tgID, inputTicket, "topic:"+topic.Key)
+			b.upsert(ctx, chatID, messageID, "<b>"+escapeHTML(topic.Label)+"</b>\n\n"+escapeHTML(topic.Advice)+"\n\nЕсли не помогло, опишите проблему сообщением. Можно приложить фото. Тема и сведения о подписке попадут в обращение.", keyboard([]telego.InlineKeyboardButton{button("Проверить подписку и места", "nav:diagnostics")}, []telego.InlineKeyboardButton{button("Указать Happ", "support:app:happ"), button("Указать Incy", "support:app:incy")}, []telego.InlineKeyboardButton{button("Отмена", "nav:support")}))
+			b.answer(ctx, q.ID, "", false)
 		case "app":
 			name, ok := supportApps[rest]
 			if !ok {
 				b.answer(ctx, q.ID, "Приложение не найдено", true)
 				return nil
 			}
-			b.setInput(tgID, inputTicket, "setup:"+rest)
+			_, previousRef := b.input(tgID)
+			b.setInput(tgID, inputTicket, "setup:"+rest+",,"+supportTopicKey(previousRef))
 			b.upsert(ctx, chatID, messageID, "<b>Поддержка · "+name+"</b>\n\nВыберите систему или сразу опишите проблему. Можно приложить фото или документ.", keyboard([]telego.InlineKeyboardButton{button("Android", "support:device:"+rest+",android"), button("iOS", "support:device:"+rest+",ios")}, []telego.InlineKeyboardButton{button("Windows", "support:device:"+rest+",windows"), button("macOS", "support:device:"+rest+",macos")}, []telego.InlineKeyboardButton{button("Отмена", "nav:support")}))
 			b.answer(ctx, q.ID, "", false)
 		case "device":
@@ -211,7 +218,8 @@ func (b *Bot) handleCallback(ctx *telegohandler.Context, q telego.CallbackQuery)
 				b.answer(ctx, q.ID, "Выбор недоступен", true)
 				return nil
 			}
-			b.setInput(tgID, inputTicket, "setup:"+rest)
+			_, previousRef := b.input(tgID)
+			b.setInput(tgID, inputTicket, "setup:"+rest+","+supportTopicKey(previousRef))
 			b.upsert(ctx, chatID, messageID, "<b>Сообщение в поддержку</b>\n\n"+supportApps[parts[0]]+" · "+supportDevices[parts[1]]+"\nОпишите проблему или пришлите фото/документ. Выбранное приложение и система будут приложены автоматически.", keyboard([]telego.InlineKeyboardButton{button("Отмена", "nav:support")}))
 			b.answer(ctx, q.ID, "", false)
 		case "order":

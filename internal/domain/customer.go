@@ -13,17 +13,20 @@ func GuideCustomer(access Access, focus *Order, recurring *RecurringAgreement, t
 		return CustomerGuidance{Title: p.Label, Detail: p.Detail, Action: "order", Label: "Проверить выдачу", OrderID: focus.OrderID}
 	}
 	if access.Active {
-		if recurring != nil && (recurring.Enabled || recurring.StopReason != "user") {
+		if recurring != nil && ((!recurring.Enabled && recurring.StopReason != "user") || (recurring.Enabled && access.ExpireAt != nil && access.ExpireAt.Sub(now) <= 72*time.Hour)) {
 			return CustomerGuidance{Title: "Автопродление", Detail: recurring.StatusText(), Action: "recurring", Label: "Управлять автопродлением"}
 		}
 		if focus != nil && focus.Provider == "trial" {
 			return CustomerGuidance{Title: "Пробный доступ", Detail: "Подключите устройство и проверьте работу сервиса. Затем можно выбрать платную подписку.", Action: "connect", Label: "Подключиться"}
 		}
-		if access.ExpireAt != nil && access.ExpireAt.Sub(now) <= 24*time.Hour {
+		if access.ExpireAt != nil && access.ExpireAt.Sub(now) <= 72*time.Hour && (recurring == nil || !recurring.Enabled) {
 			return CustomerGuidance{Title: "Подписка заканчивается", Detail: "Продлите доступ заранее. Оставшийся оплаченный срок сохранится.", Action: "buy", Label: "Продлить подписку"}
 		}
 		if !access.Found {
 			return CustomerGuidance{Title: "Оплаченный срок сохранён", Detail: "Текущее состояние подключения временно недоступно. Показываем последний известный срок.", Action: "support", Label: "Помощь с подключением"}
+		}
+		if access.ConnectionKnown && access.FirstConnectedAt == nil {
+			return CustomerGuidance{Title: "Доступ готов", Detail: "Добавьте подписку в приложение и включите первое подключение.", Action: "connect", Label: "Подключиться"}
 		}
 		return CustomerGuidance{Title: "Подписка активна", Detail: "Подключайте устройства и управляйте доступом.", Action: "connect", Label: "Подключить устройство"}
 	}

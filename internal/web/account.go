@@ -15,6 +15,9 @@ import (
 )
 
 type accountData struct {
+	Notifications *storage.NotificationSettings
+	Section       string
+	DaysLeft      int
 	Guidance      *domain.CustomerGuidance
 	GuidanceURL   string
 	Recurring     *domain.RecurringAgreement
@@ -41,7 +44,7 @@ type accountData struct {
 }
 
 func (s *Server) accountPage(w http.ResponseWriter, r *http.Request) {
-	subject, ok := s.requireSubject(w, r, "/account")
+	subject, ok := s.requireSubject(w, r, r.URL.RequestURI())
 	if !ok {
 		return
 	}
@@ -49,6 +52,7 @@ func (s *Server) accountPage(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	data := accountData{
+		Section:       "subscription",
 		DeviceEnabled: s.cfg.Current().DeviceLimitEnabled,
 		Options:       s.pay.PaymentOptions(true),
 		Promo:         strings.TrimSpace(r.URL.Query().Get("promo")),
@@ -57,8 +61,20 @@ func (s *Server) accountPage(w http.ResponseWriter, r *http.Request) {
 		BotUsername:   s.cfg.Current().BotUsername,
 		TrialEnabled:  s.cfg.Current().TrialWebDays > 0,
 	}
+	switch r.URL.Path {
+	case "/account/devices":
+		data.Section = "devices"
+	case "/account/profile":
+		data.Section = "profile"
+	}
 	access, err := s.pay.Access(ctx, *subject, panelUsername(subject))
 	data.Access = access
+	if data.Section == "subscription" {
+		_ = s.db.RecordJourney(ctx, subject.ID, "subscription_viewed", "web", "")
+	}
+	if access.ExpireAt != nil && access.ExpireAt.After(time.Now()) {
+		data.DaysLeft = int((time.Until(*access.ExpireAt) + 24*time.Hour - 1) / (24 * time.Hour))
+	}
 	if guidance, err := s.pay.CustomerGuidance(ctx, *subject, access, "web"); err == nil {
 		data.Guidance = &guidance
 		switch guidance.Action {
@@ -67,7 +83,7 @@ func (s *Server) accountPage(w http.ResponseWriter, r *http.Request) {
 		case "order":
 			data.GuidanceURL = "/pay/success?order=" + url.QueryEscape(guidance.OrderID)
 		case "recurring":
-			data.GuidanceURL = "/account#recurring"
+			data.GuidanceURL = "/account/profile#recurring"
 		case "support":
 			data.GuidanceURL = "/support"
 		default:
@@ -83,6 +99,11 @@ func (s *Server) accountPage(w http.ResponseWriter, r *http.Request) {
 	data.DeviceLimit = access.DeviceLimit
 	if a, err := s.db.LatestRecurringForSubject(ctx, subject.ID); err == nil {
 		data.Recurring = &a
+	}
+	if data.Section == "profile" && subject.TelegramID != nil {
+		if prefs, err := s.db.NotificationSettingsFor(ctx, *subject.TelegramID); err == nil {
+			data.Notifications = &prefs
+		}
 	}
 	if data.DeviceLimit == 0 && s.cfg.Current().DeviceLimitEnabled {
 		if managed, err := s.pay.ManagedDeviceLimit(ctx, subject.ID); err == nil {
@@ -132,7 +153,8 @@ func (s *Server) accountPage(w http.ResponseWriter, r *http.Request) {
 	if tickets, err := s.db.TicketsForSubject(ctx, subject.ID, 5); err == nil {
 		data.Tickets = tickets
 	}
-	s.renderPage(w, r, "account.html", http.StatusOK, pageMeta{Title: "Кабинет"}, data)
+	w.Header().Set("Cache-Control", "no-store")
+	s.renderPage(w, r, "customer_account.html", http.StatusOK, pageMeta{Title: "Кабинет"}, data)
 }
 
 // accountReferralMode переключает, чем начислять пригласившему: днями
@@ -156,7 +178,7 @@ func (s *Server) accountReferralMode(w http.ResponseWriter, r *http.Request) {
 		s.flashRedirect(w, r, "/account", "error", "Не удалось сохранить режим.")
 		return
 	}
-	s.flashRedirect(w, r, "/account", "ok", "Режим награды сохранён.")
+	s.flashRedirect(w, r, "/account/profile", "ok", "Режим награды сохранён.")
 }
 
 func (s *Server) accountPromo(w http.ResponseWriter, r *http.Request) {
@@ -245,28 +267,28 @@ func (s *Server) accountCheckOrder(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) accountDetachDevice(w http.ResponseWriter, r *http.Request) {
-	subject, ok := s.requireSubject(w, r, "/account")
+	subject, ok := s.requireSubject(w, r, "/account/devices")
 	if !ok {
 		return
 	}
 	hwid := strings.TrimSpace(r.PostFormValue("hwid"))
 	if hwid == "" {
-		s.flashRedirect(w, r, "/account", "error", "Устройство не указано.")
+		s.flashRedirect(w, r, "/account/devices", "error", "Устройство не указано.")
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 	defer cancel()
 	access, err := s.pay.Access(ctx, *subject, panelUsername(subject))
 	if err != nil || access.PanelUserID == 0 {
-		s.flashRedirect(w, r, "/account", "error", "Подписка не найдена в панели.")
+		s.flashRedirect(w, r, "/account/devices", "error", "Подписка не найдена в панели.")
 		return
 	}
 	removed, err := s.pay.RemoveAccessDevice(ctx, access.PanelUserID, hwid)
 	if err != nil || !removed {
-		s.flashRedirect(w, r, "/account", "error", "Не удалось отвязать устройство. Попробуйте позже.")
+		s.flashRedirect(w, r, "/account/devices", "error", "Не удалось отвязать устройство. Попробуйте позже.")
 		return
 	}
-	s.flashRedirect(w, r, "/account", "ok", "Устройство отвязано. Освободившийся слот можно занять снова.")
+	s.flashRedirect(w, r, "/account/devices", "ok", "Устройство отвязано. Освободившийся слот можно занять снова.")
 }
 
 func (s *Server) accountBuyDevices(w http.ResponseWriter, r *http.Request) {

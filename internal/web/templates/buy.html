@@ -7,7 +7,7 @@
   {{if not .Data.LoggedIn}}<a class="btn btn-ghost" href="/login?next=%2Fbuy">Войти</a>{{end}}
 </div>
 
-<form class="promo-form" method="get" action="/buy">
+<details {{if .Data.Promo}}open{{end}}><summary>Есть промокод?</summary><form class="promo-form" method="get" action="/buy">
   <input type="hidden" name="plan" value="{{.Data.Selected}}">
   <label for="promo">Промокод</label>
   <div class="input-row">
@@ -15,7 +15,7 @@
     <button class="btn btn-ghost" type="submit">Применить</button>
   </div>
   {{if .Data.PromoRejected}}<p class="form-error">Код не подходит: {{.Data.PromoRejected}}</p>{{end}}
-</form>
+</form></details>
 
 <form method="post" action="/buy" class="buy-form">
   <input type="hidden" name="csrf" value="{{.CSRF}}">
@@ -27,7 +27,7 @@
     <div class="plan-choices">
       {{range .Data.Quotes}}
       <label class="plan-choice{{if .Quote.Rejection}} disabled{{end}}">
-        <input type="radio" name="plan" value="{{.Quote.Plan.ID}}" data-recurring-options="{{.RecurringOptions}}" data-recurring-amount="{{money .Quote.Amount}}" data-recurring-days="{{.Quote.Plan.Days}}" {{if eq .Quote.Plan.ID $.Data.Selected}}checked{{end}} {{if .Quote.Rejection}}disabled{{end}}>
+        <input type="radio" name="plan" value="{{.Quote.Plan.ID}}" data-summary-amount="{{money .Quote.Amount}}" data-summary-stars="{{.Stars}}" data-summary-days="{{.Quote.Plan.Days}}" data-summary-devices="{{.Devices}}" data-summary-until="{{.Until}}" data-recurring-options="{{.RecurringOptions}}" data-recurring-amount="{{money .Quote.Amount}}" data-recurring-days="{{.Quote.Plan.Days}}" {{if eq .Quote.Plan.ID $.Data.Selected}}checked{{end}} {{if .Quote.Rejection}}disabled{{end}}>
         <span class="plan-choice-body">
           <span class="plan-choice-head">
             <strong>{{.Quote.Plan.Title}}</strong>
@@ -66,14 +66,15 @@
       <label class="option">
         <input type="radio" name="option" value="{{$option.Token}}" {{if eq $i 0}}checked{{end}}>
         <span>
-          <strong>{{$option.ProviderLabel}}</strong>
-          <span class="muted">{{$option.MethodLabel}}</span>
+          <strong>{{$option.MethodLabel}}</strong>
+          <span class="muted small">{{$option.ProviderLabel}}</span>
           {{if $option.Recommended}}<span class="chip chip-soft">Рекомендуем</span>{{end}}
         </span>
       </label>
       {{end}}
     </div>
-    <button class="btn btn-primary btn-lg btn-block" type="submit">Перейти к оплате</button>
+    <div class="checkout-summary"><p id="checkout-summary" aria-live="polite">{{range .Data.Quotes}}{{if eq .Quote.Plan.ID $.Data.Selected}}К оплате: {{money .Quote.Amount}} · {{.Quote.Plan.Days}} {{daysWord .Quote.Plan.Days}} · {{.Devices}} устройств · ориентировочно до {{.Until}}{{end}}{{end}}</p><button class="btn btn-primary btn-lg btn-block" type="submit">Перейти к оплате</button></div>
+    <p class="muted small">Оставшийся оплаченный срок сохранится. Итоговая дата рассчитывается при выдаче доступа.</p>
     <p class="muted small">Оплата проходит на стороне шлюза. Мы не храним данные карты.</p>
     {{else}}
     <div class="card empty">
@@ -100,4 +101,4 @@
 </section>
 {{end}}
 {{end}}
-{{define "scripts"}}<script src="/static/checkout.js" defer></script>{{end}}
+{{define "scripts"}}<script src="/static/checkout.js" defer></script><script src="/static/checkout-summary.js" defer></script>{{end}}

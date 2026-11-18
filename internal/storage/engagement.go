@@ -37,6 +37,14 @@ func (db *DB) NotConnectedCandidates(ctx context.Context, hours int) ([]domain.S
 	return out, nil
 }
 func (db *DB) RecordConnectionCheck(ctx context.Context, id int64, known, connected bool) error {
+	if known {
+		var first *time.Time
+		if connected {
+			now := time.Now()
+			first = &now
+		}
+		return db.ObserveConnection(ctx, id, first)
+	}
 	_, err := db.Pool.Exec(ctx, `UPDATE accounts SET connection_known=$2,connection_checked_at=now(),first_connected_at=CASE WHEN $3 THEN COALESCE(first_connected_at,now()) ELSE first_connected_at END WHERE id=$1`, id, known, connected)
 	return err
 }

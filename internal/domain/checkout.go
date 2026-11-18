@@ -50,6 +50,8 @@ type DeviceSlotView struct {
 
 // Access — состояние подписки глазами панели.
 type Access struct {
+	ConnectionKnown  bool
+	FirstConnectedAt *time.Time
 	Found            bool
 	Active           bool
 	URL              string

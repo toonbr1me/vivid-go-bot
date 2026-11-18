@@ -1,5 +1,7 @@
 # Telegram Mini App
 
+Кабинет: [устройство экранов, подключение, оплата и аналитика](customer-experience.md).
+
 Кнопка «Кабинет» открывает `SITE_BASE_URL/app`. Если `SITE_BASE_URL` не задан,
 используется `PUBLIC_BASE_URL`. Нужен публичный HTTPS-адрес.
 

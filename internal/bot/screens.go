@@ -645,7 +645,13 @@ func (b *Bot) supportScreen(ctx context.Context, tgID int64) (string, *telego.In
 			b.texts.Support.Continue)
 	}
 	staff := b.isStaff(ctx, tgID)
-	return strings.Join(lines, "\n"), b.supportKeyboard(open, staff)
+	kb := b.supportKeyboard(open, staff)
+	rows := [][]telego.InlineKeyboardButton{}
+	for _, topic := range domain.SupportTopics() {
+		rows = append(rows, []telego.InlineKeyboardButton{button(topic.Label, "support:topic:"+topic.Key)})
+	}
+	rows = append(rows, kb.InlineKeyboard...)
+	return strings.Join(lines, "\n"), keyboard(rows...)
 }
 
 func (b *Bot) infoScreen(ctx context.Context, tgID int64) (string, *telego.InlineKeyboardMarkup) {

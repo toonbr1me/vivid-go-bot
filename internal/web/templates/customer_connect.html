@@ -1,0 +1,25 @@
+{{define "content"}}
+<div><h1>Подключение</h1><p class="muted">{{if .Data.Platform.Key}}{{.Data.Platform.Name}} · Happ{{else}}Выберите устройство, которое хотите подключить{{end}}</p></div>
+{{if .Data.AccessError}}<p class="notice-line">{{.Data.AccessError}}</p>{{end}}
+{{if not .Data.LoggedIn}}<article class="card"><h2>Войдите в кабинет</h2><p>После входа здесь появятся ваша подписка и кнопка добавления</p><a class="btn btn-primary" href="/login?next=%2Fconnect">Войти</a></article>
+{{else if not .Data.ImportURL}}<article class="card"><h2>Проверьте доступ</h2><p>Ссылка появится после выдачи действующей подписки. Если вы уже оплатили, проверьте статус заказа.</p><a class="btn btn-primary" href="/account">Моя подписка</a></article>
+{{else if not .Data.Platform.Key}}
+<div class="platform-choices">{{range .Data.Platforms}}<a href="/connect?platform={{.Key}}" data-platform-choice="{{.Key}}">{{.Name}} <span aria-hidden="true">→</span></a>{{end}}</div>
+<p id="platform-suggestion" class="muted small" role="status"></p>
+<details><summary>Подключить другое устройство по QR-коду</summary><p class="muted small">Откройте сканер в VPN-приложении другого устройства. Код содержит вашу персональную ссылку.</p><img class="qr-code" src="/connect/qr" loading="lazy" alt="QR-код персональной подписки"></details>
+{{else}}
+<a class="muted small" href="/connect">← Другое устройство</a>
+{{if eq .Data.Step "install"}}
+<article class="card stack"><span class="step-num" aria-label="Шаг 1 из 3">1 / 3</span><h2>Установите Happ</h2><p class="muted">Откройте {{.Data.Platform.Store}}, установите приложение и вернитесь сюда</p><a class="btn btn-primary" href="{{.Data.Platform.URL}}" target="_blank" rel="noopener noreferrer" data-miniapp-external data-journey="download_requested" data-platform="{{.Data.Platform.Key}}">Установить Happ</a><a class="btn btn-ghost" href="/connect?platform={{.Data.Platform.Key}}&amp;step=import">Приложение уже установлено</a></article>
+{{else if eq .Data.Step "import"}}
+<article class="card stack"><span class="step-num" aria-label="Шаг 2 из 3">2 / 3</span><h2>Добавьте подписку</h2><p class="muted">Нажмите кнопку и подтвердите добавление в Happ</p><a class="btn btn-primary" href="{{.Data.ImportURL}}" target="_blank" rel="noopener noreferrer" data-miniapp-external data-journey="import_requested" data-platform="{{.Data.Platform.Key}}">Добавить в Happ</a><a class="btn btn-ghost" href="/connect?platform={{.Data.Platform.Key}}&amp;step=finish">Подписка добавлена — дальше</a>
+<details><summary>Добавить вручную</summary><p class="muted small">Скопируйте ссылку. В приложении выберите импорт из буфера обмена.</p><div class="copy-row"><input id="connection-url" value="{{.Data.Access.URL}}" readonly aria-label="Персональная ссылка подписки"><button class="btn btn-ghost" type="button" data-copy="connection-url" data-platform="{{.Data.Platform.Key}}">Скопировать</button></div></details></article>
+{{else}}
+<article class="card stack"><span class="step-num" aria-label="Шаг 3 из 3">3 / 3</span><h2>Включите подключение в Happ</h2><p>Выберите доступную локацию и включите соединение. Если система запросит разрешение на VPN, подтвердите его.</p><p class="muted small">Переход к этому шагу не подтверждает соединение на устройстве</p><a class="btn btn-primary" href="/account">К подписке</a><a class="btn btn-ghost" href="/support?topic=connection&amp;device={{.Data.Platform.Name}}&amp;app=Happ">Не получается подключиться</a></article>
+{{end}}
+<details><summary>Другие приложения</summary><p>Можно использовать совместимый клиент и добавить ссылку вручную</p><div class="customer-links"><a href="/app-import/incy?u={{.Data.Access.URL}}" target="_blank" rel="noopener noreferrer" data-miniapp-external data-journey="import_requested" data-platform="{{.Data.Platform.Key}}">Добавить в Incy →</a><a href="/app-import/clashmi?u={{.Data.Access.URL}}" target="_blank" rel="noopener noreferrer" data-miniapp-external data-journey="import_requested" data-platform="{{.Data.Platform.Key}}">Добавить в Clash Mi →</a><a href="/app-import/flclashx?u={{.Data.Access.URL}}" target="_blank" rel="noopener noreferrer" data-miniapp-external data-journey="import_requested" data-platform="{{.Data.Platform.Key}}">Добавить в FlClashX →</a></div><p class="muted small">Установите выбранный клиент из его официального источника перед добавлением</p></details>
+<a class="muted small" href="/support?topic=import&amp;device={{.Data.Platform.Name}}&amp;app=Happ">Нужна помощь с настройкой</a>
+{{end}}
+{{if .Data.GuideURL}}<a href="{{.Data.GuideURL}}" target="_blank" rel="noopener noreferrer" data-miniapp-external>Подробная инструкция</a>{{end}}
+<p id="customer-feedback" class="muted small" role="status" aria-live="polite"></p>
+{{end}}

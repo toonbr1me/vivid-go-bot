@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/mymmrac/telego"
 	"github.com/mymmrac/telego/telegohandler"
@@ -12,6 +13,19 @@ import (
 )
 
 type ticketRefKey struct{}
+
+func supportTopicKey(ref string) string {
+	if strings.HasPrefix(ref, "topic:") {
+		return domain.SupportTopicFor(strings.TrimPrefix(ref, "topic:")).Key
+	}
+	if strings.HasPrefix(ref, "setup:") {
+		parts := strings.Split(strings.TrimPrefix(ref, "setup:"), ",")
+		if len(parts) > 2 && parts[2] != "" {
+			return domain.SupportTopicFor(parts[2]).Key
+		}
+	}
+	return ""
+}
 
 func supportTicketOwned(t storage.Ticket, s domain.Subject) bool {
 	return t.SubjectID != nil && *t.SubjectID == s.ID || t.TelegramID != nil && s.TelegramID != nil && *t.TelegramID == *s.TelegramID

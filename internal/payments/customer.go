@@ -25,6 +25,14 @@ func (s *Service) CustomerGuidance(ctx context.Context, subject domain.Subject, 
 		return domain.CustomerGuidance{}, err
 	}
 	days := s.cfg.Current().TrialBotDays
+	if history, err := s.db.CustomerConnection(ctx, subject.ID); err == nil {
+		if !access.ConnectionKnown {
+			access.ConnectionKnown = history.Known
+		}
+		if access.FirstConnectedAt == nil {
+			access.FirstConnectedAt = history.FirstConnectedAt
+		}
+	}
 	if channel == "web" {
 		days = s.cfg.Current().TrialWebDays
 	}

@@ -88,6 +88,7 @@ func (s *Server) adminAccess(w http.ResponseWriter, r *http.Request) (adminSessi
 // ---------------------------------------------------------------------------
 
 type adminDashboard struct {
+	Experience      *storage.ExperienceStats
 	Stats           storage.StatsSummary
 	Funnel          []storage.FunnelRow
 	Orders          []domain.Order
@@ -119,6 +120,9 @@ func (s *Server) adminHome(w http.ResponseWriter, r *http.Request) {
 	}
 	if funnel, err := s.db.FunnelSteps(ctx, 30); err == nil {
 		data.Funnel = funnel
+	}
+	if experience, err := s.db.CustomerExperience(ctx, 30); err == nil {
+		data.Experience = &experience
 	}
 	if session.Owner {
 		if ops, err := s.db.Operations(ctx); err == nil {

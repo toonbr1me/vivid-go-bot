@@ -120,6 +120,7 @@ func (s *Server) miniAppAuth(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Не удалось войти. Попробуйте ещё раз."})
 		return
 	}
+	_ = s.db.RecordJourney(r.Context(), subject.ID, "miniapp_opened", "web", "")
 	next := localPath(r.PostFormValue("next"), "/account")
 	if strings.ContainsAny(next, "\\\x00") {
 		next = "/account"

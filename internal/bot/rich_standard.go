@@ -52,7 +52,13 @@ func (b *Bot) standardRichScreen(ctx context.Context, id int64, name string) (st
 	}
 	state, ok := b.interfaceScreen(ctx, id, name)
 	if !ok {
-		return "", nil, false
+		switch name {
+		case "promo", "referral", "info", "help":
+			text, kb := b.navigationScreen(ctx, id, name)
+			return screenRichHTML(text), quietRichKeyboard(kb), true
+		default:
+			return "", nil, false
+		}
 	}
 
 	html, kb := richCardDocument(state)
