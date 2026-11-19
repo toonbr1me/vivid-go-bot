@@ -1,87 +1,47 @@
-﻿{{define "content"}}
-<div class="page-head">
-  <div>
-    <h1>Промокоды</h1>
-    <p class="muted">Коды, их скидки и партнёры, которым они принадлежат</p>
+{{define "content"}}
+<div class="page-head"><div><h1>Промокоды</h1><p class="muted">Скидки на покупку и подарочный доступ для клиентов.</p></div></div>
+<details class="card admin-disclosure promo-create">
+ <summary>Создать промокод</summary>
+ <form method="post" action="/admin/promos" class="admin-edit-form">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <label>Промокод<input name="code" placeholder="Например, SUMMER20" required minlength="2" maxlength="32" pattern="[A-Za-z0-9_-]{2,32}"><small>Латинские буквы, цифры, дефис или подчёркивание.</small></label>
+  <label>Тип промокода<select name="benefit_type" data-promo-type><option value="discount">Скидка на покупку</option><option value="gift">Подарочный доступ без покупки</option><option value="bonus">Дополнительные дни при покупке</option></select></label>
+  <fieldset><legend>Что получит клиент</legend><div class="admin-form-grid">
+   <label data-promo-benefit="discount">Скидка на покупку, %<input name="discount" type="number" min="0" max="100" value="0"><small>Например, 20 — скидка 20%.</small></label>
+   <label data-promo-benefit="gift">Дни в подарок<input name="grant_days" type="number" min="0" value="0"><small>Доступ без покупки. Для такого кода скидка не нужна.</small></label>
+   <label data-promo-benefit="bonus">Дни к оплаченной подписке<input name="bonus_days" type="number" min="0" value="0"><small>Добавятся при покупке с этим кодом.</small></label>
+  </div></fieldset>
+  <details class="admin-disclosure"><summary>Ограничить количество применений</summary><div class="admin-form-grid">
+   <label>Всего применений<input name="max_uses" type="number" min="0" value="0"><small>0 — без общего лимита.</small></label>
+   <label>На одного клиента<input name="per_user_limit" type="number" min="0" value="0"><small>0 — без ограничения. Укажите 1 для разового применения.</small></label>
+  </div></details>
+  <div><button class="btn btn-primary" type="submit">Создать промокод</button></div>
+ </form>
+</details>
+<label class="promo-search">Найти промокод<input type="search" placeholder="Введите код" data-promo-search autocomplete="off"></label>
+<p class="muted" data-promo-no-results hidden>Такого кода нет. Попробуйте другую часть названия.</p>
+<section class="promo-list" aria-label="Созданные промокоды">
+{{range .Data.Codes}}{{$promo := .}}
+ <article class="card promo-item" data-promo-code="{{.Code}}">
+  <div class="promo-overview"><div><h2 class="promo-code">{{.Code}}</h2><p class="promo-benefit">{{if .GrantDays}}Доступ на {{.GrantDays}} {{daysWord .GrantDays}} в подарок{{else}}{{if .DiscountPercent}}Скидка {{.DiscountPercent}}%{{end}}{{if .DiscountFixed}}{{if .DiscountPercent}} + {{else}}Скидка {{end}}{{money .DiscountFixed}}{{end}}{{if .BonusDays}}{{if or .DiscountPercent .DiscountFixed}} · {{end}}{{.BonusDays}} {{daysWord .BonusDays}} к покупке{{end}}{{if not (or .DiscountPercent .DiscountFixed .BonusDays)}}Без скидки и подарочных дней{{end}}{{end}}</p></div>
+   <span class="chip {{if and .IsActive (not .Exhausted) (.Live $.Now)}}chip-ok{{end}}">{{if not .IsActive}}Выключен{{else if .Exhausted}}Лимит исчерпан{{else if not (.Live $.Now)}}Вне срока действия{{else}}Активен{{end}}</span>
   </div>
-  <nav class="nav">
-    <a href="/admin">Сводка</a>
-    <a href="/admin/promos">Промокоды</a>
-    <a href="/admin/partners">Партнёры</a>
-    <a href="/admin/tickets">Обращения</a>
-    <a href="/admin/audit">Журнал</a>
-  </nav>
-</div>
-
-<article class="card">
-  <div class="card-head"><h2>Новый промокод</h2></div>
-  <form method="post" action="/admin/promos" class="stack">
-    <input type="hidden" name="csrf" value="{{.CSRF}}">
-    <div class="input-row">
-      <input name="code" placeholder="КОД" required>
-      <input name="discount" type="number" min="0" max="100" placeholder="Скидка, %">
-      <button class="btn btn-primary" type="submit">Создать</button>
-    </div>
-    <div class="input-row">
-      <input name="bonus_days" type="number" min="0" placeholder="Бонусные дни">
-      <input name="grant_days" type="number" min="0" placeholder="Подарочные дни">
-      <input name="max_uses" type="number" min="0" placeholder="Всего применений">
-      <input name="per_user_limit" type="number" min="0" placeholder="Одно человеку">
-    </div>
-  </form>
-</article>
-
-<article class="card">
-  <div class="card-head"><h2>Список</h2></div>
-  {{if .Data.Codes}}
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>Код</th><th>Скидка</th><th>Дни</th><th>Применений</th><th>Партнёр</th><th>Награда</th><th>Состояние</th><th></th></tr></thead>
-      <tbody>
-      {{range .Data.Codes}}
-        <tr>
-          <td><code>{{.Code}}</code></td>
-          <td>{{.DiscountPercent}}%{{if .DiscountFixed}} + {{money .DiscountFixed}}{{end}}</td>
-          <td>{{if .BonusDays}}бонус {{.BonusDays}}{{end}}{{if .GrantDays}} подарок {{.GrantDays}}{{end}}</td>
-          <td>{{.UsedCount}}{{if .MaxUses}} / {{.MaxUses}}{{end}}</td>
-          <td>{{if .PartnerID}}#{{.PartnerID}}{{else}}—{{end}}</td>
-          <td>{{if .RewardType}}{{reward .RewardType .RewardValue}}{{if eq .RewardScope "first"}} (только первая покупка){{end}}{{else}}—{{end}}</td>          <td>{{if .IsActive}}<span class="chip chip-ok">активен</span>{{else}}<span class="chip">выключен</span>{{end}}</td>
-          <td>
-            <form method="post" action="/admin/promos/{{.Code}}/toggle" class="inline-form">
-              <input type="hidden" name="csrf" value="{{$.CSRF}}">
-              <input type="hidden" name="state" value="{{if .IsActive}}off{{else}}on{{end}}">
-              <button class="btn btn-ghost btn-sm" type="submit">{{if .IsActive}}Выключить{{else}}Включить{{end}}</button>
-            </form>
-          </td>
-        </tr>
-        <tr>
-          <td colspan="8">
-            <form method="post" action="/admin/promos/{{.Code}}/partner" class="input-row">
-              <input type="hidden" name="csrf" value="{{$.CSRF}}">
-              <select name="partner_id" aria-label="Партнёр">
-                <option value="">— без партнёра —</option>
-                {{range $.Data.Partners}}
-                <option value="{{.ID}}">{{.Name}}</option>
-                {{end}}
-              </select>
-              <select name="reward_type" aria-label="Тип награды">
-                <option value="">без награды</option>
-                <option value="percent">процент</option>
-                <option value="fixed">фиксированная сумма</option>
-              </select>
-              <input name="reward_value" placeholder="Размер награды, ₽">
-              <select name="reward_scope" aria-label="Область награды">
-                <option value="all">за все покупки</option>
-                <option value="first">только за первую</option>
-              </select>
-              <button class="btn btn-ghost btn-sm" type="submit">Сохранить партнёра</button>
-            </form>
-          </td>
-        </tr>
-      {{end}}
-      </tbody>
-    </table>
-  </div>
-  {{else}}<p class="muted">Промокодов пока нет.</p>{{end}}
-</article>
+  <p class="muted">Использован {{.UsedCount}} раз{{if .MaxUses}} из {{.MaxUses}}{{else}} · общий лимит не задан{{end}}{{if .PerUserLimit}} · до {{.PerUserLimit}} на клиента{{end}}</p>
+  <div class="promo-actions"><details class="admin-disclosure promo-partner"><summary>Партнёр{{if .PartnerID}}: {{range $.Data.Partners}}{{if eq .ID (i64 $promo.PartnerID)}}{{.Name}}{{end}}{{end}} #{{i64 .PartnerID}}{{if .RewardType}} · {{if eq .RewardType "percent"}}{{.RewardValue.String}}%{{else}}{{money .RewardValue}}{{end}}{{if eq .RewardScope "first"}} за первую покупку{{else}} за каждую покупку{{end}}{{end}}{{else}}: не назначен{{end}}</summary>
+   <form method="post" action="/admin/promos/{{.Code}}/partner" class="admin-edit-form">
+    <input type="hidden" name="csrf" value="{{$.CSRF}}">
+    <p class="muted">Необязательно. Партнёр получает вознаграждение за оплаченные покупки с этим кодом.</p>
+    <div class="admin-form-grid">
+     <label>Партнёр<select name="partner_id"><option value="">Без партнёра</option>{{range $.Data.Partners}}<option value="{{.ID}}" {{if eq .ID (i64 $promo.PartnerID)}}selected{{end}}>{{.Name}}</option>{{end}}</select></label>
+     <label>Вознаграждение<select name="reward_type"><option value="" {{if eq .RewardType ""}}selected{{end}}>Без вознаграждения</option><option value="percent" {{if eq .RewardType "percent"}}selected{{end}}>Процент от покупки</option><option value="fixed" {{if eq .RewardType "fixed"}}selected{{end}}>Сумма в рублях</option></select></label>
+     <label>Размер, % или ₽<input name="reward_value" type="number" min="0" step="0.01" value="{{.RewardValue.String}}"><small>Для процента: 10 = 10%. Для суммы: 100 = 100 ₽.</small></label>
+     <label>За какие покупки<select name="reward_scope"><option value="all" {{if ne .RewardScope "first"}}selected{{end}}>За каждую покупку</option><option value="first" {{if eq .RewardScope "first"}}selected{{end}}>Только за первую покупку</option></select></label>
+    </div><div><button class="btn btn-primary" type="submit">Сохранить настройки партнёра</button></div>
+   </form>
+  </details>
+  <form method="post" action="/admin/promos/{{.Code}}/toggle"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="state" value="{{if .IsActive}}off{{else}}on{{end}}"><button class="btn btn-ghost btn-sm" type="submit">{{if .IsActive}}Выключить код{{else}}Включить код{{end}}</button></form></div>
+ </article>
+{{else}}<article class="card admin-empty"><h2>Промокодов пока нет</h2><p class="muted">Создайте первый код для скидки или подарочного доступа.</p></article>{{end}}
+</section>
 {{end}}
+{{define "scripts"}}<script src="/static/admin-promos.js?v=1" defer></script>{{end}}

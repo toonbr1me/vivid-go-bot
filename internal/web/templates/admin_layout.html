@@ -1,7 +1,7 @@
 {{define "layout"}}<!doctype html>
 <html lang="{{.Site.Locale}}"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark">
-<title>{{.Meta.Title}}</title><link rel="icon" href="/static/favicon.svg"><link rel="stylesheet" href="/static/style.css"><style>:root{ {{.Site.CSS}} }</style><link rel="stylesheet" href="/static/admin.css">
+<title>{{.Meta.Title}}</title><link rel="icon" href="/static/favicon.svg"><link rel="stylesheet" href="/static/style.css"><style>:root{ {{.Site.CSS}} }</style><link rel="stylesheet" href="/static/admin.css?v=2">
 {{range .Site.Stylesheets}}<link rel="stylesheet" href="{{.}}">{{end}}{{range .Page.Stylesheets}}<link rel="stylesheet" href="{{.}}">{{end}}{{block "head" .}}{{end}}
 </head><body class="admin-shell" data-page="{{.View}}">
 <aside class="admin-sidebar">

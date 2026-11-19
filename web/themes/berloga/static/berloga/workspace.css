@@ -65,3 +65,7 @@
  .berloga.admin-shell .admin-topbar>div{gap:12px}
  .berloga.admin-shell .admin-topbar .eyebrow{font-size:9px;letter-spacing:.04em}
 }
+
+.berloga.admin-shell .admin-disclosure,.berloga.admin-shell .queue-filters a{border-radius:var(--r)}
+
+.berloga.admin-shell .promo-create{margin-bottom:24px}

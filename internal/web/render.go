@@ -592,7 +592,23 @@ func templateFuncs() template.FuncMap {
 		"strings": func(v string) []string { return strings.Split(v, ",") },
 		"join":    func(v []string) string { return strings.Join(v, ",") },
 		"scopeLabel": func(s string) string {
-			return map[string]string{"free": "Свободные", "mine": "Мои", "waiting": "Ждут ответа", "open": "Открытые", "closed": "Закрытые"}[s]
+			return map[string]string{"free": "Без сотрудника", "mine": "Мои обращения", "waiting": "Ожидание", "open": "Все открытые", "closed": "Закрытые"}[s]
+		},
+		"ticketWorkState": func(s string) string {
+			switch s {
+			case "new":
+				return "Новое"
+			case "in_progress":
+				return "В работе"
+			case "waiting_user":
+				return "Ожидаем клиента"
+			case "waiting":
+				return "Отложено"
+			case "closed":
+				return "Закрыто"
+			default:
+				return "Открыто"
+			}
 		},
 		"campaignAudience": campaignAudienceLabel,
 		"progress":         func(o domain.Order) domain.OrderProgress { return o.Progress(time.Now()) },

@@ -1,7 +1,7 @@
 {{define "layout"}}<!doctype html>
 <html lang="{{.Site.Locale}}"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark">
-<title>{{.Meta.Title}}</title><link rel="icon" href="/static/favicon.svg"><link rel="stylesheet" href="/static/admin.css">
+<title>{{.Meta.Title}}</title><link rel="icon" href="/static/favicon.svg"><link rel="stylesheet" href="/static/admin.css?v=2">
 {{range .Site.Stylesheets}}<link rel="stylesheet" href="{{.}}">{{end}}{{range .Page.Stylesheets}}<link rel="stylesheet" href="{{.}}">{{end}}<link rel="stylesheet" href="/static/berloga/workspace.css?v=1">{{block "head" .}}{{end}}
 </head><body class="berloga berloga-staff admin-shell" data-page="{{.View}}">
 <aside class="admin-sidebar">
