@@ -1,0 +1,24 @@
+{{define "layout"}}<!doctype html>
+<html lang="{{.Site.Locale}}"><head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="color-scheme" content="dark"><meta name="referrer" content="same-origin">
+  <title>{{.Meta.Title}}</title><link rel="icon" href="/static/berloga/logo-touch.png">
+  
+  <link rel="stylesheet" href="/static/customer.css?v=2">
+  {{range .Site.Stylesheets}}<link rel="stylesheet" href="{{.}}">{{end}}
+  <link rel="stylesheet" href="/static/berloga/workspace.css?v=1">
+  <script src="https://telegram.org/js/telegram-web-app.js?65"></script>
+  <script src="/static/miniapp.js?v=2" defer></script><script src="/static/customer.js?v=1" defer></script>
+</head><body class="berloga customer-app {{if .MiniApp}}customer-miniapp{{else}}customer-site{{end}}" data-page="{{.View}}" data-csrf="{{.CSRF}}">
+  {{if .MiniApp}}<header class="customer-header"><a class="brand" href="/account">{{if .Site.LogoURL}}<img width="28" height="28" src="{{.Site.LogoURL}}" alt="">{{end}}{{.Site.Brand}}</a><a href="/support" class="muted">Помощь</a></header>{{else}}{{template "berloga/header" .}}{{end}}
+  <div class="customer-workspace"><main class="customer-main" id="main">{{template "flash" .}}{{template "content" .}}</main>
+  {{if .Subject}}<nav class="customer-nav" aria-label="Кабинет">
+    <a href="/account" {{if or (eq .Path "/account") (eq .Path "/connect") (eq .Path "/buy")}}aria-current="page"{{end}}>Подписка</a>
+    <a href="/account/devices" {{if eq .Path "/account/devices"}}aria-current="page"{{end}}>Устройства</a>
+    <a href="/support" {{if eq .Path "/support"}}aria-current="page"{{end}}>Помощь</a>
+    <a href="/account/profile" {{if eq .Path "/account/profile"}}aria-current="page"{{end}}>Профиль</a>
+  </nav>{{end}}
+  </div>
+  {{if not .MiniApp}}{{template "berloga/footer" .}}{{end}}
+  {{block "scripts" .}}{{end}}
+</body></html>{{end}}

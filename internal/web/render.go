@@ -319,7 +319,7 @@ func newRenderer(cfg *config.Settings) (*renderer, error) {
 		}
 		r.pages[page] = t
 	}
-	// Mini App pages share a compact shell, independently of landing themes.
+	// Customer pages share application content while inheriting their brand shell.
 	for _, page := range []string{"buy.html", "support.html", "ticket.html", "pay_result.html", "history.html", "gifts.html", "miniapp_payment.html", "miniapp.html", "notice.html"} {
 		t, err := r.build("app_" + page)
 		if err != nil {
@@ -375,9 +375,7 @@ func (r *renderer) build(page string) (*template.Template, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !appPage && !strings.HasPrefix(page, "customer_") {
-		names = append(names, components...)
-	}
+	names = append(names, components...)
 	names = append(names, source)
 	for _, name := range names {
 		if !fs.ValidPath(name) || !strings.HasSuffix(name, ".html") {
@@ -385,7 +383,8 @@ func (r *renderer) build(page string) (*template.Template, error) {
 		}
 		var data []byte
 		var err error
-		if appPage || strings.HasPrefix(page, "customer_") {
+		// Keep application content built in, but inherit the brand's shell and components.
+		if (appPage || strings.HasPrefix(page, "customer_")) && name == source {
 			data, err = assets.ReadFile("templates/" + name)
 		} else {
 			data, err = r.read("templates/" + name)
@@ -483,6 +482,7 @@ type pageMeta struct {
 }
 
 type pageData struct {
+	MiniApp bool
 	View    string
 	Page    pageTheme
 	Site    theme
@@ -501,7 +501,9 @@ type pageData struct {
 }
 
 func (s *Server) renderPage(w http.ResponseWriter, r *http.Request, page string, status int, meta pageMeta, data any) {
-	if _, err := r.Cookie(miniAppSessionCookie); err == nil || r.URL.Path == "/app" || s.subjectFrom(r) != nil {
+	miniAppCookie, miniAppCookieErr := r.Cookie(miniAppSessionCookie)
+	miniApp := (miniAppCookieErr == nil && miniAppCookie.Value != "") || r.URL.Path == "/app"
+	if miniApp || s.subjectFrom(r) != nil {
 		if _, ok := s.render.pages["app_"+page]; ok {
 			page = "app_" + page
 		}
@@ -530,6 +532,7 @@ func (s *Server) renderPage(w http.ResponseWriter, r *http.Request, page string,
 		meta.Description = s.render.theme.Description
 	}
 	pageData := pageData{
+		MiniApp: miniApp,
 		Site:    currentTheme,
 		Meta:    meta,
 		Path:    r.URL.Path,

@@ -1,0 +1,67 @@
+/* Workspace surfaces inherit the same tokens, fonts and edges as the Berloga site. */
+.berloga.customer-app,.berloga.admin-shell{
+ --bg:#080504;--surface:#170d0a;--surface-alt:#241512;--text:var(--ink);--border:var(--line);
+ --accent:#e2241f;--accent-soft:#2c0f0c;--accent-ink:#fff6ef;--accent-text:var(--accent-ink);--muted:#b4a49a;--radius:3px;
+ --admin-bg:var(--bg);--admin-surface:var(--surface);--admin-raised:var(--surface-alt);
+ --admin-ink:#f3ece4;--admin-muted:#b4a49a;--admin-line:#33201b;
+ background:var(--bg);color:var(--ink);font:400 15px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+.berloga.customer-app{--hero-img:url('/static/berloga/hero-bg.webp')}
+.berloga.customer-app .muted{color:var(--muted)}
+.berloga.customer-app .card,.berloga.customer-app .plan-choice,.berloga.customer-app .platform-choices a,
+.berloga.admin-shell .card,.berloga.admin-shell .admin-metric{
+ margin:0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:inset 0 1px 0 var(--glass-border-soft);
+}
+.berloga.customer-app h1,.berloga.admin-shell h1{font:600 clamp(28px,4vw,40px)/1.15 var(--display);letter-spacing:.01em;text-transform:uppercase}
+.berloga.customer-app h2,.berloga.admin-shell h2{font:500 23px/1.2 var(--display);letter-spacing:.01em;text-transform:uppercase}
+.berloga.customer-app h3,.berloga.admin-shell h3{font:500 18px/1.3 var(--display);text-transform:uppercase}
+.berloga.customer-app .btn,.berloga.admin-shell .btn{font-family:var(--display);text-transform:uppercase;letter-spacing:.04em;border-radius:var(--r);box-shadow:none}
+.berloga.customer-app .btn-primary,.berloga.admin-shell .btn-primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.berloga.customer-app .btn-ghost,.berloga.admin-shell .btn-ghost{background:var(--sunk);color:var(--ink);border:1px solid var(--line)}
+.berloga.customer-app input,.berloga.customer-app select,.berloga.customer-app textarea,
+.berloga.admin-shell input,.berloga.admin-shell select,.berloga.admin-shell textarea{background:var(--sunk);border-color:var(--line);border-radius:var(--r);color:var(--ink)}
+.berloga.customer-app details,.berloga.customer-app .notice-line,.berloga.customer-app .option,
+.berloga.customer-app .checkout-summary,.berloga.customer-app .step-num,.berloga.customer-app .chip{border-radius:var(--r);border-color:var(--line)}
+.berloga.customer-app .customer-pass{border-top:3px solid var(--accent)}
+.berloga.customer-app .pass-number,.berloga.customer-app .customer-facts,.berloga.admin-shell .admin-metric strong{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.berloga.customer-app .customer-nav{background:var(--surface);border-color:var(--line);border-radius:var(--r)}
+.berloga.customer-app .customer-nav a{font-family:var(--display);text-transform:uppercase;letter-spacing:.03em;border-radius:var(--r-sm);color:var(--muted)}
+.berloga.customer-app .customer-nav a[aria-current]{background:var(--accent-soft);color:var(--ink);box-shadow:inset 3px 0 var(--accent)}
+.berloga.customer-site .customer-workspace{max-width:1260px;padding-top:40px;gap:36px}
+.berloga.customer-site .customer-main{max-width:none}
+.berloga.customer-site .customer-nav{top:24px}
+.berloga.customer-miniapp{--hero-img:none}
+.berloga.customer-miniapp::before{display:none}
+.berloga.customer-miniapp .customer-header{padding:14px 20px;border-bottom:1px solid var(--line)}
+.berloga.customer-miniapp .customer-header .brand{font:500 21px var(--display);text-transform:uppercase}
+.berloga.customer-miniapp .customer-header img{width:36px;height:36px;object-fit:contain}
+.berloga.customer-miniapp .customer-main{padding-top:24px;gap:18px}
+.berloga.customer-miniapp h1{font-size:28px}
+.berloga.customer-miniapp .card{padding:20px}
+.berloga.customer-miniapp .customer-nav{border-radius:0;border-top:2px solid var(--accent)}
+.berloga.customer-miniapp .customer-nav a[aria-current]{box-shadow:inset 0 -2px var(--accent)}
+.berloga.admin-shell{grid-template-columns:248px minmax(0,1fr)}
+.berloga.admin-shell::before{display:none}
+.berloga.admin-shell .admin-sidebar{min-width:0;max-width:100%;max-height:100dvh;overflow-y:auto;background:var(--sunk);border-color:var(--line)}
+.berloga.admin-shell .admin-brand{font:500 24px var(--display);text-transform:uppercase;text-decoration:none;letter-spacing:.02em}
+.berloga.admin-shell .admin-brand small{font:400 11px/1.5 var(--mono);text-transform:none}
+.berloga.admin-shell .admin-monogram{background:none;border-radius:0;object-fit:contain;width:44px;height:44px}
+.berloga.admin-shell .admin-nav a{border-radius:var(--r-sm);text-decoration:none;border-left:2px solid transparent}
+.berloga.admin-shell .admin-nav a[aria-current],.berloga.admin-shell .admin-nav a:hover{background:var(--accent-soft);border-left-color:var(--accent);color:var(--ink)}
+.berloga.admin-shell .admin-nav-label{font:400 11px var(--mono);letter-spacing:.1em;text-transform:uppercase}
+.berloga.admin-shell .admin-topbar{border-bottom:3px solid var(--accent);background:var(--sunk)}
+.berloga.admin-shell .admin-topbar .eyebrow{margin:0;color:var(--muted)}
+.berloga.admin-shell .admin-main{padding-top:36px;overflow-x:clip}
+.berloga.admin-shell .admin-metric{border-top:2px solid var(--accent)}
+.berloga.admin-shell .admin-metric strong{font-size:30px;font-weight:400}
+.berloga.admin-shell th{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+.berloga.admin-shell .table-wrap{overflow-x:auto}
+.berloga.admin-shell :focus-visible{outline-color:var(--glow)}
+@media(max-width:760px){
+ .berloga.customer-site .customer-workspace{padding:24px 16px 40px;gap:24px}
+ .berloga.admin-shell{grid-template-columns:minmax(0,1fr)}
+ .berloga.admin-shell .admin-sidebar{min-width:0;max-width:100%;max-height:none;overflow:visible}
+ .berloga.admin-shell .admin-main{padding:24px 16px}
+ .berloga.admin-shell .admin-topbar>div{gap:12px}
+ .berloga.admin-shell .admin-topbar .eyebrow{font-size:9px;letter-spacing:.04em}
+}

@@ -4,17 +4,18 @@
   <meta name="color-scheme" content="dark light"><meta name="referrer" content="same-origin">
   <title>{{.Meta.Title}}</title><link rel="icon" href="/static/favicon.svg">
   <link rel="stylesheet" href="/static/style.css"><style>:root{ {{.Site.CSS}} --customer-accent:var(--accent);--customer-accent-text:var(--accent-text); }</style>
-  <link rel="stylesheet" href="/static/customer.css?v=1">
+  <link rel="stylesheet" href="/static/customer.css?v=2">
   <script src="https://telegram.org/js/telegram-web-app.js?65"></script>
   <script src="/static/miniapp.js?v=2" defer></script><script src="/static/customer.js?v=1" defer></script>
-</head><body class="customer-app" data-page="{{.View}}" data-csrf="{{.CSRF}}">
+</head><body class="customer-app {{if .MiniApp}}customer-miniapp{{else}}customer-site{{end}}" data-page="{{.View}}" data-csrf="{{.CSRF}}">
   <header class="customer-header"><a class="brand" href="/account">{{if .Site.LogoURL}}<img width="28" height="28" src="{{.Site.LogoURL}}" alt="">{{end}}{{.Site.Brand}}</a><a href="/support" class="muted">Помощь</a></header>
-  {{template "flash" .}}<main class="customer-main" id="main">{{template "content" .}}</main>
+  <div class="customer-workspace"><main class="customer-main" id="main">{{template "flash" .}}{{template "content" .}}</main>
   {{if .Subject}}<nav class="customer-nav" aria-label="Кабинет">
     <a href="/account" {{if or (eq .Path "/account") (eq .Path "/connect") (eq .Path "/buy")}}aria-current="page"{{end}}>Подписка</a>
     <a href="/account/devices" {{if eq .Path "/account/devices"}}aria-current="page"{{end}}>Устройства</a>
     <a href="/support" {{if eq .Path "/support"}}aria-current="page"{{end}}>Помощь</a>
     <a href="/account/profile" {{if eq .Path "/account/profile"}}aria-current="page"{{end}}>Профиль</a>
   </nav>{{end}}
+  </div>
   {{block "scripts" .}}{{end}}
 </body></html>{{end}}

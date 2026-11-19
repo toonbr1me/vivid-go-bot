@@ -52,7 +52,7 @@ func TestBerlogaThemeRendersRealPageContracts(t *testing.T) {
 			if !strings.Contains(body, tt.want) || !strings.Contains(body, "/static/berloga/python.css") {
 				t.Fatal("missing page content or original stylesheet")
 			}
-			if strings.Contains(body, "/static/style.css") || strings.Contains(body, "/static/admin.css") {
+			if strings.Contains(body, "/static/style.css") || (!strings.HasPrefix(tt.page, "admin") && strings.Contains(body, "/static/admin.css")) {
 				t.Fatal("default UI styles mixed into Python theme")
 			}
 			if out := os.Getenv("BERLOGA_REVIEW_EXPORT"); out != "" {

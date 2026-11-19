@@ -1,7 +1,27 @@
 {{define "layout"}}<!doctype html>
-<html lang="ru"><head>{{template "berloga/head" .}}{{block "head" .}}{{end}}</head>
-<body class="berloga berloga-staff" data-page="{{.View}}">
-{{template "berloga/header" .}}
-<main><div class="wrap"><p class="eyebrow">Управление сервисом</p>{{template "berloga/staff-nav" .}}{{template "flash" .}}{{template "content" .}}</div></main>
-{{template "berloga/footer" .}}{{block "scripts" .}}{{end}}
+<html lang="{{.Site.Locale}}"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark">
+<title>{{.Meta.Title}}</title><link rel="icon" href="/static/favicon.svg"><link rel="stylesheet" href="/static/admin.css">
+{{range .Site.Stylesheets}}<link rel="stylesheet" href="{{.}}">{{end}}{{range .Page.Stylesheets}}<link rel="stylesheet" href="{{.}}">{{end}}<link rel="stylesheet" href="/static/berloga/workspace.css?v=1">{{block "head" .}}{{end}}
+</head><body class="berloga berloga-staff admin-shell" data-page="{{.View}}">
+<aside class="admin-sidebar">
+ <a class="admin-brand" href="/admin"><img class="admin-monogram" src="/static/berloga/logo.png" width="40" height="40" alt=""><span>{{.Site.Brand}}<small>Управление сервисом</small></span></a>
+ <nav class="admin-nav" aria-label="Разделы управления">
+  <a href="/admin" {{if eq .View "admin"}}aria-current="page"{{end}}>Рабочий стол</a>
+  {{if .Staff.Can "plans.manage"}}<a href="/admin/plans" {{if eq .Path "/admin/plans"}}aria-current="page"{{end}}>Тарифы и устройства</a>{{end}}{{if .Staff.Can "settings.edit"}}<a href="/admin/settings" {{if eq .Path "/admin/settings"}}aria-current="page"{{end}}>Настройки</a>{{end}}{{if .Staff.Can "staff.manage"}}<a href="/admin/staff" {{if eq .Path "/admin/staff"}}aria-current="page"{{end}}>Сотрудники</a>{{end}}{{if .Staff.Can "withdrawal.approve"}}<a href="/admin/withdrawals" {{if eq .Path "/admin/withdrawals"}}aria-current="page"{{end}}>Выплаты</a>{{end}}{{if .Staff.Can "orders.view"}}<a href="/admin/orders" {{if eq .View "admin_orders"}}aria-current="page"{{end}}>Заказы</a>{{end}}
+  {{if .Staff.Can "stats.view"}}{{if .Staff.Can "refund.manage"}}<a href="/admin/refunds" {{if eq .Path "/admin/refunds"}}aria-current="page"{{end}}>Возвраты</a>{{end}}<a href="/admin/operations" {{if eq .Path "/admin/operations"}}aria-current="page"{{end}}>Состояние сервиса</a>{{end}}{{if .Staff.Can "broadcast.send"}}<a href="/admin/campaigns" {{if eq .Path "/admin/campaigns"}}aria-current="page"{{end}}>Кампании</a>{{end}}<a href="/admin/tickets" {{if eq .View "admin_tickets"}}aria-current="page"{{end}}>Обращения</a>
+  {{if .Staff.Can "promo.manage"}}<a href="/admin/promos" {{if eq .View "admin_promos"}}aria-current="page"{{end}}>Промокоды</a>{{end}}
+  {{if .Staff.Can "partners.manage"}}<a href="/admin/partners" {{if eq .View "admin_partners"}}aria-current="page"{{end}}>Партнёры</a>{{end}}
+  <span class="admin-nav-label">Интерфейс</span>
+  {{if .Staff.Can "settings.edit"}}<a href="/admin/screens" {{if eq .View "admin_screens"}}aria-current="page"{{end}}>Экраны и сценарии</a>{{end}}
+  {{if .Staff.Can "settings.edit"}}<a href="/admin/appearance" {{if eq .View "admin_appearance"}}aria-current="page"{{end}}>Оформление</a>{{end}}
+  {{if .Staff.Can "audit.view"}}<a href="/admin/audit" {{if eq .View "admin_audit"}}aria-current="page"{{end}}>Журнал действий</a>{{end}}
+ </nav>
+ <div class="admin-sidebar-foot"><span>{{if .Staff.Owner}}Владелец{{else}}Сотрудник{{end}}</span><a href="/account">Личный кабинет ↗</a><a href="/">Открыть сайт ↗</a></div>
+</aside>
+<div class="admin-workspace">
+ <header class="admin-topbar"><span class="eyebrow">Управление сервисом</span><div><a href="/admin/tickets" {{if eq .Path "/admin/tickets"}}aria-current="page"{{end}}>Поддержка</a>{{if .BotURL}}<a href="{{.BotURL}}" target="_blank" rel="noopener">Открыть бот ↗</a>{{end}}</div></header>
+ <main class="admin-main">{{template "flash" .}}{{template "content" .}}</main>
+</div>
+{{range .Site.Scripts}}<script src="{{.}}" defer></script>{{end}}{{range .Page.Scripts}}<script src="{{.}}" defer></script>{{end}}{{block "scripts" .}}{{end}}
 </body></html>{{end}}
