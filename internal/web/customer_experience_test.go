@@ -25,7 +25,8 @@ func TestCustomerExperienceTemplates(t *testing.T) {
 	expiry := now.Add(18 * 24 * time.Hour)
 	id := int64(7)
 	subject := domain.Subject{ID: 1, TelegramID: &id}
-	access := domain.Access{Found: true, Active: true, URL: "https://example.invalid/demo-subscription", ExpireAt: &expiry, DeviceLimit: 3, Devices: []domain.AccessDevice{{HWID: "demo-one", Model: "iPhone", Platform: "iOS", CreatedAt: now}, {HWID: "demo-two", Model: "MacBook", Platform: "macOS", CreatedAt: now}}}
+	limit := int64(100 << 30)
+	access := domain.Access{Found: true, Active: true, URL: "https://example.invalid/demo-subscription", ExpireAt: &expiry, DeviceLimit: 3, TrafficLimit: &limit, TrafficUsedBytes: 1 << 30, Devices: []domain.AccessDevice{{HWID: "demo-one", Model: "iPhone", Platform: "iOS", CreatedAt: now}, {HWID: "demo-two", Model: "MacBook", Platform: "macOS", CreatedAt: now}}}
 	g := domain.GuideCustomer(access, nil, nil, false, now)
 	base := accountData{Access: access, DaysLeft: 18, DeviceLimit: 3, Guidance: &g, GuidanceURL: "/connect"}
 	platform, _ := domain.ConnectionPlatformFor("ios")

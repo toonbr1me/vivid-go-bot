@@ -6,7 +6,7 @@
   <div class="card-head"><h2>{{.Site.Brand}}</h2><span class="customer-status">{{if not .Data.Access.Found}}{{if .Data.Access.ExpireAt}}Последние известные данные{{else}}Нет подписки{{end}}{{else if .Data.Access.Active}}Активна{{else}}Доступ не активен{{end}}</span></div>
   {{if .Data.Access.ExpireAt}}<div class="pass-number">{{.Data.DaysLeft}} <small>{{daysWord .Data.DaysLeft}} осталось</small></div><p class="muted">До {{date .Data.Access.ExpireAt}}</p>{{else}}<p>Начните с пробного доступа или выберите подписку</p>{{end}}
   {{if .Data.Access.Found}}<div class="customer-facts"><p>{{len .Data.Access.Devices}}{{if .Data.DeviceLimit}} из {{.Data.DeviceLimit}}{{end}}<span>устройств</span></p><p>{{bytes .Data.Access.TrafficLimit}}<span>трафик</span></p></div>{{end}}
-  {{if .Data.Access.TrafficLimit}}<div><div class="traffic-bar"><span style="width:{{pct .Data.Access.TrafficUsedBytes .Data.Access.TrafficLimit}}%"></span></div><p class="muted small">Использовано {{bytes .Data.Access.TrafficUsedBytes}}</p></div>{{end}}
+  {{if .Data.Access.TrafficLimit}}<div><div class="traffic-bar"><span style="width:{{pct .Data.Access.TrafficUsedBytes .Data.Access.TrafficLimit}}%"></span></div><p class="muted small">Использовано {{bytesUsed .Data.Access.TrafficUsedBytes}}</p></div>{{end}}
   {{if .Data.Guidance}}
     <div><strong>{{.Data.Guidance.Title}}</strong><p class="muted small">{{.Data.Guidance.Detail}}</p></div>
     {{if eq .Data.Guidance.Action "trial"}}<form method="post" action="/trial"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="btn btn-primary btn-block" type="submit">Попробовать бесплатно</button></form>

@@ -28,7 +28,7 @@ func (b *Bot) interfaceScreen(ctx context.Context, id int64, name string) (cardS
 		return b.buyCard(ctx, id)
 	case "support":
 		_, kb := b.supportScreen(ctx, id)
-		actions := []telego.InlineKeyboardButton{button("Проверить подписку и устройства", "nav:diagnostics"), button("Инструкция подключения", "nav:connect")}
+		actions := []telego.InlineKeyboardButton{}
 		for _, row := range kb.InlineKeyboard {
 			for _, a := range row {
 				if a.CallbackData != "nav:main" && a.CallbackData != "nav:profile" {

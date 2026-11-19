@@ -597,6 +597,7 @@ func templateFuncs() template.FuncMap {
 		"date":             dateText,
 		"datetime":         datetimeText,
 		"bytes":            bytesText,
+		"bytesUsed":        usedBytesText,
 		"pct":              percent,
 		"daysWord":         daysWord,
 		"status":           orderStatus,
@@ -701,6 +702,13 @@ func bytesText(value *int64) string {
 		return fmt.Sprintf("%.0f %s", size, units[unit])
 	}
 	return fmt.Sprintf("%.1f %s", size, units[unit])
+}
+
+func usedBytesText(value int64) string {
+	if value <= 0 {
+		return "0 Б"
+	}
+	return bytesText(&value)
 }
 
 func percent(used int64, limit *int64) int {

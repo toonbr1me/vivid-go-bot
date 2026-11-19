@@ -22,6 +22,11 @@ func (b *Bot) standardRichScreen(ctx context.Context, id int64, name string) (st
 		return b.standardRichProfile(ctx, id)
 	case "history":
 		return b.standardRichHistory(ctx, id)
+	case "support":
+		// Native rich messages can show the complete keyboard. The widget's
+		// four-actions-per-page layout must not hide contact or ticket actions.
+		text, kb := b.supportScreen(ctx, id)
+		return screenRichHTML(text), quietRichKeyboard(kb), true
 	case "settings":
 		settings, err := b.db.NotificationSettingsFor(ctx, id)
 		if err != nil {

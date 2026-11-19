@@ -646,11 +646,16 @@ func (b *Bot) supportScreen(ctx context.Context, tgID int64) (string, *telego.In
 	}
 	staff := b.isStaff(ctx, tgID)
 	kb := b.supportKeyboard(open, staff)
-	rows := [][]telego.InlineKeyboardButton{}
+	// Contact and existing conversations always precede optional self-help.
+	rows := [][]telego.InlineKeyboardButton{{{Text: "Связаться с поддержкой", CallbackData: "support:new", Style: "primary"}}}
+	rows = append(rows, kb.InlineKeyboard[1:len(kb.InlineKeyboard)-1]...)
+	if !b.isSupportBot() {
+		rows = append(rows, []telego.InlineKeyboardButton{button("Проверить подписку и устройства", "nav:diagnostics")}, []telego.InlineKeyboardButton{button("Инструкция подключения", "nav:connect")})
+	}
 	for _, topic := range domain.SupportTopics() {
 		rows = append(rows, []telego.InlineKeyboardButton{button(topic.Label, "support:topic:"+topic.Key)})
 	}
-	rows = append(rows, kb.InlineKeyboard...)
+	rows = append(rows, kb.InlineKeyboard[len(kb.InlineKeyboard)-1])
 	return strings.Join(lines, "\n"), keyboard(rows...)
 }
 
