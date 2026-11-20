@@ -332,7 +332,8 @@ func (s *Service) provisionSubscription(ctx context.Context, order domain.Order)
 		IsRenewal:          order.RenewGrantID != nil,
 	}
 	if user, err := s.panelUser(ctx, order.TelegramID, username); err == nil {
-		if url := remnawave.SubscriptionURL(s.cfg.Current().APIBaseURL, *user); url != "" {
+		current := s.cfg.Current()
+		if url := serviceSubscriptionURL(current.APIBaseURL, current.SubscriptionBaseURL, *user); url != "" {
 			result.SubscriptionURL = &url
 		}
 		result.DevicesRenewed = len(order.DeviceRenewals)

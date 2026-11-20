@@ -96,7 +96,8 @@ func (s *Service) fillAccess(ctx context.Context, access *domain.Access, subject
 	if access.ConnectionKnown {
 		_ = s.db.ObserveConnection(ctx, subject.ID, access.FirstConnectedAt)
 	}
-	access.URL = remnawave.SubscriptionURL(s.cfg.Current().APIBaseURL, user)
+	current := s.cfg.Current()
+	access.URL = serviceSubscriptionURL(current.APIBaseURL, current.SubscriptionBaseURL, user)
 	access.TrafficUsedBytes = user.TrafficUsedBytes
 	access.TrafficLimit = user.TrafficLimitBytes
 	if !user.ExpireAt.IsZero() {
