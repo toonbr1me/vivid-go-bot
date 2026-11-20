@@ -82,6 +82,7 @@ type User struct {
 	ShortUUID            string         `json:"shortUuid"`
 	Username             string         `json:"username"`
 	Status               string         `json:"status"`
+	Tag                  string         `json:"tag"`
 	ExpireAt             Timestamp      `json:"expireAt"`
 	TelegramID           *int64         `json:"telegramId"`
 	Email                string         `json:"email"`
@@ -106,6 +107,7 @@ func (u *User) UnmarshalJSON(data []byte) error {
 	u.ShortUUID = stringOf(raw["shortUuid"])
 	u.Username = stringOf(raw["username"])
 	u.Status = stringOf(raw["status"])
+	u.Tag = stringOf(raw["tag"])
 	u.Email = stringOf(raw["email"])
 	u.SubscriptionURL = stringOf(raw["subscriptionUrl"])
 	if value, ok := raw["telegramId"]; ok && value != nil {
@@ -165,9 +167,18 @@ func PickUser(users []User) *User {
 
 // Client — HTTP-клиент панели.
 type Client struct {
-	baseURL string
-	token   string
-	http    *http.Client
+	baseURL     string
+	token       string
+	requiredTag string
+	http        *http.Client
+}
+
+// NewTagged creates a client that only manages users carrying tag. The tag is
+// attached to new profiles and checked before any user-specific operation.
+func NewTagged(baseURL, token string, timeout time.Duration, tag string) *Client {
+	c := New(baseURL, token, timeout)
+	c.requiredTag = strings.TrimSpace(tag)
+	return c
 }
 
 // New создаёт клиент. Таймаут в секундах.
@@ -193,7 +204,17 @@ func (c *Client) UsersByTelegramID(ctx context.Context, telegramID int64) ([]Use
 	}
 	response, _ := data["response"].(map[string]any)
 	rawUsers, _ := response["users"].([]any)
-	return decodeUsers(rawUsers)
+	users, err := decodeUsers(rawUsers)
+	if err != nil || c.requiredTag == "" {
+		return users, err
+	}
+	filtered := users[:0]
+	for _, user := range users {
+		if user.Tag == c.requiredTag {
+			filtered = append(filtered, user)
+		}
+	}
+	return filtered, nil
 }
 
 // UserByUsername ищет пользователя по имени; отсутствие — не ошибка.
@@ -213,6 +234,9 @@ func (c *Client) UserByUsername(ctx context.Context, username string) (*User, er
 	var user User
 	if err := json.Unmarshal(encoded, &user); err != nil {
 		return nil, err
+	}
+	if c.requiredTag != "" && user.Tag != c.requiredTag {
+		return nil, nil
 	}
 	return &user, nil
 }
@@ -289,6 +313,7 @@ func (c *Client) ResolveExternalSquadUUID(ctx context.Context, name string) (str
 // CreateUserParams — параметры создания пользователя панели.
 type CreateUserParams struct {
 	Username          string
+	Tag               string
 	TelegramID        *int64
 	ExpireAt          time.Time
 	TrafficLimitBytes *int64
@@ -300,9 +325,15 @@ type CreateUserParams struct {
 // CreateUser заводит пользователя. Пользователь может быть без Telegram:
 // сайт продаёт подписку и до привязки к мессенджеру.
 func (c *Client) CreateUser(ctx context.Context, params CreateUserParams) (User, error) {
+	if c.requiredTag != "" {
+		params.Tag = c.requiredTag
+	}
 	payload := map[string]any{
 		"username": params.Username,
 		"expireAt": params.ExpireAt.UTC().Format(time.RFC3339),
+	}
+	if params.Tag != "" {
+		payload["tag"] = params.Tag
 	}
 	if params.TelegramID != nil {
 		payload["telegramId"] = *params.TelegramID
@@ -342,6 +373,9 @@ type UpdateUserParams struct {
 
 // UpdateUser отправляет только заданные поля.
 func (c *Client) UpdateUser(ctx context.Context, params UpdateUserParams) (User, error) {
+	if err := c.requireTag(ctx, params.UserID); err != nil {
+		return User{}, err
+	}
 	payload := map[string]any{"id": params.UserID}
 	if params.ExpireAt != nil {
 		payload["expireAt"] = params.ExpireAt.UTC().Format(time.RFC3339)
@@ -374,8 +408,34 @@ func (c *Client) UpdateUser(ctx context.Context, params UpdateUserParams) (User,
 	return decodeUser(data["response"])
 }
 
+// requireTag prevents a service bot from reading or changing another service's
+// profile by ID. With no configured tag, legacy single-panel behavior applies.
+func (c *Client) requireTag(ctx context.Context, userID int64) error {
+	if c.requiredTag == "" {
+		return nil
+	}
+	if userID <= 0 {
+		return errf("invalid panel user id")
+	}
+	data, err := c.do(ctx, http.MethodGet, fmt.Sprintf("/api/users/%d", userID), nil, nil, nil)
+	if err != nil {
+		return err
+	}
+	user, err := decodeUser(data["response"])
+	if err != nil {
+		return err
+	}
+	if user.Tag != c.requiredTag {
+		return errf("panel user is outside configured tag")
+	}
+	return nil
+}
+
 // UpdateExpireAt продлевает подписку.
 func (c *Client) UpdateExpireAt(ctx context.Context, userID int64, expireAt time.Time, squads []string) (User, error) {
+	if err := c.requireTag(ctx, userID); err != nil {
+		return User{}, err
+	}
 	payload := map[string]any{
 		"id":       userID,
 		"expireAt": expireAt.UTC().Format(time.RFC3339),
@@ -393,6 +453,9 @@ func (c *Client) UpdateExpireAt(ctx context.Context, userID int64, expireAt time
 // ResetTraffic обнуляет израсходованное. 404 не прощается: у пользователя без
 // трафика эндпоинт отвечает 200, значит 404 — неверный путь или пользователь.
 func (c *Client) ResetTraffic(ctx context.Context, userID int64) error {
+	if err := c.requireTag(ctx, userID); err != nil {
+		return err
+	}
 	_, err := c.do(ctx, http.MethodPost, fmt.Sprintf("/api/users/%d/actions/reset-traffic", userID), nil, nil, nil)
 	return err
 }
@@ -409,6 +472,9 @@ type HWIDDevice struct {
 
 // HWIDDevices возвращает устройства пользователя.
 func (c *Client) HWIDDevices(ctx context.Context, userID int64) ([]HWIDDevice, error) {
+	if err := c.requireTag(ctx, userID); err != nil {
+		return nil, err
+	}
 	data, err := c.do(ctx, http.MethodGet, fmt.Sprintf("/api/hwid/devices/%d", userID), nil, nil, nil)
 	if err != nil {
 		return nil, err
@@ -432,6 +498,9 @@ func (c *Client) HWIDDevices(ctx context.Context, userID int64) ([]HWIDDevice, e
 
 // DeleteHWIDDevice отвязывает устройство. false — его уже не было.
 func (c *Client) DeleteHWIDDevice(ctx context.Context, userID int64, hwid string) (bool, error) {
+	if err := c.requireTag(ctx, userID); err != nil {
+		return false, err
+	}
 	data, err := c.do(ctx, http.MethodPost, "/api/hwid/devices/delete",
 		nil, map[string]any{"userId": userID, "hwid": hwid}, map[int]bool{404: true})
 	if err != nil {
@@ -442,6 +511,9 @@ func (c *Client) DeleteHWIDDevice(ctx context.Context, userID int64, hwid string
 
 // DeleteUser удаляет пользователя панели. false — его уже нет.
 func (c *Client) DeleteUser(ctx context.Context, userID int64) (bool, error) {
+	if err := c.requireTag(ctx, userID); err != nil {
+		return false, err
+	}
 	data, err := c.do(ctx, http.MethodDelete, fmt.Sprintf("/api/users/%d", userID), nil, nil, map[int]bool{404: true})
 	if err != nil {
 		return false, err

@@ -27,6 +27,7 @@ type Settings struct {
 	APIBaseURL          string
 	APIToken            string
 	RemnawaveNamespace  string
+	RemnawaveUserTag    string
 	SubscriptionBaseURL string
 	AdminIDs            map[int64]bool
 
@@ -365,6 +366,7 @@ func Load(overlay map[string]string) (*Settings, error) {
 		APIBaseURL:          strings.TrimRight(apiBaseURL, "/"),
 		APIToken:            apiToken,
 		RemnawaveNamespace:  strings.TrimSpace(os.Getenv("REMNAWAVE_NAMESPACE")),
+		RemnawaveUserTag:    strings.TrimSpace(os.Getenv("REMNAWAVE_USER_TAG")),
 		SubscriptionBaseURL: strings.TrimSpace(os.Getenv("SUBSCRIPTION_BASE_URL")),
 		AdminIDs:            env.int64Set("ADMIN_IDS"),
 

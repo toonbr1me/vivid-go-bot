@@ -94,8 +94,8 @@ func run() error {
 	// интерфейса, и проверка «панели нет» проходила бы, а вызов падал бы.
 	var panel payments.Panel
 	if cfg.APIBaseURL != "" && cfg.APIToken != "" {
-		client := remnawave.New(cfg.APIBaseURL, cfg.APIToken,
-			time.Duration(cfg.RequestTimeoutSecs*float64(time.Second)))
+		client := remnawave.NewTagged(cfg.APIBaseURL, cfg.APIToken,
+			time.Duration(cfg.RequestTimeoutSecs*float64(time.Second)), cfg.RemnawaveUserTag)
 		panel = client
 		if cfg.RemnawaveNamespace != "" {
 			scoped, err := remnawave.NewScoped(client, cfg.RemnawaveNamespace, cfg.SubscriptionBaseURL)
